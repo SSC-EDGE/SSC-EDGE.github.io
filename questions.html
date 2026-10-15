@@ -778,6 +778,22 @@ button.import-btn{
 
     </div>
 
+    <div id="questionDeleteActions" class="bulk-actions">
+      <h2 style="margin:0 0 10px;">🗑️ Select Questions to Delete</h2>
+      <div class="bulk-select-row">
+        <input id="selectAllQuestions" type="checkbox" onchange="toggleAllQuestions(this.checked)">
+        <label for="selectAllQuestions" style="margin:0;color:var(--text);">
+          Select all questions currently shown
+        </label>
+      </div>
+      <div id="selectedQuestionCount" class="bulk-count">0 questions selected</div>
+      <div class="actions">
+        <button class="danger" onclick="deleteSelectedQuestions()">Delete Selected</button>
+        <button class="secondary" onclick="clearQuestionSelection()">Clear Selection</button>
+      </div>
+      <div class="small-note">Use Subject, Chapter or Search filters first if you only want to select specific questions.</div>
+    </div>
+
     <div id="questionList"></div>
 
   </div>
@@ -811,6 +827,7 @@ const BULK_IMPORT_CHAPTER_NAME = "Unassigned";
 let bulkImportSubjectId = null;
 let bulkImportChapterId = null;
 let bulkSelectedIds = new Set();
+let selectedQuestionIds = new Set();
 
 /* ADMIN CHECK */
 
@@ -1166,6 +1183,7 @@ async function renderQuestions(){
       <div class="card empty">
         No questions found.
       </div>`;
+    updateQuestionSelectionUI([]);
 
     return;
   }
@@ -1258,6 +1276,17 @@ async function renderQuestions(){
     list.innerHTML += `
 
       <div class="question">
+
+        <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
+          <input
+            class="question-select"
+            type="checkbox"
+            ${selectedQuestionIds.has(String(q.id)) ? "checked" : ""}
+            onchange="toggleQuestionSelection(${JSON.stringify(String(q.id))},this.checked)"
+            aria-label="Select question for deletion"
+          >
+          <span class="small-note" style="margin:0;">Select for deletion</span>
+        </div>
 
         ${
           isBulkView
@@ -1388,6 +1417,110 @@ async function renderQuestions(){
       </div>`;
 
   });
+
+  updateQuestionSelectionUI(filtered.map(q => String(q.id)));
+}
+
+/* QUESTION BULK DELETE */
+
+function toggleQuestionSelection(id, checked){
+  const key = String(id);
+  if(checked) selectedQuestionIds.add(key);
+  else selectedQuestionIds.delete(key);
+  updateQuestionSelectionUI(
+    questions
+      .filter(q => {
+        const subjectId = document.getElementById("filterSubject").value;
+        const chapterId = document.getElementById("filterChapter").value;
+        const search = document.getElementById("search").value.trim().toLowerCase();
+        if(subjectId && String(q.subject_id) !== String(subjectId)) return false;
+        if(chapterId && String(q.chapter_id) !== String(chapterId)) return false;
+        if(search){
+          const combined = (String(q.question_text || "") + " " + String(q.question_text_hi || "") + " " + String(q.explanation || "")).toLowerCase();
+          if(!combined.includes(search)) return false;
+        }
+        return true;
+      })
+      .map(q => String(q.id))
+  );
+}
+
+function toggleAllQuestions(checked){
+  const subjectId = document.getElementById("filterSubject").value;
+  const chapterId = document.getElementById("filterChapter").value;
+  const search = document.getElementById("search").value.trim().toLowerCase();
+
+  const visible = questions.filter(q => {
+    if(subjectId && String(q.subject_id) !== String(subjectId)) return false;
+    if(chapterId && String(q.chapter_id) !== String(chapterId)) return false;
+    if(search){
+      const combined = (String(q.question_text || "") + " " + String(q.question_text_hi || "") + " " + String(q.explanation || "")).toLowerCase();
+      if(!combined.includes(search)) return false;
+    }
+    return true;
+  });
+
+  visible.forEach(q => {
+    const key = String(q.id);
+    if(checked) selectedQuestionIds.add(key);
+    else selectedQuestionIds.delete(key);
+  });
+
+  renderQuestions();
+}
+
+function clearQuestionSelection(){
+  selectedQuestionIds.clear();
+  const all = document.getElementById("selectAllQuestions");
+  if(all) all.checked = false;
+  renderQuestions();
+}
+
+function updateQuestionSelectionUI(visibleIds = []){
+  const count = document.getElementById("selectedQuestionCount");
+  if(count) count.textContent = `${selectedQuestionIds.size} question${selectedQuestionIds.size === 1 ? "" : "s"} selected`;
+
+  const all = document.getElementById("selectAllQuestions");
+  if(all){
+    const visible = visibleIds.map(String);
+    all.checked = visible.length > 0 && visible.every(id => selectedQuestionIds.has(id));
+    all.indeterminate = visible.some(id => selectedQuestionIds.has(id)) && !all.checked;
+  }
+}
+
+async function deleteSelectedQuestions(){
+  const ids = [...selectedQuestionIds];
+  if(!ids.length){
+    alert("Please select at least one question to delete.");
+    return;
+  }
+
+  const confirmation = prompt(
+    `You selected ${ids.length} question(s). This permanently deletes the selected questions and their related options if database cascade rules allow it. Type DELETE to confirm:`
+  );
+  if(confirmation !== "DELETE") return;
+
+  try{
+    // Delete options explicitly first so this works even when FK cascade is not configured.
+    const { error: optionsError } = await db
+      .from("question_options")
+      .delete()
+      .in("question_id", ids);
+    if(optionsError) throw optionsError;
+
+    const { error: questionsError } = await db
+      .from("questions")
+      .delete()
+      .in("id", ids);
+    if(questionsError) throw questionsError;
+
+    selectedQuestionIds.clear();
+    alert(`${ids.length} question(s) deleted.`);
+    await loadQuestions();
+  }catch(error){
+    console.error(error);
+    alert("Could not delete selected questions:\\n" + (error.message || "Unknown error"));
+  }
 }
 
 /* IMAGE UPLOAD */
@@ -1910,6 +2043,7 @@ async function deleteQuestion(id){
     return;
   }
 
+  selectedQuestionIds.delete(String(id));
   alert("Question deleted.");
 
   await loadQuestions();
