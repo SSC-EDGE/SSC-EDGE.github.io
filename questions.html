@@ -435,7 +435,10 @@ button.import-btn{
 
   <div class="header">
     <h1>❓ Question Bank</h1>
-    <a class="back" href="admin.html">← Admin</a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <a class="back" href="question-shift-manager.html">📅 Question-Shift Manager</a>
+      <a class="back" href="admin.html">← Admin</a>
+    </div>
   </div>
 
   <div id="status" class="status">
@@ -795,6 +798,10 @@ button.import-btn{
     </div>
 
     <div id="questionList"></div>
+    <div style="display:flex;justify-content:center;margin:18px 0;">
+      <button id="loadMoreQuestionsBtn" class="secondary" onclick="loadMoreQuestions()" style="display:none;">Load More Questions</button>
+    </div>
+    <div id="questionLoadInfo" class="small-note" style="text-align:center;margin-bottom:20px;"></div>
 
   </div>
 </div>
@@ -815,6 +822,10 @@ const db = supabase.createClient(
 let subjects = [];
 let chapters = [];
 let questions = [];
+const QUESTIONS_PAGE_SIZE = 50;
+let questionsOffset = 0;
+let questionsHasMore = true;
+let questionsLoading = false;
 
 let editingId = null;
 let existingImageUrl = "";
@@ -1093,30 +1104,47 @@ function updateFilterChapter(){
 /* LOAD QUESTIONS */
 
 async function loadQuestions(){
+  // Start with only the newest 50 questions to keep the page responsive.
+  questions = [];
+  questionsOffset = 0;
+  questionsHasMore = true;
+  const list = document.getElementById("questionList");
+  if(list) list.innerHTML = '<div class="card empty">Loading questions...</div>';
+  await loadMoreQuestions(true);
+}
 
-  const { data,error } =
-    await db
+async function loadMoreQuestions(isInitial = false){
+  if(questionsLoading || !questionsHasMore) return;
+  questionsLoading = true;
+  const btn = document.getElementById("loadMoreQuestionsBtn");
+  const info = document.getElementById("questionLoadInfo");
+  if(btn){ btn.disabled = true; btn.textContent = "Loading..."; }
+  try{
+    const from = questionsOffset;
+    const to = from + QUESTIONS_PAGE_SIZE - 1;
+    const { data,error } = await db
       .from("questions")
-      .select(`
-        *,
-        subjects(name),
-        chapters(name)
-      `)
-      .order("id",{ascending:false});
-
-  if(error){
-
-    alert(
-      "Could not load questions:\n" +
-      error.message
-    );
-
-    return;
+      .select(`*, subjects(name), chapters(name)`)
+      .order("id",{ascending:false})
+      .range(from,to);
+    if(error) throw error;
+    const batch = data || [];
+    questions = questions.concat(batch);
+    questionsOffset += batch.length;
+    questionsHasMore = batch.length === QUESTIONS_PAGE_SIZE;
+    await renderQuestions();
+    if(info) info.textContent = `Loaded ${questions.length} question(s)${questionsHasMore ? ' — more available' : ' — all questions loaded'}.`;
+  }catch(error){
+    if(isInitial) document.getElementById("questionList").innerHTML = '<div class="card empty">Could not load questions.</div>';
+    alert("Could not load questions:\n" + (error.message || "Unknown error"));
+  }finally{
+    questionsLoading = false;
+    if(btn){
+      btn.style.display = questionsHasMore ? "inline-block" : "none";
+      btn.disabled = false;
+      btn.textContent = "Load More Questions (50)";
+    }
   }
-
-  questions = data || [];
-
-  renderQuestions();
 }
 
 /* RENDER */
@@ -2828,126 +2856,244 @@ async function nextFolderOrder(folderId){
   return (data?.length ? Number(data[0].question_order)||0 : 0)+1;
 }
 
-/* BULK IMPORT DATABASE — optimized batched inserts; UI unchanged */
+/* BULK IMPORT DATABASE */
 
 async function importAllQuestions(){
-  const validRows = bulkValidatedRows.filter(r => r.errors.length === 0);
-  if(!validRows.length){ alert("There are no valid questions to import."); return; }
 
-  const button = document.getElementById("importAllButton");
-  if(button.disabled) return;
+  const validRows =
+    bulkValidatedRows.filter(
+      r => r.errors.length === 0
+    );
+
+  if(!validRows.length){
+
+    alert(
+      "There are no valid questions to import."
+    );
+
+    return;
+  }
+
+  const button =
+    document.getElementById(
+      "importAllButton"
+    );
+
   button.disabled = true;
-  button.textContent = "Importing...";
-  const resultBox = document.getElementById("bulkImportResult");
-  resultBox.innerHTML = `<div class="status">Preparing ${validRows.length} questions...</div>`;
+
+  button.textContent =
+    "Importing...";
+
+  const resultBox =
+    document.getElementById(
+      "bulkImportResult"
+    );
+
+  resultBox.innerHTML =
+    `<div class="status">
+      Importing ${validRows.length} questions...
+    </div>`;
 
   let imported = 0;
   let failed = 0;
   const failures = [];
-  const BATCH_SIZE = 25;
-  const folderCache = new Map();
-  const chapterCache = new Map();
-  const orderCache = new Map();
 
-  try {
-    // Resolve each date/shift folder only once, rather than once per question.
-    for (const r of validRows) {
-      const key = `${r.subjectId}|${r.examDate}|${r.shiftNo}`;
-      if (!folderCache.has(key)) {
-        folderCache.set(key, getOrCreateShiftFolder(r.subjectId, r.examDate, r.shiftNo));
-      }
-      r._folderKey = key;
-    }
-    await Promise.all([...folderCache.entries()].map(async ([key, promise]) => folderCache.set(key, await promise)));
+  try{
 
-    // Resolve the fallback chapter once per subject.
-    for (const r of validRows) {
-      if (!r.chapterId && !chapterCache.has(String(r.subjectId))) {
-        chapterCache.set(String(r.subjectId), getOrCreateShiftImportChapter(r.subjectId));
-      }
-    }
-    await Promise.all([...chapterCache.entries()].map(async ([key, promise]) => chapterCache.set(key, await promise)));
+    for(
+      let i=0;
+      i<validRows.length;
+      i++
+    ){
 
-    // Read each folder's starting order once.
-    for (const r of validRows) {
-      const folderId = folderCache.get(r._folderKey);
-      if (!orderCache.has(String(folderId))) {
-        orderCache.set(String(folderId), nextFolderOrder(folderId));
-      }
-    }
-    await Promise.all([...orderCache.entries()].map(async ([key, promise]) => orderCache.set(key, await promise)));
+      const r =
+        validRows[i];
 
-    for (let offset = 0; offset < validRows.length; offset += BATCH_SIZE) {
-      const batch = validRows.slice(offset, offset + BATCH_SIZE);
-      resultBox.innerHTML = `<div class="status">Importing questions ${offset + 1}–${Math.min(offset + batch.length, validRows.length)} of ${validRows.length}...</div>`;
+      try{
 
-      let insertedQuestions = [];
-      try {
-        const questionPayload = batch.map(r => ({
-          subject_id: r.subjectId,
-          chapter_id: r.chapterId || chapterCache.get(String(r.subjectId)),
-          question_text: r.questionEnglish,
-          question_text_hi: r.questionHindi,
-          explanation: r.explanation,
-          correct_options: r.correct,
-          is_bonus: r.bonus,
-          solution_video_url: r.video || null,
-          mock_test_id: null
-        }));
+        const folderId = await getOrCreateShiftFolder(r.subjectId, r.examDate, r.shiftNo);
+        const chapterId = r.chapterId || await getOrCreateShiftImportChapter(r.subjectId);
 
-        const { data: qData, error: qError } = await db
-          .from("questions").insert(questionPayload).select("id");
-        if (qError) throw qError;
-        if (!qData || qData.length !== batch.length) throw new Error("Database returned an unexpected number of inserted questions.");
-        insertedQuestions = qData;
+        const questionData = {
 
-        // Supabase returns inserted rows in insert order for this bulk insert.
-        const optionPayload = [];
-        const linkPayload = [];
-        batch.forEach((r, index) => {
-          const questionId = insertedQuestions[index].id;
-          optionPayload.push(
-            {question_id:questionId, option_label:"A", option_text:r.A, option_text_hi:r.AHi, is_correct:r.correct.includes("A")},
-            {question_id:questionId, option_label:"B", option_text:r.B, option_text_hi:r.BHi, is_correct:r.correct.includes("B")},
-            {question_id:questionId, option_label:"C", option_text:r.C, option_text_hi:r.CHi, is_correct:r.correct.includes("C")},
-            {question_id:questionId, option_label:"D", option_text:r.D, option_text_hi:r.DHi, is_correct:r.correct.includes("D")}
-          );
-          const folderId = folderCache.get(r._folderKey);
-          const nextOrder = Number(orderCache.get(String(folderId))) || 1;
-          linkPayload.push({group_id:folderId, question_id:questionId, question_order:nextOrder});
-          orderCache.set(String(folderId), nextOrder + 1);
-        });
+          subject_id:
+            r.subjectId,
 
-        const { error: optionError } = await db.from("question_options").insert(optionPayload);
-        if (optionError) throw optionError;
-        const { error: linkError } = await db.from("question_shift_group_questions").insert(linkPayload);
-        if (linkError) throw linkError;
-        imported += batch.length;
-      } catch (error) {
-        // Clean up this batch if a later step fails, preventing orphaned questions.
-        if (insertedQuestions.length) {
-          const ids = insertedQuestions.map(q => q.id);
-          await db.from("question_shift_group_questions").delete().in("question_id", ids);
-          await db.from("question_options").delete().in("question_id", ids);
-          await db.from("questions").delete().in("id", ids);
+          chapter_id:
+            chapterId,
+
+          question_text:
+            r.questionEnglish,
+
+          question_text_hi:
+            r.questionHindi,
+
+          explanation:
+            r.explanation,
+
+          correct_options:
+            r.correct,
+
+          is_bonus:
+            r.bonus,
+
+          solution_video_url:
+            r.video || null,
+
+          mock_test_id:
+            null
+        };
+
+        const {
+          data,
+          error
+        } =
+          await db
+            .from("questions")
+            .insert(questionData)
+            .select("id")
+            .single();
+
+        if(error) throw error;
+
+        const questionId =
+          data.id;
+
+        const optionRows = [
+
+          {
+            question_id:questionId,
+            option_label:"A",
+            option_text:r.A,
+            option_text_hi:r.AHi,
+            is_correct:
+              r.correct.includes("A")
+          },
+
+          {
+            question_id:questionId,
+            option_label:"B",
+            option_text:r.B,
+            option_text_hi:r.BHi,
+            is_correct:
+              r.correct.includes("B")
+          },
+
+          {
+            question_id:questionId,
+            option_label:"C",
+            option_text:r.C,
+            option_text_hi:r.CHi,
+            is_correct:
+              r.correct.includes("C")
+          },
+
+          {
+            question_id:questionId,
+            option_label:"D",
+            option_text:r.D,
+            option_text_hi:r.DHi,
+            is_correct:
+              r.correct.includes("D")
+          }
+
+        ];
+
+        const {
+          error:optionError
+        } =
+          await db
+            .from("question_options")
+            .insert(optionRows);
+
+        if(optionError){
+          await db.from("questions").delete().eq("id",questionId);
+          throw optionError;
         }
-        failed += batch.length;
-        failures.push(`Rows ${batch[0].rowNumber}–${batch[batch.length-1].rowNumber}: ${error.message || "Unknown database error"}`);
+
+        const { error:linkError } = await db
+          .from("question_shift_group_questions")
+          .insert({group_id:folderId, question_id:questionId, question_order:await nextFolderOrder(folderId)});
+
+        if(linkError){
+          await db.from("question_options").delete().eq("question_id",questionId);
+          await db.from("questions").delete().eq("id",questionId);
+          throw linkError;
+        }
+
+        imported++;
+
+      }
+      catch(error){
+
+        failed++;
+
+        failures.push(
+          `Row ${r.rowNumber}: ${
+            error.message
+          }`
+        );
       }
     }
 
-    resultBox.innerHTML = `<div class="status">
-      <div class="import-success">✓ ${imported} questions imported successfully.</div>
-      ${failed ? `<div class="import-error" style="margin-top:8px;">${failed} questions failed.<br>${escapeHtml(failures.join("\n"))}</div>` : `<div class="small-note" style="margin-top:8px;">All valid questions were imported.</div>`}
-    </div>`;
+    resultBox.innerHTML = `
+
+      <div class="status">
+
+        <div class="import-success">
+          ✓ ${imported} questions imported successfully.
+        </div>
+
+        ${
+          failed
+          ? `
+            <div class="import-error"
+                 style="margin-top:8px;">
+              ${failed} questions failed.
+              ${escapeHtml(
+                failures.join("\n")
+              )}
+            </div>
+          `
+          : `
+            <div class="small-note"
+                 style="margin-top:8px;">
+              All valid questions were imported.
+            </div>
+          `
+        }
+
+      </div>
+    `;
+
     await loadQuestions();
-  } catch(error) {
-    console.error(error);
-    resultBox.innerHTML = `<div class="status"><div class="import-error">Import failed: ${escapeHtml(error.message || "Unknown error")}</div></div>`;
-  } finally {
-    button.disabled = false;
-    button.textContent = imported ? "Import Completed" : "Import All Valid Questions";
+
   }
+  catch(error){
+
+    console.error(error);
+
+    resultBox.innerHTML = `
+
+      <div class="status">
+
+        <div class="import-error">
+          Import failed:
+          ${escapeHtml(
+            error.message
+          )}
+        </div>
+
+      </div>
+    `;
+  }
+
+  button.disabled = false;
+
+  button.textContent =
+    imported
+    ? "Import Completed"
+    : "Import All Valid Questions";
 }
 
 /* BULK QUESTION SELECTION / MOVE */
