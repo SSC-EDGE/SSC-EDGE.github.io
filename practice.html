@@ -490,6 +490,33 @@ body{
   gap:14px;
 }
 
+.drill-entry{
+  width:100%;
+  min-height:76px;
+  flex-direction:row;
+  justify-content:flex-start;
+  gap:12px;
+  text-align:left;
+  text-decoration:none;
+}
+
+.drill-entry .folder-icon{
+  flex:0 0 54px;
+  margin:0;
+}
+
+.drill-entry h3{
+  flex:1;
+}
+
+.drill-entry::after{
+  content:"➜";
+  margin-left:auto;
+  color:var(--p-purple2);
+  font-size:20px;
+  font-weight:900;
+}
+
 .bottom-nav{
   position:fixed;
   left:0;
@@ -646,16 +673,18 @@ body{
   <div class="practice-divider"></div>
 
   <h2 class="practice-section-title">
-    PRACTICE DRILL
+    CHAPTER WISE PRACTICE
   </h2>
 
-  <div id="mainSubjectGrid">
-
-    <div class="practice-empty">
-      Loading subjects...
-    </div>
-
-  </div>
+  <a
+    class="practice-card drill-entry"
+    href="practice-drill.html"
+    aria-label="Open Chapter Wise Practice page"
+  >
+    <div class="folder-icon">📚</div>
+    <h3>Chapter Wise Practice</h3>
+    <span>Subject-wise chapter practice</span>
+  </a>
 
 </section>
 
@@ -1142,7 +1171,9 @@ async function loadInitialData(){
     }
 
     subjects =
-      result.data || [];
+      (result.data || []).filter(subject =>
+        String(subject?.name || "").trim().toLowerCase() !== "bulk import"
+      );
 
     renderMainSubjects();
 
@@ -4183,7 +4214,8 @@ async function startPracticePage(){
     are loaded until needed.
   */
 
-  await loadInitialData();
+  // Practice Drill now lives on practice-drill.html, so this page
+  // does not load or render its subject list anymore.
 
   /*
     Preload the small exam list in the background.

@@ -10,7 +10,7 @@ document.documentElement.dataset.theme =
 localStorage.getItem("ssc-edge-theme") || "dark";
 </script>
 
-<title>SSC EDGE - Practice Drill</title>
+<title>SSC EDGE - Chapter Wise Practice</title>
 
 <link rel="stylesheet" href="css/style.css">
 
@@ -540,7 +540,7 @@ body{
   </div>
 
   <div class="pd-sub">
-    Practice Drill
+    Chapter Wise Practice
   </div>
 
 </header>
@@ -1219,8 +1219,12 @@ async function load(){
   }
 
 
+  // BULK IMPORT is an internal staging subject used by Question Bank,
+  // not a student-facing Practice Drill subject.
   subjects =
-    s.data || [];
+    (s.data || []).filter(subject =>
+      String(subject?.name || "").trim().toLowerCase() !== "bulk import"
+    );
 
   chapters =
     c.data || [];
@@ -1267,7 +1271,7 @@ function renderSubjects(){
   ).innerHTML = `
 
     <div class="pd-title">
-      Practice Drill
+      Chapter Wise Practice
     </div>
 
     <div class="pd-muted">
