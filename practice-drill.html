@@ -54,44 +54,33 @@ body{
 }
 
 /* =========================
-   HEADER
+   HEADER — match practice.html
    ========================= */
 
 .pd-head{
-  height:58px;
+  width:100%;
+  height:62px;
   display:flex;
   align-items:center;
-  gap:12px;
-  padding:0 15px;
-
-  background:
-    linear-gradient(
-      100deg,
-      var(--pd-header),
-      var(--pd-header2)
-    ) !important;
-
+  padding:0 20px;
+  background:linear-gradient(100deg,var(--pd-header),var(--pd-header2)) !important;
   border-bottom:1px solid var(--pd-border);
-
   position:sticky;
   top:0;
   z-index:10;
 }
 
 .pd-brand{
-  font-size:17px;
-  font-weight:800;
+  font-size:22px;
+  font-weight:900;
+  color:var(--pd-text);
 }
 
 .pd-brand span{
-  color:var(--pd-purple2);
+  color:#b487ff;
 }
 
-.pd-sub{
-  margin-left:auto;
-  color:var(--pd-muted);
-  font-size:11px;
-}
+.pd-sub{display:none;}
 
 /* =========================
    TOP BACK BUTTON
@@ -153,18 +142,20 @@ body{
 
 .pd-grid{
   display:grid;
-  grid-template-columns:
-    repeat(auto-fit,minmax(145px,1fr));
-
-  gap:11px;
+  grid-template-columns:1fr;
+  gap:10px;
   margin-top:15px;
 }
 
 .pd-card{
+  display:flex;
+  align-items:center;
+  gap:13px;
+  min-height:62px;
   border:1px solid var(--pd-border);
   background:var(--pd-card);
-  border-radius:15px;
-  padding:16px;
+  border-radius:12px;
+  padding:14px 16px;
   cursor:pointer;
   transition:.15s;
 }
@@ -174,20 +165,20 @@ body{
 }
 
 .pd-icon{
-  font-size:26px;
-  margin-bottom:9px;
+  font-size:23px;
+  margin:0;
+  width:30px;
+  flex:0 0 30px;
+  text-align:center;
 }
 
 .pd-card h3{
   font-size:14px;
-  margin:0 0 6px;
+  margin:0;
+  text-transform:uppercase;
 }
 
-.pd-card p{
-  font-size:11px;
-  color:var(--pd-muted);
-  margin:0;
-}
+.pd-card p{display:none;}
 
 /* =========================
    PANEL
@@ -539,9 +530,6 @@ body{
     SSC <span>EDGE</span>
   </div>
 
-  <div class="pd-sub">
-    Chapter Wise Practice
-  </div>
 
 </header>
 
@@ -551,7 +539,7 @@ body{
      HEADER KE NICHE
      ========================= -->
 
-<div class="pd-top-back">
+<div class="pd-top-back" id="backNav">
 
   <button onclick="goBack()">
     ‹ &nbsp; Back
@@ -797,14 +785,16 @@ function goBack(){
 
   if(currentSubject){
 
-    location.href = "practice.html";
-
+    currentSubject = null;
+    currentFolder = null;
+    currentChapter = null;
+    renderSubjects();
     return;
 
   }
 
-
-  location.href = "practice.html";
+  // At the subject list there is no in-page level to go back to.
+  // Do not force the user to practice.html.
 
 }
 
@@ -1265,55 +1255,38 @@ function renderSubjects(){
   currentFolder = null;
   currentChapter = null;
 
+  const backNav = document.getElementById("backNav");
+  if(backNav) backNav.style.display = "none";
 
-  document.getElementById(
-    "app"
-  ).innerHTML = `
+  const wanted = [
+    { label:"Quantitative Aptitude", icon:"🔢", keys:["quantitative aptitude","quant aptitude","quant"] },
+    { label:"GENERAL AWARENESS", icon:"🌍", keys:["general awareness","general knowledge","gk"] },
+    { label:"REASONING", icon:"🧠", keys:["reasoning","general intelligence"] },
+    { label:"ENGLISH", icon:"📘", keys:["english","english language"] }
+  ];
 
-    <div class="pd-title">
-      Chapter Wise Practice
-    </div>
+  const orderedSubjects = wanted.map(item => {
+    const found = subjects.find(subject => {
+      const name = String(subject?.name || "").trim().toLowerCase();
+      return item.keys.some(key => name === key || name.includes(key));
+    });
+    return { ...item, subject:found };
+  }).filter(item => item.subject);
 
-    <div class="pd-muted">
-      Choose a subject to continue practice.
-    </div>
-
+  document.getElementById("app").innerHTML = `
+    <div class="pd-title">Chapter Wise Practice</div>
+    <div class="pd-muted">Choose a subject to continue practice.</div>
     <div class="pd-grid">
-
-      ${
-        subjects.map(s => `
-
-          <div
-            class="pd-card"
-            onclick="openSubject('${s.id}')"
-          >
-
-            <div class="pd-icon">
-              ${iconFor(s.name)}
-            </div>
-
-            <h3>
-              ${esc(s.name)}
-            </h3>
-
-            <p>
-              Practice folders
-            </p>
-
-          </div>
-
-        `).join("")
-        ||
-        `
-          <div class="pd-empty">
-            No subjects found.
-          </div>
-        `
-      }
-
+      ${orderedSubjects.map(item => `
+        <div class="pd-card" onclick="openSubject('${item.subject.id}')">
+          <div class="pd-icon">${item.icon}</div>
+          <h3>${esc(item.label)}</h3>
+        </div>
+      `).join("") || `
+        <div class="pd-empty">No matching subjects found.</div>
+      `}
     </div>
   `;
-
 }
 
 
@@ -1374,6 +1347,9 @@ function subjectFolders(){
    ================================================== */
 
 function renderFolders(){
+
+  const backNav = document.getElementById("backNav");
+  if(backNav) backNav.style.display = "block";
 
   const fs =
     subjectFolders();
@@ -1568,6 +1544,9 @@ function folderTests(fid){
    ================================================== */
 
 async function renderFolderContents(){
+
+  const backNav = document.getElementById("backNav");
+  if(backNav) backNav.style.display = "block";
 
   const children =
     childFolders();
@@ -1771,6 +1750,9 @@ async function renderFolderContents(){
    ================================================== */
 
 async function openChapter(id){
+
+  const backNav = document.getElementById("backNav");
+  if(backNav) backNav.style.display = "block";
 
   currentChapter =
     folders.find(
