@@ -108,15 +108,8 @@ background:var(--purple);color:#fff;border-color:var(--purple)
 }
 
 .saved-top-btn{
-font-size:15px;padding:5px 8px;line-height:1;display:flex;align-items:center;justify-content:center;
-color:var(--muted)
+font-size:15px;padding:5px 8px;line-height:1
 }
-.saved-top-btn.active{color:#24152f;background:#fff;border-color:#fff}
-.saved-bookmark{width:17px;height:20px;display:block}
-.saved-bookmark path{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
-.saved-bookmark.filled path{fill:currentColor}
-.saved-top-btn.active .saved-bookmark path{fill:#24152f;stroke:#24152f}
-.save-question-btn.saved .saved-bookmark path{fill:currentColor;stroke:currentColor}
 
 .question-card{
 background:var(--card);border:1px solid var(--border);
@@ -225,17 +218,28 @@ border-radius:9px;background:#fff;color:#24152f;font-size:12px;
 font-weight:900;cursor:pointer
 }
 
-.grid-question.current{outline:3px solid rgba(168,85,247,.4)}
-.grid-question.correct{background:#25c27a!important;border-color:#25c27a!important;color:#062d1c!important}
-.grid-question.wrong{background:#ef4444!important;border-color:#ef4444!important;color:#fff!important}
-.grid-question.unanswered{background:#fff!important;border-color:var(--border);color:#24152f!important}
-.grid-saved-icon{position:absolute;top:-7px;right:-5px;width:13px;height:16px;color:#24152f;background:#fff;border-radius:3px}
-.grid-saved-icon path{fill:currentColor;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
+.grid-question.current{
+outline:3px solid rgba(168,85,247,.4)
+}
+
+.grid-question.saved::after{
+content:"🔖";position:absolute;top:-7px;right:-5px;font-size:12px
+}
 
 .grid-legend{
 display:grid;grid-template-columns:1fr 1fr;gap:9px;
 padding-top:13px;border-top:1px solid var(--border)
 }
+
+.grid-legend-item{display:flex;align-items:center;gap:7px;color:var(--text);font-size:10px;font-weight:800}
+.grid-legend-swatch{width:13px;height:13px;flex:0 0 13px;border-radius:4px;border:1px solid #d1d5db;background:#fff}
+.grid-legend-swatch.correct{background:#22c55e;border-color:#16a34a}
+.grid-legend-swatch.wrong{background:#ef4444;border-color:#dc2626}
+.grid-question.correct{background:#22c55e!important;border-color:#16a34a!important;color:#fff!important}
+.grid-question.wrong{background:#ef4444!important;border-color:#dc2626!important;color:#fff!important}
+.grid-question.unanswered{background:#fff!important;border-color:#d1d5db!important;color:#24152f!important}
+.grid-question.correct.current,.grid-question.wrong.current,.grid-question.unanswered.current{outline:3px solid rgba(168,85,247,.45)}
+.saved-top-btn.active{color:#111827;background:#fff;border-color:#fff}
 
 .solution-page .solution-meta{
 display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 13px
@@ -429,6 +433,12 @@ Question Palette
 
 <div id="questionGrid" class="question-grid"></div>
 
+<div class="grid-legend" aria-label="Answer status legend">
+  <div class="grid-legend-item"><span class="grid-legend-swatch correct"></span>Correct Answer</div>
+  <div class="grid-legend-item"><span class="grid-legend-swatch wrong"></span>Incorrect Answer</div>
+  <div class="grid-legend-item"><span class="grid-legend-swatch"></span>Unanswered</div>
+</div>
+
 </div>
 
 </div>
@@ -479,13 +489,6 @@ return String(Math.floor(v/60)).padStart(2,"0")+":"+String(v%60).padStart(2,"0")
 function showError(t){
 $("loading").className="loading error";
 $("loading").textContent=t;
-}
-
-function isCorrectOption(o){
- return o?.is_correct===true||o?.is_correct==="true"||o?.is_correct===1||o?.is_correct==="1";
-}
-function bookmarkIcon(filled){
- return `<svg class="saved-bookmark ${filled?"filled":""}" viewBox="0 0 18 22" aria-hidden="true" focusable="false"><path d="M2.5 2.5A1.5 1.5 0 0 1 4 1h10a1.5 1.5 0 0 1 1.5 1.5V20l-6.5-4-6.5 4V2.5Z"></path></svg>`;
 }
 
 function sectionName(s,i){
@@ -600,62 +603,46 @@ console.error(e);
 
 }
 
+function firstText(obj,keys,fallback=""){
+for(const key of keys){
+const value=obj?.[key];
+if(value!=null&&String(value).trim()!=="")return String(value);
+}
+return fallback;
+}
+
 function getLangText(q,lang){
-
-if(lang==="hi")
-return q.question_text_hindi??
-q.question_text_hi??
-q.hindi_question_text??
-q.question_hi??
-q.question_text_hin??
-q.question_text??"";
-
-return q.question_text_en??
-q.question_en??
-q.english_question_text??
-q.question_text??"";
-
+if(lang==="hi"){
+return firstText(q,[
+"question_text_hindi","question_text_hi","hindi_question_text","question_hi","question_text_hin","question_hin"
+],firstText(q,["question_text_en","question_en","english_question_text","question_text"],""));
+}
+return firstText(q,["question_text_en","question_en","english_question_text","question_text"],firstText(q,["question_text_hindi","question_text_hi","hindi_question_text","question_hi","question_text_hin"],""));
 }
 
 function getOptionText(o,lang){
+if(lang==="hi"){
+return firstText(o,[
+"option_text_hindi","option_text_hi","hindi_option_text","option_hi","option_text_hin","option_hin"
+],firstText(o,["option_text_en","option_en","english_option_text","option_text"],""));
+}
+return firstText(o,["option_text_en","option_en","english_option_text","option_text"],firstText(o,["option_text_hindi","option_text_hi","hindi_option_text","option_hi","option_text_hin"],""));
+}
 
-if(lang==="hi")
-return o.option_text_hindi??
-o.option_text_hi??
-o.hindi_option_text??
-o.option_hi??
-o.option_text??"";
-
-return o.option_text_en??
-o.option_en??
-o.english_option_text??
-o.option_text??"";
-
+function getExplanationText(q,lang){
+if(lang==="hi"){
+return firstText(q,["explanation_hindi","explanation_hi","hindi_explanation","solution_hindi","solution_hi"],q.explanation||q.explanation_en||"");
+}
+return firstText(q,["explanation_en","explanation_english","english_explanation","explanation","solution_en"],q.explanation_hindi||q.explanation_hi||"");
 }
 
 function hasHindi(q){
-
-return[
-"question_text_hindi",
-"question_text_hi",
-"hindi_question_text",
-"question_hi",
-"question_text_hin"
-].some(
-k=>q[k]!=null&&String(q[k]).trim()!==""
-)
-||
-((q.options||[]).some(
-o=>[
-"option_text_hindi",
-"option_text_hi",
-"hindi_option_text",
-"option_hi"
-].some(
-k=>o[k]!=null&&String(o[k]).trim()!==""
-)
-));
-
+const questionHasHindi=["question_text_hindi","question_text_hi","hindi_question_text","question_hi","question_text_hin","question_hin","explanation_hindi","explanation_hi","hindi_explanation","solution_hindi","solution_hi"]
+.some(k=>q[k]!=null&&String(q[k]).trim()!=="");
+const optionsHaveHindi=(q.options||[]).some(o=>[
+"option_text_hindi","option_text_hi","hindi_option_text","option_hi","option_text_hin","option_hin"
+].some(k=>o[k]!=null&&String(o[k]).trim()!==""));
+return questionHasHindi||optionsHaveHindi;
 }
 
 function toggleLanguage(){
@@ -670,46 +657,36 @@ render();
 
 }
 
+function isCorrectOption(option){
+const value=option?.is_correct;
+return value===true||value===1||String(value).toLowerCase()==="true"||String(value)==="1";
+}
+
 function renderGrid(){
-
 const g=$("questionGrid");
-
 g.innerHTML="";
-
 activeList().forEach((item,pos)=>{
-
 const b=document.createElement("button");
-
 b.type="button";
 b.className="grid-question";
 b.textContent=pos+1;
+if(item.i===currentIndex)b.classList.add("current");
 
-if(item.i===currentIndex)
-b.classList.add("current");
-
-const selected=answers[String(item.q.id)]==null?"":String(answers[String(item.q.id)]);
+const selected=answers[String(item.q.id)];
+const answered=selected!==null&&selected!==undefined&&String(selected)!=="";
 const correctOption=(item.q.options||[]).find(isCorrectOption);
-if(!selected)b.classList.add("unanswered");
-else if(correctOption&&selected===String(correctOption.id))b.classList.add("correct");
-else b.classList.add("wrong");
-
-if(isQuestionSaved(item.q.id)){
- const icon=document.createElement("span");
- icon.className="grid-saved-icon";
- icon.innerHTML=bookmarkIcon(true);
- b.appendChild(icon);
+if(!answered){
+b.classList.add("unanswered");
+}else if(correctOption&&String(selected)===String(correctOption.id)){
+b.classList.add("correct");
+}else{
+b.classList.add("wrong");
 }
 
-b.onclick=()=>{
-currentIndex=item.i;
-closeGrid();
-render();
-};
-
+if(isQuestionSaved(item.q.id))b.classList.add("saved");
+b.onclick=()=>{currentIndex=item.i;closeGrid();render();};
 g.appendChild(b);
-
 });
-
 }
 
 function openGrid(){
@@ -760,9 +737,12 @@ lb.classList.toggle(
 language==="hi"
 );
 
-const savedNow=isQuestionSaved(q.id);
-$("savedTopBtn").innerHTML=bookmarkIcon(savedNow);
-$("savedTopBtn").classList.toggle("active",savedNow);
+$("savedTopBtn").innerHTML='<svg viewBox="0 0 18 22" width="15" height="18" aria-hidden="true"><path d="M2.5 2.5A1.5 1.5 0 0 1 4 1h10a1.5 1.5 0 0 1 1.5 1.5V20l-6.5-4-6.5 4V2.5Z" fill="currentColor" stroke="currentColor" stroke-width="1.2"/></svg>';
+
+$("savedTopBtn").classList.toggle(
+"active",
+isQuestionSaved(q.id)
+);
 
 renderSections();
 
@@ -822,7 +802,7 @@ const row=document.createElement("div");
 
 row.className="option solution-option";
 
-const isCorrect=!!o.is_correct;
+const isCorrect=isCorrectOption(o);
 
 const isYour=
 selectedId!==null&&
@@ -862,7 +842,7 @@ options.appendChild(row);
 card.appendChild(options);
 
 const correct=
-(q.options||[]).find(o=>o.is_correct);
+(q.options||[]).find(isCorrectOption);
 
 const ans=document.createElement("div");
 
@@ -873,7 +853,7 @@ ans.innerHTML=
 (
 correct
 ?esc(
- "("+ (correct.option_label||"") +") "+
+"("+(correct.option_label||"A")+") "+
 getOptionText(correct,language)
 )
 :"Not available"
@@ -896,7 +876,7 @@ ex.innerHTML=
 '<div class="solution-explanation-title">Explanation</div>'+
 '<div class="solution-text">'+
 esc(
-q.explanation||
+getExplanationText(q,language)||
 "No explanation has been added for this question yet."
 )+
 '</div>';
@@ -949,9 +929,8 @@ middle.className=
 "nav-btn save-question-btn"+
 (isQuestionSaved(q.id)?" saved":"");
 
-middle.innerHTML=
-bookmarkIcon(isQuestionSaved(q.id))+" "+
-(isQuestionSaved(q.id)?"Saved":"Save Question");
+middle.textContent=
+isQuestionSaved(q.id)?"Saved":"Save Question";
 
 middle.onclick=()=>{
 toggleSavedQuestion(q.id);
@@ -1089,7 +1068,6 @@ currentIndex=
 l.length?l[0].i:0;
 
 render();
-loadComparativeStats();
 
 }catch(e){
 
@@ -1101,127 +1079,6 @@ showError(
 
 }
 
-}
-
-async function loadComparativeStats(){
- try{
-const latestAll=
-await db
-.from("test_attempts")
-.select(
-"id,user_id,completed_at"
-)
-.eq("mock_test_id",testId)
-.not("completed_at","is",null)
-.order("completed_at",{ascending:false});
-
-if(latestAll.error)
-throw latestAll.error;
-
-const latestByUser=new Map();
-
-(latestAll.data||[]).forEach(a=>{
-
-const u=String(a.user_id);
-
-if(!latestByUser.has(u))
-latestByUser.set(u,a);
-
-});
-
-const avgIds=
-[...latestByUser.values()]
-.map(a=>a.id);
-
-if(avgIds.length){
-
-const ua=
-await db
-.from("user_answers")
-.select(
-"attempt_id,question_id,selected_option_id,time_spent_seconds"
-)
-.in("attempt_id",avgIds);
-
-if(!ua.error){
-
-const rows=ua.data||[];
-
-const correctMap=
-new Map(
-questions.map(
-q=>[
-String(q.id),
-String(
-(q.options||[])
-.find(o=>o.is_correct)?.id||""
-)
-]
-)
-);
-
-const times=new Map(),
-right=new Map(),
-answered=new Map();
-
-rows.forEach(r=>{
-
-const k=String(r.question_id);
-
-const t=
-Number(r.time_spent_seconds||0);
-
-if(t>0){
-
-if(!times.has(k))
-times.set(k,[]);
-
-times.get(k).push(t);
-
-}
-
-if(r.selected_option_id!=null){
-
-answered.set(
-k,
-(answered.get(k)||0)+1
-);
-
-if(
-String(r.selected_option_id)===
-correctMap.get(k)
-){
-
-right.set(
-k,
-(right.get(k)||0)+1
-);
-
-}
-
-}
-
-});
-
-times.forEach((v,k)=>
-avgTimes[k]=
-v.reduce((a,b)=>a+b,0)/v.length
-);
-
-answered.forEach((v,k)=>
-correctRates[k]=
-v
-?((right.get(k)||0)/v)*100
-:null
-);
-
-}
-
-}
-
- 
-  if($("solutionArea")&&!$("solutionArea").classList.contains("hidden"))render();
- }catch(e){console.log("Comparative solution stats unavailable:",e)}
 }
 
 async function run(){
@@ -1421,7 +1278,120 @@ a=>String(a.id)===String(requestedAttemptId)
 )
 )||userAttempts[0];
 
-/* Comparative averages load in the background so the first question opens quickly. */
+const latestAll=
+await db
+.from("test_attempts")
+.select(
+"id,user_id,completed_at"
+)
+.eq("mock_test_id",testId)
+.not("completed_at","is",null)
+.order("completed_at",{ascending:false});
+
+if(latestAll.error)
+throw latestAll.error;
+
+const latestByUser=new Map();
+
+(latestAll.data||[]).forEach(a=>{
+
+const u=String(a.user_id);
+
+if(!latestByUser.has(u))
+latestByUser.set(u,a);
+
+});
+
+const avgIds=
+[...latestByUser.values()]
+.map(a=>a.id);
+
+if(avgIds.length){
+
+const ua=
+await db
+.from("user_answers")
+.select(
+"attempt_id,question_id,selected_option_id,time_spent_seconds"
+)
+.in("attempt_id",avgIds);
+
+if(!ua.error){
+
+const rows=ua.data||[];
+
+const correctMap=
+new Map(
+questions.map(
+q=>[
+String(q.id),
+String(
+(q.options||[])
+.find(o=>o.is_correct)?.id||""
+)
+]
+)
+);
+
+const times=new Map(),
+right=new Map(),
+answered=new Map();
+
+rows.forEach(r=>{
+
+const k=String(r.question_id);
+
+const t=
+Number(r.time_spent_seconds||0);
+
+if(t>0){
+
+if(!times.has(k))
+times.set(k,[]);
+
+times.get(k).push(t);
+
+}
+
+if(r.selected_option_id!=null){
+
+answered.set(
+k,
+(answered.get(k)||0)+1
+);
+
+if(
+String(r.selected_option_id)===
+correctMap.get(k)
+){
+
+right.set(
+k,
+(right.get(k)||0)+1
+);
+
+}
+
+}
+
+});
+
+times.forEach((v,k)=>
+avgTimes[k]=
+v.reduce((a,b)=>a+b,0)/v.length
+);
+
+answered.forEach((v,k)=>
+correctRates[k]=
+v
+?((right.get(k)||0)/v)*100
+:null
+);
+
+}
+
+}
+
 await loadAnswerData();
 
 $("testName").textContent=
@@ -1474,7 +1444,6 @@ currentIndex=
 l.length?l[0].i:0;
 
 render();
-loadComparativeStats();
 
 }catch(e){
 

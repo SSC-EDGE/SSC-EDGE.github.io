@@ -916,6 +916,22 @@ body{
     <button
       class="menu-item"
       type="button"
+      onclick="openSupport()">
+
+      <span class="menu-icon">💬</span>
+
+      <span class="menu-content">
+        <span class="menu-label">Support</span>
+        <span class="menu-sub">Chat with SSC EDGE support on Telegram</span>
+      </span>
+
+      <span class="menu-arrow">›</span>
+
+    </button>
+
+    <button
+      class="menu-item"
+      type="button"
       onclick="openAbout()">
 
       <span class="menu-icon">
@@ -1052,9 +1068,20 @@ body{
       </div>
 
       <div class="form-group">
+        <label class="form-label">Username</label>
+        <input
+          id="editUsername"
+          class="form-input"
+          type="text"
+          autocomplete="username"
+          maxlength="20"
+          placeholder="Choose a unique username">
+      </div>
+
+      <div class="form-group">
 
         <label class="form-label">
-          Mobile Number
+          Mobile Number (Optional)
         </label>
 
         <input
@@ -1063,8 +1090,18 @@ body{
           type="tel"
           inputmode="numeric"
           maxlength="10"
-          placeholder="Enter mobile number">
+          placeholder="Enter mobile number (optional)">
 
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email (Optional)</label>
+        <input
+          id="editEmail"
+          class="form-input"
+          type="email"
+          autocomplete="email"
+          placeholder="Enter email address (optional)">
       </div>
 
       <div class="form-group">
@@ -1438,6 +1475,7 @@ async function loadProfile(){
     */
 
     $("profileEmail").textContent =
+      metadata.contact_email ||
       user.email ||
       "Account";
 
@@ -1460,82 +1498,44 @@ async function loadProfile(){
 
 async function openProfileEdit(){
 
-  $("editName").value =
-    $("profileName").textContent === "Candidate"
-      ? ""
-      : $("profileName").textContent;
-
-  $("editMobile").value =
-    "";
-
-  $("editPassword").value =
-    "";
-
-  $("profileEditMessage").textContent =
-    "";
+  $("editName").value = "";
+  $("editUsername").value = "";
+  $("editMobile").value = "";
+  $("editEmail").value = "";
+  $("editPassword").value = "";
+  $("profileEditMessage").textContent = "";
 
   try{
-
-    const result =
-      await db.auth.getUser();
-
-    const user =
-      result.data?.user;
+    const result = await db.auth.getUser();
+    const user = result.data?.user;
 
     if(user){
+      const metadata = user.user_metadata || {};
+      $("editName").value = metadata.name || metadata.full_name || metadata.username || "";
+      $("editUsername").value = metadata.username || "";
+      $("editEmail").value = metadata.contact_email || "";
 
-      const metadata =
-        user.user_metadata || {};
+      const profileResult = await db
+        .from("user_login_methods")
+        .select("username,mobile,full_name,email")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-      $("editName").value =
-        metadata.name ||
-        metadata.full_name ||
-        metadata.username ||
-        $("editName").value;
-
-      /*
-        IMPORTANT:
-        First use the real Supabase Auth phone.
-        If not available, use the old metadata value.
-      */
-
-      let savedMobile = "";
-
-      const mobileResult =
-        await db
-          .from("user_login_methods")
-          .select("mobile")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-      if(!mobileResult.error && mobileResult.data?.mobile){
-        savedMobile =
-          displayMobile(mobileResult.data.mobile);
+      if(!profileResult.error && profileResult.data){
+        const profile = profileResult.data;
+        $("editUsername").value = profile.username || $("editUsername").value;
+        $("editName").value = profile.full_name || $("editName").value;
+        $("editMobile").value = displayMobile(profile.mobile) || "";
+        $("editEmail").value = profile.email || $("editEmail").value;
+      }else{
+        $("editMobile").value = displayMobile(metadata.mobile) || displayMobile(metadata.phone) || "";
       }
-
-      $("editMobile").value =
-        savedMobile ||
-        displayMobile(metadata.mobile) ||
-        displayMobile(metadata.phone) ||
-        "";
-
     }
-
+  }catch(error){
+    console.warn("Could not load edit profile data:", error);
   }
 
-  catch(error){
-
-    console.warn(
-      "Could not load edit profile data:",
-      error
-    );
-
-  }
-
-  $("profileEditPopup")
-    .classList
-    .add("show");
-
+  $("profileEditPopup").classList.add("show");
 }
 
 /* =========================
@@ -1544,162 +1544,120 @@ async function openProfileEdit(){
 
 async function saveProfileEdit(){
 
-  const name =
-    $("editName").value.trim();
-
-  const mobileInput =
-    $("editMobile").value.trim();
-
-  const password =
-    $("editPassword").value;
+  const name = $("editName").value.trim();
+  const username = $("editUsername").value.trim().toLowerCase();
+  const mobileInput = $("editMobile").value.trim();
+  const email = $("editEmail").value.trim().toLowerCase();
+  const password = $("editPassword").value;
 
   if(!name){
-    $("profileEditMessage").textContent =
-      "Please enter your name.";
+    $("profileEditMessage").textContent = "Please enter your name.";
     return;
   }
 
-  if(!mobileInput){
-    $("profileEditMessage").textContent =
-      "Please enter your 10-digit mobile number.";
+  if(!/^[a-z][a-z0-9._]{2,19}$/.test(username)){
+    $("profileEditMessage").textContent = "Username must be 3–20 characters, start with a letter, and use only letters, numbers, dots or underscores.";
     return;
   }
 
-  const mobile =
-    normalizeMobile(mobileInput);
-
-  if(!mobile){
-    $("profileEditMessage").textContent =
-      "Please enter a valid 10-digit mobile number.";
+  const mobile = mobileInput ? normalizeMobile(mobileInput) : null;
+  if(mobileInput && !mobile){
+    $("profileEditMessage").textContent = "Please enter a valid 10-digit mobile number, or leave it blank.";
     return;
   }
 
-  if(password && password.length < 6){
-    $("profileEditMessage").textContent =
-      "Password must be at least 6 characters.";
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    $("profileEditMessage").textContent = "Please enter a valid email address, or leave it blank.";
     return;
   }
 
-  $("profileEditMessage").textContent =
-    "Saving...";
+  if(password && password.length < 8){
+    $("profileEditMessage").textContent = "Password must be at least 8 characters.";
+    return;
+  }
+
+  $("profileEditMessage").textContent = "Saving...";
 
   try{
-
-    const result =
-      await db.auth.getUser();
-
-    const user =
-      result.data?.user;
+    const result = await db.auth.getUser();
+    const user = result.data?.user;
 
     if(!user){
-      $("profileEditMessage").textContent =
-        "Please sign in to edit your profile.";
+      $("profileEditMessage").textContent = "Please sign in to edit your profile.";
       return;
     }
 
-    /*
-      IMPORTANT:
-      Mobile is stored in the SSC EDGE
-      login-method table.
+    // Check username uniqueness before updating this user's profile.
+    const duplicateUsername = await db
+      .from("user_login_methods")
+      .select("user_id")
+      .ilike("username", username)
+      .neq("user_id", user.id)
+      .maybeSingle();
 
-      It is NOT stored in Supabase Auth
-      phone because Phone Auth is disabled.
-    */
+    if(duplicateUsername.error) throw duplicateUsername.error;
+    if(duplicateUsername.data){
+      $("profileEditMessage").textContent = "This username is already taken.";
+      return;
+    }
+
+    if(mobile){
+      const duplicateMobile = await db
+        .from("user_login_methods")
+        .select("user_id")
+        .eq("mobile", mobile)
+        .neq("user_id", user.id)
+        .maybeSingle();
+      if(duplicateMobile.error) throw duplicateMobile.error;
+      if(duplicateMobile.data){
+        $("profileEditMessage").textContent = "This mobile number is already linked to another account.";
+        return;
+      }
+    }
 
     const authUpdate = {
-      data:{
-        name:name,
-        full_name:name
+      data: {
+        name,
+        full_name: name,
+        username,
+        contact_email: email || null
       }
     };
+    if(password) authUpdate.password = password;
 
-    /*
-      Password is stored securely by
-      Supabase Auth. It is never stored
-      in the profile table.
-    */
+    const updateResult = await db.auth.updateUser(authUpdate);
+    if(updateResult.error) throw updateResult.error;
 
-    if(password){
-      authUpdate.password = password;
-    }
+    const profileResult = await db
+      .from("user_login_methods")
+      .upsert({
+        user_id: user.id,
+        username,
+        full_name: name,
+        mobile,
+        email: email || null,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "user_id" });
 
-    const updateResult =
-      await db.auth.updateUser(authUpdate);
-
-    if(updateResult.error){
-      throw updateResult.error;
-    }
-
-    /*
-      Save the mobile number against the
-      SAME Supabase user.id.
-    */
-
-    const mobileResult =
-      await db
-        .from("user_login_methods")
-        .upsert(
-          {
-            user_id:user.id,
-            mobile:mobile,
-            updated_at:new Date().toISOString()
-          },
-          {
-            onConflict:"user_id"
-          }
-        );
-
-    if(mobileResult.error){
-      if(
-        mobileResult.error.code === "23505" ||
-        String(mobileResult.error.message || "")
-          .toLowerCase()
-          .includes("duplicate")
-      ){
-        throw new Error(
-          "This mobile number is already linked to another account."
-        );
+    if(profileResult.error){
+      if(profileResult.error.code === "23505" || /duplicate|unique/i.test(profileResult.error.message || "")){
+        throw new Error("Username or mobile number is already in use.");
       }
-
-      throw mobileResult.error;
+      throw profileResult.error;
     }
 
-    $("profileName").textContent =
-      name;
+    $("profileName").textContent = name;
+    $("profileEmail").textContent = email || updateResult.data?.user?.email || "Account";
+    $("profileEditMessage").textContent = password
+      ? "Profile and password updated successfully."
+      : "Profile updated successfully.";
 
-    const refreshedUser =
-      updateResult.data?.user;
+    setTimeout(()=>closePopup("profileEditPopup"), 1200);
 
-    if(
-      refreshedUser &&
-      refreshedUser.email
-    ){
-      $("profileEmail").textContent =
-        refreshedUser.email;
-    }
-
-    $("profileEditMessage").textContent =
-      password
-        ? "Profile, mobile number and password updated successfully."
-        : "Profile and mobile number updated successfully.";
-
-    setTimeout(()=>{
-      closePopup("profileEditPopup");
-    },1200);
-
+  }catch(error){
+    console.error("Profile update error:", error);
+    $("profileEditMessage").textContent = error?.message || "Could not update profile.";
   }
-  catch(error){
-
-    console.error(
-      "Profile update error:",
-      error
-    );
-
-    $("profileEditMessage").textContent =
-      error?.message ||
-      "Could not update profile.";
-  }
-
 }
 
 /* =========================
@@ -2036,6 +1994,14 @@ function openYouTube(){
     "noopener,noreferrer"
   );
 
+}
+
+function openSupport(){
+  window.open(
+    "https://t.me/boldhelp_robot",
+    "_blank",
+    "noopener,noreferrer"
+  );
 }
 
 /* =========================
