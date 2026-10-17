@@ -793,8 +793,8 @@ function goBack(){
 
   }
 
-  // At the subject list there is no in-page level to go back to.
-  // Do not force the user to practice.html.
+  // At the subject list, Back returns to the main Practice page.
+  window.location.href = "practice.html";
 
 }
 
@@ -1256,7 +1256,7 @@ function renderSubjects(){
   currentChapter = null;
 
   const backNav = document.getElementById("backNav");
-  if(backNav) backNav.style.display = "none";
+  if(backNav) backNav.style.display = "block";
 
   const wanted = [
     { label:"Quantitative Aptitude", icon:"🔢", keys:["quantitative aptitude","quant aptitude","quant"] },
@@ -1281,6 +1281,7 @@ function renderSubjects(){
         <div class="pd-card" onclick="openSubject('${item.subject.id}')">
           <div class="pd-icon">${item.icon}</div>
           <h3>${esc(item.label)}</h3>
+          <span class="pd-arrow" aria-hidden="true">➜</span>
         </div>
       `).join("") || `
         <div class="pd-empty">No matching subjects found.</div>
