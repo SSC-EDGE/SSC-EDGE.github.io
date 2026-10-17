@@ -683,7 +683,7 @@ body{
   >
     <div class="folder-icon">📚</div>
     <h3>Chapter Wise Practice</h3>
-    <span>Subject-wise practice</span>
+    <span>Subject-wise chapter practice</span>
   </a>
 
 </section>
@@ -2040,88 +2040,28 @@ function getRoots(){
           f.parent_id===undefined ||
           f.parent_id==="";
 
-        if(!root){
-          return false;
-        }
-
-        const type =
-          folderType(f);
-
-        const name =
-          normalize(
-            folderName(f)
-          );
-
-        return(
-          type==="new" ||
-          type==="pyq" ||
-          name==="new" ||
-          name==="new mocks" ||
-          name==="pyq" ||
-          name==="pyq mocks"
-        );
+        return root && f.is_active!==false;
 
       });
 
   const result = [];
-
-  const seen =
-    new Set();
+  const seen = new Set();
 
   candidates
-    .sort((a,b)=>{
-
-      const aType =
-        folderType(a);
-
-      const bType =
-        folderType(b);
-
-      const aExact =
-        compact(a.folder_type) ===
-        aType;
-
-      const bExact =
-        compact(b.folder_type) ===
-        bType;
-
-      if(
-        aExact!==bExact
-      ){
-
-        return aExact
-          ? -1
-          : 1;
-
-      }
-
-      return(
-        Number(a.sort_order||0) -
-        Number(b.sort_order||0)
-      );
-
-    })
+    .sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0))
     .forEach(folder=>{
 
-      const type =
-        folderType(folder);
+      const type = folderType(folder);
 
-      if(
-        type!=="new" &&
-        type!=="pyq"
-      ){
-
+      // NEW and PYQ are fixed system branches; show each only once.
+      if(type==="new" || type==="pyq"){
+        if(seen.has(type)) return;
+        seen.add(type);
         result.push(folder);
         return;
-
       }
 
-      if(seen.has(type)){
-        return;
-      }
-
-      seen.add(type);
-
+      // Custom root folders created from Admin Practice must also be visible.
       result.push(folder);
 
     });
@@ -2151,70 +2091,44 @@ function branchRoot(){
 function renderBranches(){
 
   const box =
-    document.getElementById(
-      "mockCategoryArea"
-    );
+    document.getElementById("mockCategoryArea");
 
-  const roots =
-    getRoots();
+  const roots = getRoots();
 
-  const newRoot =
-    roots.find(
-      r => folderType(r)==="new"
-    );
+  const newRoot = roots.find(r=>folderType(r)==="new");
+  const pyqRoot = roots.find(r=>folderType(r)==="pyq");
+  const customRoots = roots.filter(r=>folderType(r)!=="new" && folderType(r)!=="pyq");
 
-  const pyqRoot =
-    roots.find(
-      r => folderType(r)==="pyq"
-    );
+  const cards = [];
 
-  box.innerHTML = `
-
-    <div
-      class="practice-card"
-      onclick="openMockBranch(
-        '${newRoot ? newRoot.id : ""}',
-        'new'
-      )"
-    >
-
-      <div class="folder-icon">
-        🚀
-      </div>
-
-      <h3>
-        NEW MOCKS
-      </h3>
-
-      <span>
-        Latest Mock Tests
-      </span>
-
+  cards.push(`
+    <div class="practice-card" onclick="openMockBranch('${newRoot ? newRoot.id : ""}','new')">
+      <div class="folder-icon">🚀</div>
+      <h3>NEW MOCKS</h3>
+      <span>Latest Mock Tests</span>
     </div>
+  `);
 
-    <div
-      class="practice-card"
-      onclick="openMockBranch(
-        '${pyqRoot ? pyqRoot.id : ""}',
-        'pyq'
-      )"
-    >
-
-      <div class="folder-icon">
-        📚
-      </div>
-
-      <h3>
-        PYQ MOCKS
-      </h3>
-
-      <span>
-        Previous Year Questions
-      </span>
-
+  cards.push(`
+    <div class="practice-card" onclick="openMockBranch('${pyqRoot ? pyqRoot.id : ""}','pyq')">
+      <div class="folder-icon">📚</div>
+      <h3>PYQ MOCKS</h3>
+      <span>Previous Year Questions</span>
     </div>
+  `);
 
-  `;
+  customRoots.forEach(folder=>{
+    const title = folderName(folder);
+    cards.push(`
+      <div class="practice-card" onclick="openMockBranch('${folder.id}','custom')">
+        <div class="folder-icon">📁</div>
+        <h3>${escapeHtml(title)}</h3>
+        <span>Practice Tests</span>
+      </div>
+    `);
+  });
+
+  box.innerHTML = cards.join("");
 
 }
 
@@ -2248,7 +2162,9 @@ function openMockBranch(
     .textContent =
       branch==="pyq"
         ? "PYQ MOCKS"
-        : "NEW MOCKS";
+        : branch==="custom"
+          ? folderName(currentFolder) || "Practice Tests"
+          : "NEW MOCKS";
 
   showMockType("full");
 
@@ -2452,7 +2368,7 @@ function renderFull(){
 
   }
 
-  if(currentBranch==="new"){
+  if(currentBranch==="new" || currentBranch==="custom"){
 
     const list =
       tests.filter(t=>
