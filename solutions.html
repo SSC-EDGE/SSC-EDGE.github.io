@@ -108,8 +108,15 @@ background:var(--purple);color:#fff;border-color:var(--purple)
 }
 
 .saved-top-btn{
-font-size:15px;padding:5px 8px;line-height:1
+font-size:15px;padding:5px 8px;line-height:1;display:flex;align-items:center;justify-content:center;
+color:var(--muted)
 }
+.saved-top-btn.active{color:#24152f;background:#fff;border-color:#fff}
+.saved-bookmark{width:17px;height:20px;display:block}
+.saved-bookmark path{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
+.saved-bookmark.filled path{fill:currentColor}
+.saved-top-btn.active .saved-bookmark path{fill:#24152f;stroke:#24152f}
+.save-question-btn.saved .saved-bookmark path{fill:currentColor;stroke:currentColor}
 
 .question-card{
 background:var(--card);border:1px solid var(--border);
@@ -218,13 +225,12 @@ border-radius:9px;background:#fff;color:#24152f;font-size:12px;
 font-weight:900;cursor:pointer
 }
 
-.grid-question.current{
-outline:3px solid rgba(168,85,247,.4)
-}
-
-.grid-question.saved::after{
-content:"🔖";position:absolute;top:-7px;right:-5px;font-size:12px
-}
+.grid-question.current{outline:3px solid rgba(168,85,247,.4)}
+.grid-question.correct{background:#25c27a!important;border-color:#25c27a!important;color:#062d1c!important}
+.grid-question.wrong{background:#ef4444!important;border-color:#ef4444!important;color:#fff!important}
+.grid-question.unanswered{background:#fff!important;border-color:var(--border);color:#24152f!important}
+.grid-saved-icon{position:absolute;top:-7px;right:-5px;width:13px;height:16px;color:#24152f;background:#fff;border-radius:3px}
+.grid-saved-icon path{fill:currentColor;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
 
 .grid-legend{
 display:grid;grid-template-columns:1fr 1fr;gap:9px;
@@ -475,6 +481,13 @@ $("loading").className="loading error";
 $("loading").textContent=t;
 }
 
+function isCorrectOption(o){
+ return o?.is_correct===true||o?.is_correct==="true"||o?.is_correct===1||o?.is_correct==="1";
+}
+function bookmarkIcon(filled){
+ return `<svg class="saved-bookmark ${filled?"filled":""}" viewBox="0 0 18 22" aria-hidden="true" focusable="false"><path d="M2.5 2.5A1.5 1.5 0 0 1 4 1h10a1.5 1.5 0 0 1 1.5 1.5V20l-6.5-4-6.5 4V2.5Z"></path></svg>`;
+}
+
 function sectionName(s,i){
 const direct=[
 s?.subject_name,
@@ -674,8 +687,18 @@ b.textContent=pos+1;
 if(item.i===currentIndex)
 b.classList.add("current");
 
-if(isQuestionSaved(item.q.id))
-b.classList.add("saved");
+const selected=answers[String(item.q.id)]==null?"":String(answers[String(item.q.id)]);
+const correctOption=(item.q.options||[]).find(isCorrectOption);
+if(!selected)b.classList.add("unanswered");
+else if(correctOption&&selected===String(correctOption.id))b.classList.add("correct");
+else b.classList.add("wrong");
+
+if(isQuestionSaved(item.q.id)){
+ const icon=document.createElement("span");
+ icon.className="grid-saved-icon";
+ icon.innerHTML=bookmarkIcon(true);
+ b.appendChild(icon);
+}
 
 b.onclick=()=>{
 currentIndex=item.i;
@@ -737,12 +760,9 @@ lb.classList.toggle(
 language==="hi"
 );
 
-$("savedTopBtn").textContent="🔖";
-
-$("savedTopBtn").classList.toggle(
-"active",
-isQuestionSaved(q.id)
-);
+const savedNow=isQuestionSaved(q.id);
+$("savedTopBtn").innerHTML=bookmarkIcon(savedNow);
+$("savedTopBtn").classList.toggle("active",savedNow);
 
 renderSections();
 
@@ -853,7 +873,7 @@ ans.innerHTML=
 (
 correct
 ?esc(
-(correct.option_label||"")+" "+
+ "("+ (correct.option_label||"") +") "+
 getOptionText(correct,language)
 )
 :"Not available"
@@ -930,7 +950,7 @@ middle.className=
 (isQuestionSaved(q.id)?" saved":"");
 
 middle.innerHTML=
-"🔖 "+
+bookmarkIcon(isQuestionSaved(q.id))+" "+
 (isQuestionSaved(q.id)?"Saved":"Save Question");
 
 middle.onclick=()=>{
@@ -1069,6 +1089,7 @@ currentIndex=
 l.length?l[0].i:0;
 
 render();
+loadComparativeStats();
 
 }catch(e){
 
@@ -1080,6 +1101,127 @@ showError(
 
 }
 
+}
+
+async function loadComparativeStats(){
+ try{
+const latestAll=
+await db
+.from("test_attempts")
+.select(
+"id,user_id,completed_at"
+)
+.eq("mock_test_id",testId)
+.not("completed_at","is",null)
+.order("completed_at",{ascending:false});
+
+if(latestAll.error)
+throw latestAll.error;
+
+const latestByUser=new Map();
+
+(latestAll.data||[]).forEach(a=>{
+
+const u=String(a.user_id);
+
+if(!latestByUser.has(u))
+latestByUser.set(u,a);
+
+});
+
+const avgIds=
+[...latestByUser.values()]
+.map(a=>a.id);
+
+if(avgIds.length){
+
+const ua=
+await db
+.from("user_answers")
+.select(
+"attempt_id,question_id,selected_option_id,time_spent_seconds"
+)
+.in("attempt_id",avgIds);
+
+if(!ua.error){
+
+const rows=ua.data||[];
+
+const correctMap=
+new Map(
+questions.map(
+q=>[
+String(q.id),
+String(
+(q.options||[])
+.find(o=>o.is_correct)?.id||""
+)
+]
+)
+);
+
+const times=new Map(),
+right=new Map(),
+answered=new Map();
+
+rows.forEach(r=>{
+
+const k=String(r.question_id);
+
+const t=
+Number(r.time_spent_seconds||0);
+
+if(t>0){
+
+if(!times.has(k))
+times.set(k,[]);
+
+times.get(k).push(t);
+
+}
+
+if(r.selected_option_id!=null){
+
+answered.set(
+k,
+(answered.get(k)||0)+1
+);
+
+if(
+String(r.selected_option_id)===
+correctMap.get(k)
+){
+
+right.set(
+k,
+(right.get(k)||0)+1
+);
+
+}
+
+}
+
+});
+
+times.forEach((v,k)=>
+avgTimes[k]=
+v.reduce((a,b)=>a+b,0)/v.length
+);
+
+answered.forEach((v,k)=>
+correctRates[k]=
+v
+?((right.get(k)||0)/v)*100
+:null
+);
+
+}
+
+}
+
+ 
+  if($("solutionArea")&&!$("solutionArea").classList.contains("hidden"))render();
+ }catch(e){console.log("Comparative solution stats unavailable:",e)}
 }
 
 async function run(){
@@ -1279,120 +1421,7 @@ a=>String(a.id)===String(requestedAttemptId)
 )
 )||userAttempts[0];
 
-const latestAll=
-await db
-.from("test_attempts")
-.select(
-"id,user_id,completed_at"
-)
-.eq("mock_test_id",testId)
-.not("completed_at","is",null)
-.order("completed_at",{ascending:false});
-
-if(latestAll.error)
-throw latestAll.error;
-
-const latestByUser=new Map();
-
-(latestAll.data||[]).forEach(a=>{
-
-const u=String(a.user_id);
-
-if(!latestByUser.has(u))
-latestByUser.set(u,a);
-
-});
-
-const avgIds=
-[...latestByUser.values()]
-.map(a=>a.id);
-
-if(avgIds.length){
-
-const ua=
-await db
-.from("user_answers")
-.select(
-"attempt_id,question_id,selected_option_id,time_spent_seconds"
-)
-.in("attempt_id",avgIds);
-
-if(!ua.error){
-
-const rows=ua.data||[];
-
-const correctMap=
-new Map(
-questions.map(
-q=>[
-String(q.id),
-String(
-(q.options||[])
-.find(o=>o.is_correct)?.id||""
-)
-]
-)
-);
-
-const times=new Map(),
-right=new Map(),
-answered=new Map();
-
-rows.forEach(r=>{
-
-const k=String(r.question_id);
-
-const t=
-Number(r.time_spent_seconds||0);
-
-if(t>0){
-
-if(!times.has(k))
-times.set(k,[]);
-
-times.get(k).push(t);
-
-}
-
-if(r.selected_option_id!=null){
-
-answered.set(
-k,
-(answered.get(k)||0)+1
-);
-
-if(
-String(r.selected_option_id)===
-correctMap.get(k)
-){
-
-right.set(
-k,
-(right.get(k)||0)+1
-);
-
-}
-
-}
-
-});
-
-times.forEach((v,k)=>
-avgTimes[k]=
-v.reduce((a,b)=>a+b,0)/v.length
-);
-
-answered.forEach((v,k)=>
-correctRates[k]=
-v
-?((right.get(k)||0)/v)*100
-:null
-);
-
-}
-
-}
-
+/* Comparative averages load in the background so the first question opens quickly. */
 await loadAnswerData();
 
 $("testName").textContent=
@@ -1445,6 +1474,7 @@ currentIndex=
 l.length?l[0].i:0;
 
 render();
+loadComparativeStats();
 
 }catch(e){
 

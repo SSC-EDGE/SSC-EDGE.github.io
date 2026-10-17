@@ -104,17 +104,43 @@ attempts.forEach(a=>{const answers=allAnswers.filter(x=>String(x.attempt_id)===S
 sectionStats.forEach(s=>{const k=s.subjectId!=null?String(s.subjectId):String(s.key),scores=lists.get(k);if(!scores?.length)return;const lower=scores.filter(x=>x<s.score).length;s.percentile=scores.length>1?(lower/(scores.length-1))*100:100})
 }catch(e){console.log("Section percentile unavailable:",e)}
 }
-function renderOverall(){const correct=num(currentAttempt.correct_answers),wrong=num(currentAttempt.wrong_answers),attempted=correct+wrong,accuracy=attempted?correct/attempted*100:null;$("rank").textContent=overallRank!=null&&totalAttemptedUsers!=null?overallRank+" / "+totalAttemptedUsers:"—";$("marks").textContent=formatScore(currentAttempt.score);$("attempted").textContent=attempted;$("correctWrong").innerHTML='<span class="green">'+correct+'</span> / <span class="red">'+wrong+'</span>';$("accuracy").textContent=formatPercent(accuracy);$("percentile").textContent=formatPercent(overallPercentile)}
+function renderOverall(){const correct=num(currentAttempt.correct_answers),wrong=num(currentAttempt.wrong_answers),attempted=correct+wrong,accuracy=attempted?correct/attempted*100:null;$("rank").textContent=overallRank!=null?(totalAttemptedUsers!=null?overallRank+" / "+totalAttemptedUsers:String(overallRank)):"—";$("marks").textContent=formatScore(currentAttempt.score);$("attempted").textContent=attempted;$("correctWrong").innerHTML='<span class="green">'+correct+'</span> / <span class="red">'+wrong+'</span>';$("accuracy").textContent=formatPercent(accuracy);$("percentile").textContent=formatPercent(overallPercentile)}
 function renderTabs(){const tabs=$("tabs");tabs.innerHTML="";const b=document.createElement("button");b.className="tab"+(selectedSectionIndex===0?" active":"");b.textContent="Score";b.onclick=()=>{selectedSectionIndex=0;renderTabs();renderSelectedSection()};tabs.appendChild(b);sectionStats.forEach((s,i)=>{const x=document.createElement("button");x.className="tab"+(selectedSectionIndex===i+1?" active":"");x.textContent=s.name;x.onclick=()=>{selectedSectionIndex=i+1;renderTabs();renderSelectedSection()};tabs.appendChild(x)})}
 function renderSelectedSection(){if(!sectionStats.length){$("sectionDetails").style.display="none";$("tabsWrap").style.display="none";$("noSections").style.display="block";return}$("sectionDetails").style.display="grid";$("tabsWrap").style.display="block";$("noSections").style.display="none";const d=$("sectionDetails");d.innerHTML="";if(selectedSectionIndex===0){sectionStats.forEach(s=>{const x=document.createElement("div");x.className="detail";x.innerHTML='<div class="detail-label">'+escapeHtml(s.name)+' Score</div><div class="detail-value">'+formatScore(s.score)+' / '+formatScore(s.maxMarks)+'</div>';d.appendChild(x)});const total=sectionStats.reduce((a,b)=>a+Number(b.score||0),0),max=sectionStats.reduce((a,b)=>a+Number(b.maxMarks||0),0),x=document.createElement("div");x.className="detail";x.innerHTML='<div class="detail-label">Total Score</div><div class="detail-value">'+formatScore(total)+' / '+formatScore(max)+'</div>';d.appendChild(x);return}const s=sectionStats[selectedSectionIndex-1];if(!s)return;d.innerHTML='<div class="detail"><div class="detail-label">Score</div><div class="detail-value">'+formatScore(s.score)+' / '+formatScore(s.maxMarks)+'</div></div><div class="detail"><div class="detail-label">Section Percentile</div><div class="detail-value">'+formatPercent(s.percentile)+'</div></div><div class="detail"><div class="detail-label">Correct</div><div class="detail-value green">'+s.correct+'</div></div><div class="detail"><div class="detail-label">Incorrect</div><div class="detail-value red">'+s.incorrect+'</div></div>'}
 function renderAttemptSelector(){const s=$("attemptSelect");s.innerHTML="";allUserAttempts.forEach((a,i)=>{const o=document.createElement("option");o.value=a.id;o.textContent="Attempt "+(allUserAttempts.length-i);s.appendChild(o)});if(currentAttempt)s.value=currentAttempt.id}
 async function prepareAttempt(attempt){
-currentAttempt=attempt;const assignments=await loadAssignedQuestions(),ids=assignments.map(a=>a.question_id),[questions,options,answers,sections]=await Promise.all([loadQuestions(ids),loadOptions(ids),loadAnswers(currentAttempt.id),loadSections()]),subjects=await loadSubjects([...questions.map(q=>q.subject_id),...sections.map(s=>s.subject_id)]);sectionStats=buildSectionStats(calculateResults(assignments,questions,options,answers,sections),subjects,sections);const r=await calculateOverallRank();overallRank=r.rank;totalAttemptedUsers=r.totalUsers;overallPercentile=r.percentile;selectedSectionIndex=0;await calculateSectionPercentiles();renderOverall();renderTabs();renderSelectedSection();renderAttemptSelector()}
-async function switchAttempt(id){try{const a=allUserAttempts.find(x=>String(x.id)===String(id));if(a)await prepareAttempt(a)}catch(e){console.error(e);showError("Unable to switch attempt: "+(e?.message||String(e)))}}
+ currentAttempt=attempt;
+ const assignments=await loadAssignedQuestions(),ids=assignments.map(a=>a.question_id);
+ const [questions,options,answers,sections]=await Promise.all([loadQuestions(ids),loadOptions(ids),loadAnswers(currentAttempt.id),loadSections()]);
+ const subjects=await loadSubjects([...questions.map(q=>q.subject_id),...sections.map(s=>s.subject_id)]);
+ sectionStats=buildSectionStats(calculateResults(assignments,questions,options,answers,sections),subjects,sections);
+ // Use saved rank/percentile for the first paint; expensive cross-user calculations run after the page is visible.
+ overallRank=currentAttempt.rank!=null?num(currentAttempt.rank):null;
+ totalAttemptedUsers=null;
+ overallPercentile=currentAttempt.percentile!=null?num(currentAttempt.percentile):null;
+ selectedSectionIndex=0;
+ renderOverall();renderTabs();renderSelectedSection();renderAttemptSelector();
+}
+async function refreshBackgroundStats(){
+ const attemptId=String(currentAttempt?.id||"");
+ try{
+  const r=await calculateOverallRank();
+  if(String(currentAttempt?.id||"")!==attemptId)return;
+  overallRank=r.rank;totalAttemptedUsers=r.totalUsers;
+  if(r.percentile!=null)overallPercentile=r.percentile;
+  renderOverall();
+ }catch(e){console.log("Overall rank unavailable:",e)}
+ try{
+  await calculateSectionPercentiles();
+  if(String(currentAttempt?.id||"")!==attemptId)return;
+  renderTabs();renderSelectedSection();
+ }catch(e){console.log("Section percentile unavailable:",e)}
+}
+async function switchAttempt(id){try{const a=allUserAttempts.find(x=>String(x.id)===String(id));if(a){await prepareAttempt(a);refreshBackgroundStats()}}catch(e){console.error(e);showError("Unable to switch attempt: "+(e?.message||String(e)))}}
 function render(){ $("testName").textContent=currentTest.title||"SSC EDGE Test";const n=currentTest.test_number??currentTest.test_no??currentTest.number??"—";$("testNo").textContent="Test No. "+n;renderOverall();renderTabs();renderSelectedSection();renderAttemptSelector();$("loading").style.display="none";$("content").style.display="block"}
 async function init(){
 try{if(!mockTestId){showError("Invalid test. Test ID is missing.");return}const {data,error}=await supabaseClient.auth.getUser();if(error||!data?.user){showError("Please login to view your analysis.");return}currentUser=data.user;currentTest=await loadTest();allUserAttempts=await loadUserAttempts(currentUser.id);if(!allUserAttempts.length){showError("No completed attempt found for this test.");return}
-currentAttempt=(requestedAttemptId&&allUserAttempts.find(a=>String(a.id)===String(requestedAttemptId)))||allUserAttempts[0];await prepareAttempt(currentAttempt);render();$("attemptSelect").onchange=e=>switchAttempt(e.target.value)
+currentAttempt=(requestedAttemptId&&allUserAttempts.find(a=>String(a.id)===String(requestedAttemptId)))||allUserAttempts[0];await prepareAttempt(currentAttempt);render();refreshBackgroundStats();$("attemptSelect").onchange=e=>switchAttempt(e.target.value)
 }catch(e){console.error("Analysis error:",e);showError("Unable to load analysis: "+(e?.message||String(e)))}
 }
 init();
