@@ -188,6 +188,30 @@ button{
   text-align:center;
 }
 
+
+.switch-link{
+  margin-top:15px;
+  text-align:center;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.6;
+}
+.switch-link button{
+  width:auto;
+  padding:0;
+  margin:0;
+  background:transparent;
+  color:var(--lavender);
+  font-size:14px;
+  font-weight:700;
+}
+.hidden{display:none !important;}
+.welcome{
+  text-align:center;
+  color:var(--muted);
+  font-size:16px;
+  margin-bottom:3px;
+}
 </style>
 
 </head>
@@ -201,131 +225,86 @@ button{
        LOGIN
   ========================== -->
 
+  <div class="welcome">Welcome to</div>
   <div class="logo">
     SSC <span class="edge">EDGE</span>
   </div>
 
-  <div class="subtitle">
-    Smart Preparation for SSC Exams
-  </div>
-
-
   <div class="card" id="loginBox">
 
-    <h2>
-      Login
-    </h2>
+    <div id="loginPanel">
+      <h2>Login</h2>
 
+      <label for="loginIdentifier">Username / Mobile No</label>
+      <input
+        type="text"
+        id="loginIdentifier"
+        placeholder="Enter username or mobile number"
+        autocomplete="username"
+        autocapitalize="none"
+      >
 
-    <label>
-      Mobile Number
-    </label>
+      <label for="loginPassword">Password</label>
+      <input
+        type="password"
+        id="loginPassword"
+        placeholder="Enter your password"
+        autocomplete="current-password"
+      >
 
-    <input
-      type="tel"
-      id="loginPhone"
-      placeholder="Enter your mobile number"
-      autocomplete="tel"
-      inputmode="tel"
-    >
+      <button class="primary" onclick="loginUsernamePassword()">Login</button>
 
-
-    <label>
-      Password
-    </label>
-
-    <input
-      type="password"
-      id="loginPassword"
-      placeholder="Enter your password"
-      autocomplete="current-password"
-    >
-
-
-    <button
-      class="primary"
-      onclick="loginPhonePassword()"
-    >
-      Login
-    </button>
-
-
-    <div class="divider">
-      OR
+      <div class="switch-link">
+        Don't have an account??
+        <button type="button" onclick="showSignup()">Create Account</button>
+      </div>
     </div>
 
+    <div id="signupPanel" class="hidden">
+      <h2>Create Account</h2>
 
-    <!-- GOOGLE LOGIN -->
+      <label for="signupName">Full Name *</label>
+      <input type="text" id="signupName" placeholder="Enter your full name" autocomplete="name" maxlength="80">
 
-    <button
-      class="google"
-      onclick="loginWithGoogle()"
-    >
+      <label for="signupUsername">Username *</label>
+      <input type="text" id="signupUsername" placeholder="Choose a unique username" autocomplete="username" autocapitalize="none" maxlength="20">
+      <div class="small" style="text-align:left">3–20 characters; start with a letter. Letters, numbers, dot and underscore are allowed.</div>
 
-      <span class="google-content">
+      <label for="signupPassword">Password *</label>
+      <input type="password" id="signupPassword" placeholder="Create a password (minimum 8 characters)" autocomplete="new-password">
 
-        <svg
-          class="google-icon"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
+      <label for="signupMobile">Mobile Number (optional)</label>
+      <input type="tel" id="signupMobile" placeholder="10-digit mobile number" autocomplete="tel" inputmode="tel">
 
-          <path
-            fill="#4285F4"
-            d="M21.35 12.27c0-.79-.07-1.55-.22-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42z"
-          />
+      <label for="signupEmail">Email (optional)</label>
+      <input type="email" id="signupEmail" placeholder="Enter your email address" autocomplete="email">
 
-          <path
-            fill="#34A853"
-            d="M12 21.7c2.63 0 4.84-.87 6.45-2.35l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.74 9.74 0 0 0 12 21.7z"
-          />
+      <button class="primary" onclick="createAccount()">Create Account</button>
+      <div class="switch-link">
+        Already have an account?
+        <button type="button" onclick="showLogin()">Login</button>
+      </div>
+    </div>
 
-          <path
-            fill="#FBBC05"
-            d="M6.54 13.79A5.86 5.86 0 0 1 6.23 12c0-.62.11-1.22.31-1.79V7.68H3.3A9.74 9.74 0 0 0 2.25 12c0 1.57.38 3.05 1.05 4.32l3.24-2.53z"
-          />
+    <div class="message" id="loginMessage" aria-live="polite"></div>
 
-          <path
-            fill="#EA4335"
-            d="M12 6.18c1.43 0 2.71.49 3.72 1.46l2.79-2.79C16.84 3.2 14.63 2.3 12 2.3a9.74 9.74 0 0 0-8.7 5.38l3.24 2.53C6.31 7.9 8.46 6.18 12 6.18z"
-          />
-
-        </svg>
-
-        <span>
-          Continue with Google
+    <div id="socialOptions">
+      <button class="google" onclick="loginWithGoogle()">
+        <span class="google-content">
+          <svg class="google-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M21.35 12.27c0-.79-.07-1.55-.22-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42z"/>
+            <path fill="#34A853" d="M12 21.7c2.63 0 4.84-.87 6.45-2.35l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.74 9.74 0 0 0 12 21.7z"/>
+            <path fill="#FBBC05" d="M6.54 13.79A5.86 5.86 0 0 1 6.23 12c0-.62.11-1.22.31-1.79V7.68H3.3A9.74 9.74 0 0 0 2.25 12c0 1.57.38 3.05 1.05 4.32l3.24-2.53z"/>
+            <path fill="#EA4335" d="M12 6.18c1.43 0 2.71.49 3.72 1.46l2.79-2.79C16.84 3.2 14.63 2.3 12 2.3a9.74 9.74 0 0 0-8.7 5.38l3.24 2.53C6.31 7.9 8.46 6.18 12 6.18z"/>
+          </svg>
+          <span>Continue with Google</span>
         </span>
+      </button>
 
-      </span>
-
-    </button>
-
-
-    <!-- GUEST -->
-
-    <button
-      class="guest"
-      onclick="continueAsGuest()"
-    >
-      Continue as Guest
-    </button>
-
-
-    <div
-      class="message"
-      id="loginMessage"
-    >
+      <button class="guest" onclick="continueAsGuest()">Continue as a Guest</button>
     </div>
-
-
-    <div class="small">
-      New users can create their SSC EDGE account using Google.
-    </div>
-
   </div>
-
 </div>
-
 
 <!-- =========================
      SUPABASE
@@ -442,151 +421,108 @@ function normalizePhone(phone){
 
 
 /* =========================================
-   MOBILE + PASSWORD LOGIN
+   LOGIN + SIGNUP HELPERS
 ========================================= */
 
-async function loginPhonePassword(){
-
-  const phoneInput =
-    document.getElementById(
-      "loginPhone"
-    );
-
-  const passwordInput =
-    document.getElementById(
-      "loginPassword"
-    );
-
-  const msg =
-    document.getElementById(
-      "loginMessage"
-    );
-
-
-  const phone =
-    normalizePhone(
-      phoneInput.value
-    );
-
-  const password =
-    passwordInput.value;
-
-
-  if(!phone){
-
-    msg.textContent =
-      "Please enter a valid 10-digit mobile number.";
-
-    return;
-  }
-
-
-  if(!password){
-
-    msg.textContent =
-      "Please enter your password.";
-
-    return;
-  }
-
-
-  msg.textContent =
-    "Logging in...";
-
-
-  const { data, error } =
-    await supabaseClient.functions.invoke(
-      "quick-api",
-      {
-        body:{
-          mobile:phone,
-          password:password
-        }
-      }
-    );
-
-
-  if(error){
-
-    console.error(
-      "Mobile login error:",
-      error
-    );
-
-    let message =
-      error?.message ||
-      "Mobile login failed.";
-
-
-    try{
-
-      if(error?.context){
-
-        const body =
-          await error.context.json();
-
-        if(body?.error){
-
-          message =
-            body.error;
-
-        }
-
-      }
-
-    }catch(e){}
-
-
-    msg.textContent =
-      message;
-
-    return;
-  }
-
-
-  if(
-    !data?.access_token ||
-    !data?.refresh_token
-  ){
-
-    msg.textContent =
-      data?.error ||
-      "Mobile login failed.";
-
-    return;
-  }
-
-
-  const sessionResult =
-    await supabaseClient.auth.setSession({
-
-      access_token:
-        data.access_token,
-
-      refresh_token:
-        data.refresh_token
-
-    });
-
-
-  if(sessionResult.error){
-
-    msg.textContent =
-      sessionResult.error.message;
-
-    return;
-  }
-
-
-  await saveUser(
-    sessionResult.data.session.user
-  );
-
-
-  goHome();
-
+function showLogin(){
+  document.getElementById("loginPanel").classList.remove("hidden");
+  document.getElementById("signupPanel").classList.add("hidden");
+  document.getElementById("socialOptions").classList.remove("hidden");
+  document.getElementById("loginMessage").textContent = "";
 }
 
+function showSignup(){
+  document.getElementById("loginPanel").classList.add("hidden");
+  document.getElementById("signupPanel").classList.remove("hidden");
+  document.getElementById("socialOptions").classList.add("hidden");
+  document.getElementById("loginMessage").textContent = "";
+}
+
+async function readFunctionError(error, fallback){
+  try{
+    if(error?.context){
+      const body = await error.context.json();
+      if(body?.error) return body.error;
+    }
+  }catch(e){}
+  return error?.message || fallback;
+}
+
+async function loginUsernamePassword(){
+  const identifier = document.getElementById("loginIdentifier").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const msg = document.getElementById("loginMessage");
+
+  if(!identifier){ msg.textContent = "Enter your username or mobile number."; return; }
+  if(!password){ msg.textContent = "Please enter your password."; return; }
+
+  msg.textContent = "Logging in...";
+  const {data, error} = await supabaseClient.functions.invoke("quick-api", {
+    body: { action: "login", identifier, password }
+  });
+
+  if(error){
+    msg.textContent = await readFunctionError(error, "Login failed. Please try again.");
+    return;
+  }
+  if(!data?.access_token || !data?.refresh_token){
+    msg.textContent = data?.error || "Login failed. Please check your details.";
+    return;
+  }
+
+  const sessionResult = await supabaseClient.auth.setSession({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token
+  });
+  if(sessionResult.error){ msg.textContent = sessionResult.error.message; return; }
+  await saveUser(sessionResult.data.session.user);
+  goHome();
+}
+
+async function createAccount(){
+  const name = document.getElementById("signupName").value.trim();
+  const username = document.getElementById("signupUsername").value.trim();
+  const password = document.getElementById("signupPassword").value;
+  const mobileRaw = document.getElementById("signupMobile").value.trim();
+  const email = document.getElementById("signupEmail").value.trim();
+  const msg = document.getElementById("loginMessage");
+
+  if(!name){ msg.textContent = "Please enter your full name."; return; }
+  if(!/^[a-z][a-z0-9._]{2,19}$/i.test(username)){
+    msg.textContent = "Username must be 3–20 characters, start with a letter, and use only letters, numbers, dot or underscore.";
+    return;
+  }
+  if(password.length < 8){ msg.textContent = "Password must be at least 8 characters."; return; }
+  const mobile = mobileRaw ? normalizePhone(mobileRaw) : null;
+  if(mobileRaw && !mobile){ msg.textContent = "Enter a valid 10-digit Indian mobile number."; return; }
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    msg.textContent = "Enter a valid email address or leave it blank."; return;
+  }
+
+  msg.textContent = "Creating your account...";
+  const {data, error} = await supabaseClient.functions.invoke("quick-api", {
+    body: { action: "signup", name, username, password, mobile, email: email || null }
+  });
+
+  if(error){
+    msg.textContent = await readFunctionError(error, "Account creation failed. Please try again.");
+    return;
+  }
+  if(data?.error){ msg.textContent = data.error; return; }
+  if(!data?.access_token || !data?.refresh_token){
+    msg.textContent = "Account created, but automatic login failed. Please log in.";
+    showLogin();
+    return;
+  }
+
+  const sessionResult = await supabaseClient.auth.setSession({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token
+  });
+  if(sessionResult.error){ msg.textContent = "Account created. Please log in with your new details."; showLogin(); return; }
+  await saveUser(sessionResult.data.session.user);
+  goHome();
+}
 
 /* =========================================
    GOOGLE LOGIN
