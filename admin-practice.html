@@ -897,7 +897,7 @@ Manage exams, branches, custom folders, categories, years, subjects and mock tes
 
 <div class="ap-form-group">
 <label class="ap-form-label">Total Questions</label>
-<input class="ap-form-input" id="mockQuestionsInput" type="number" min="1" value="25">
+<input class="ap-form-input" id="mockQuestionsInput" type="number" min="1" value="100">
 </div>
 
 <div class="ap-form-group">
@@ -1623,6 +1623,18 @@ folderName(a).localeCompare(folderName(b));
 }
 
 /*
+Keep sectional subject folders in the requested SSC exam order.
+*/
+function sectionalSubjectOrder(folder){
+const raw=String(folderName(folder)||"").trim().toLowerCase().replace(/[^a-z0-9]+/g,"");
+if(raw.includes("reason")) return 0;
+if(raw.includes("generalawareness")||raw==="gk"||raw.includes("generalknowledge")) return 1;
+if(raw.includes("quantitativeaptitude")||raw==="quant"||raw.includes("quantitative")||raw.includes("math")) return 2;
+if(raw.includes("english")) return 3;
+return 99;
+}
+
+/*
 Get all SUBJECT folders from every equivalent SECTIONAL folder.
 */
 
@@ -1652,6 +1664,11 @@ result.push(subject);
 });
 
 return result.sort((a,b)=>{
+
+const subjectOrder=
+sectionalSubjectOrder(a)-sectionalSubjectOrder(b);
+
+if(subjectOrder!==0)return subjectOrder;
 
 const order=
 Number(a.sort_order||0)-
@@ -3390,7 +3407,12 @@ unique.push(clip);
 
 });
 
-clips=unique;
+clips=unique.sort((a,b)=>{
+const subjectOrder=sectionalSubjectOrder(a)-sectionalSubjectOrder(b);
+if(subjectOrder!==0)return subjectOrder;
+const order=Number(a.sort_order||0)-Number(b.sort_order||0);
+return order||folderName(a).localeCompare(folderName(b));
+});
 
 const selectedStillExists=
 selectedFolder&&
@@ -4070,10 +4092,10 @@ $("mockDescriptionInput").value=
 test?.description||"";
 
 $("mockDurationInput").value=
-test?.duration_minutes||60;
+test?.duration_minutes||(type==="SECTIONAL"?15:60);
 
 $("mockQuestionsInput").value=
-test?.total_questions||25;
+test?.total_questions||(type==="SECTIONAL"?25:100);
 
 $("mockActiveInput").value=
 test&&test.is_active===false
@@ -4097,25 +4119,25 @@ if(!sections.length){
 sections=[
 
 {
-name:"English",
-duration:15,
-questions:25
-},
-
-{
 name:"Reasoning",
 duration:15,
 questions:25
 },
 
 {
-name:"Quant",
+name:"General Awareness",
 duration:15,
 questions:25
 },
 
 {
-name:"GK",
+name:"Quantitative Aptitude",
+duration:15,
+questions:25
+},
+
+{
+name:"English",
 duration:15,
 questions:25
 }
