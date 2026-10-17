@@ -85,7 +85,8 @@ body{
 .header-actions{
   display:flex;
   align-items:center;
-  gap:7px;
+  gap:6px;
+  flex-shrink:0;
 }
 
 .timer{
@@ -210,11 +211,30 @@ body{
   border:0;
   background:var(--purple);
   color:white;
-  padding:9px 11px;
+  padding:9px 10px;
   border-radius:10px;
   font-size:11px;
   font-weight:900;
+  white-space:nowrap;
   cursor:pointer;
+}
+
+.grid-submit-section{
+  display:block;
+  width:100%;
+  margin-top:14px;
+  border:0;
+  background:var(--purple);
+  color:#fff;
+  padding:12px 14px;
+  border-radius:11px;
+  font-size:13px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.grid-submit-section:active{
+  transform:scale(.99);
 }
 
 .language-icon-btn{
@@ -1294,7 +1314,7 @@ body{
   }
 
   .submit-section{
-    padding:8px 9px;
+    padding:8px 8px;
     font-size:10px;
   }
 
@@ -1354,7 +1374,8 @@ body{
   }
 
   .submit-section{
-    padding:8px 7px;
+    padding:8px 6px;
+    font-size:9px;
   }
 
   .language-icon-btn{
@@ -1481,42 +1502,6 @@ body{
         title="Pause Test"
       >
         <span class="pause-glyph" aria-hidden="true"></span>
-      </button>
-
-    </div>
-
-  </div>
-
-  <div class="test-info">
-
-    <div class="test-info-left">
-
-      <div
-        id="testName"
-        class="test-name"
-      >
-        Loading Test...
-      </div>
-
-      <span
-        id="testNumber"
-        class="test-number"
-      >
-        Test
-      </span>
-
-    </div>
-
-    <div class="test-header-right">
-
-      <button
-        id="questionLanguageBtn"
-        class="language-icon-btn"
-        type="button"
-        aria-label="Change Question Language"
-        title="Change Question Language"
-      >
-        अ/A
       </button>
 
       <button
@@ -1675,6 +1660,16 @@ body{
       </span>
 
       <div class="question-top-right">
+
+        <button
+          id="questionLanguageBtn"
+          class="language-icon-btn"
+          type="button"
+          aria-label="Change Question Language"
+          title="Change Question Language"
+        >
+          अ/A
+        </button>
 
         <span
           id="questionTime"
@@ -1867,6 +1862,14 @@ body{
 
     </div>
 
+    <button
+      id="gridSubmitSectionBtn"
+      class="grid-submit-section"
+      type="button"
+    >
+      Submit Section
+    </button>
+
   </div>
 
 </div>
@@ -2011,6 +2014,7 @@ let selectedStartLanguage =
   localStorage.getItem("ssc-edge-test-language") || "english";
 
 let currentQuestionLanguage = selectedStartLanguage;
+let questionLanguageOverrides = {};
 
 let testStarted = false;
 let testFinished = false;
@@ -2277,6 +2281,8 @@ function saveLocalProgress(){
 
     currentQuestionLanguage,
 
+    questionLanguageOverrides,
+
     totalRemainingSeconds,
 
     questionRemainingSeconds,
@@ -2524,7 +2530,10 @@ async function loadTestData(){
         title,
         test_type,
         duration_minutes,
-        subject_wise_timing
+        subject_wise_timing,
+        marks_per_question,
+        negative_marks_per_question,
+        unattempted_marks_per_question
       `)
       .eq("id", testId)
       .maybeSingle();
@@ -3299,8 +3308,12 @@ function restoreProgress(progress){
     progress.selectedStartLanguage || selectedStartLanguage
   );
 
+  questionLanguageOverrides = progress.questionLanguageOverrides || {};
+
   currentQuestionLanguage = normalizeLanguage(
-    progress.currentQuestionLanguage || selectedStartLanguage
+    questionLanguageOverrides[String(getCurrentQuestion()?.id)] ||
+    progress.currentQuestionLanguage ||
+    selectedStartLanguage
   );
 
   totalRemainingSeconds = Number(progress.totalRemainingSeconds || 0);
@@ -3382,6 +3395,7 @@ function resetTestState(){
   answers = {};
   reviewQuestions = {};
   savedQuestions = {};
+  questionLanguageOverrides = {};
 
   currentSectionIndex = 0;
   currentQuestionIndex = 0;
@@ -3775,6 +3789,10 @@ function renderCurrentQuestion(){
     sectionQuestions[currentQuestionIndex];
 
   if(!question) return;
+
+  currentQuestionLanguage = normalizeLanguage(
+    questionLanguageOverrides[String(question.id)] || selectedStartLanguage
+  );
 
   questionElapsedSeconds =
     Number(questionTimeData[String(question.id)] || 0);
@@ -4374,8 +4392,12 @@ function closeLanguagePopup(){
 
 function changeQuestionLanguage(language){
 
-  currentQuestionLanguage =
-    normalizeLanguage(language);
+  const question = getCurrentQuestion();
+  currentQuestionLanguage = normalizeLanguage(language);
+
+  if(question){
+    questionLanguageOverrides[String(question.id)] = currentQuestionLanguage;
+  }
 
   setText(
     "questionSection",
@@ -4457,6 +4479,15 @@ function setupEventListeners(){
     ?.addEventListener(
       "click",
       submitCurrentSection
+    );
+
+  $("gridSubmitSectionBtn")
+    ?.addEventListener(
+      "click",
+      () => {
+        closeGrid();
+        submitCurrentSection();
+      }
     );
 
   $("pauseBtn")
@@ -4825,6 +4856,15 @@ function getSelectedOptionLabel(question, selectedValue){
 
 function getQuestionMarks(question){
 
+  if(
+    testData &&
+    testData.marks_per_question !== null &&
+    testData.marks_per_question !== undefined &&
+    Number.isFinite(Number(testData.marks_per_question))
+  ){
+    return Number(testData.marks_per_question);
+  }
+
   const marks =
     Number(question.marks);
 
@@ -4836,11 +4876,31 @@ function getQuestionMarks(question){
 
 function getQuestionNegativeMarks(question){
 
+  if(
+    testData &&
+    testData.negative_marks_per_question !== null &&
+    testData.negative_marks_per_question !== undefined &&
+    Number.isFinite(Number(testData.negative_marks_per_question))
+  ){
+    return Number(testData.negative_marks_per_question);
+  }
+
   const negative =
     Number(question.negative_marks);
 
   return Number.isFinite(negative)
     ? negative
+    : 0;
+
+}
+
+function getQuestionUnattemptedMarks(){
+
+  const unattempted =
+    Number(testData?.unattempted_marks_per_question);
+
+  return Number.isFinite(unattempted)
+    ? unattempted
     : 0;
 
 }
@@ -4888,6 +4948,7 @@ async function calculateTestResult(){
 
     if(!hasAttempt){
       skipped++;
+      awardedMarks = getQuestionUnattemptedMarks();
     }else{
       attempted++;
       if(isQuestionBonus(question)){

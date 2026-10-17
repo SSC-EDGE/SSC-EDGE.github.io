@@ -2673,10 +2673,14 @@ function renderSectional(){
           sb?.name ||
           "";
 
-        return(
-          subjectOrder(na) -
-          subjectOrder(nb)
-        );
+        const orderA = Number(a.sort_order ?? 0);
+        const orderB = Number(b.sort_order ?? 0);
+
+        if(orderA !== orderB){
+          return orderA - orderB;
+        }
+
+        return String(na).localeCompare(String(nb));
 
       });
 

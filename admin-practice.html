@@ -901,6 +901,21 @@ Manage exams, branches, custom folders, categories, years, subjects and mock tes
 </div>
 
 <div class="ap-form-group">
+<label class="ap-form-label">Marks per Correct Answer</label>
+<input class="ap-form-input" id="mockMarksInput" type="number" min="0" step="0.25" value="2">
+</div>
+
+<div class="ap-form-group">
+<label class="ap-form-label">Negative Marks per Wrong Answer</label>
+<input class="ap-form-input" id="mockNegativeMarksInput" type="number" min="0" step="0.25" value="0.5">
+</div>
+
+<div class="ap-form-group">
+<label class="ap-form-label">Marks per Unattempted Question</label>
+<input class="ap-form-input" id="mockUnattemptedMarksInput" type="number" step="0.25" value="0">
+</div>
+
+<div class="ap-form-group">
 <label class="ap-form-label">Status</label>
 <select class="ap-form-select" id="mockActiveInput">
 <option value="true">Active</option>
@@ -4097,6 +4112,15 @@ test?.duration_minutes||(type==="SECTIONAL"?15:60);
 $("mockQuestionsInput").value=
 test?.total_questions||(type==="SECTIONAL"?25:100);
 
+$("mockMarksInput").value=
+test?.marks_per_question ?? 2;
+
+$("mockNegativeMarksInput").value=
+test?.negative_marks_per_question ?? 0.5;
+
+$("mockUnattemptedMarksInput").value=
+test?.unattempted_marks_per_question ?? 0;
+
 $("mockActiveInput").value=
 test&&test.is_active===false
 ?"false"
@@ -4247,6 +4271,27 @@ return;
 
 }
 
+const marksPerQuestion = Number($("mockMarksInput").value);
+const negativeMarksPerQuestion = Number($("mockNegativeMarksInput").value);
+const unattemptedMarksPerQuestion = Number($("mockUnattemptedMarksInput").value);
+
+if(
+  $("mockMarksInput").value.trim()==="" ||
+  $("mockNegativeMarksInput").value.trim()==="" ||
+  $("mockUnattemptedMarksInput").value.trim()==="" ||
+  !Number.isFinite(marksPerQuestion) ||
+  !Number.isFinite(negativeMarksPerQuestion) ||
+  !Number.isFinite(unattemptedMarksPerQuestion) ||
+  marksPerQuestion < 0 ||
+  negativeMarksPerQuestion < 0
+){
+
+toast("Enter valid marks values");
+
+return;
+
+}
+
 const sections=[
 ...document.querySelectorAll(
 ".ap-section-row"
@@ -4332,6 +4377,15 @@ total_questions:
 Number(
 $("mockQuestionsInput").value
 )||0,
+
+marks_per_question:
+marksPerQuestion,
+
+negative_marks_per_question:
+negativeMarksPerQuestion,
+
+unattempted_marks_per_question:
+unattemptedMarksPerQuestion,
 
 is_active:
 $("mockActiveInput").value==="true",
