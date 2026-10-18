@@ -2139,32 +2139,38 @@ function normalizeLanguage(language){
     : "english";
 }
 
+function cleanDisplayText(value, isQuestion = false){
+  let text = String(value ?? "").replace(/\u00a0/g, " ");
+
+  // Remove unwanted indentation at the start of every line.
+  text = text.split(/\r?\n/).map(line => line.trimStart()).join("\n");
+
+  // Keep only one space between a question number (e.g. Q1)) and its text.
+  if(isQuestion){
+    text = text.replace(/^(Q\s*\d+\s*[).:]?)\s{2,}/i, "$1 ");
+  }
+
+  return text.trim();
+}
+
 function getQuestionText(question, language){
   language = normalizeLanguage(language);
 
-  if(language === "hindi"){
-    return question.question_text_hi ||
-           question.question_text ||
-           "Question not available";
-  }
+  const text = language === "hindi"
+    ? question.question_text_hi || question.question_text || "Question not available"
+    : question.question_text || question.question_text_hi || "Question not available";
 
-  return question.question_text ||
-         question.question_text_hi ||
-         "Question not available";
+  return cleanDisplayText(text, true);
 }
 
 function getOptionText(option, language){
   language = normalizeLanguage(language);
 
-  if(language === "hindi"){
-    return option.option_text_hi ||
-           option.option_text ||
-           "";
-  }
+  const text = language === "hindi"
+    ? option.option_text_hi || option.option_text || ""
+    : option.option_text || option.option_text_hi || "";
 
-  return option.option_text ||
-         option.option_text_hi ||
-         "";
+  return cleanDisplayText(text);
 }
 
 function getLanguageName(language){
