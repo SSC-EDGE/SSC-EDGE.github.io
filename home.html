@@ -2227,71 +2227,74 @@ menuOverlay.classList.remove("show");
    PROFILE NAME
    ================================================== */
 
-function loadProfileInfo(){
+async function loadProfileInfo(){
 
-const possibleKeys = [
+const nameElement = document.getElementById("sideProfileName");
 
-"ssc-edge-username",
-"ssc-edge-name",
-"sscEdgeUsername",
-"sscEdgeName",
-"username",
-"name"
+// Prefer the actual username saved for the signed-in account.
+try {
+  const { data: authData, error: authError } =
+    await updatesDb.auth.getUser();
 
-];
+  const user = !authError ? authData?.user : null;
 
-let savedName = "";
+  if(user){
+    const { data: profile, error: profileError } = await updatesDb
+      .from("user_login_methods")
+      .select("username")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-for(const key of possibleKeys){
+    const username = !profileError
+      ? String(profile?.username || user.user_metadata?.username || "").trim()
+      : String(user.user_metadata?.username || "").trim();
 
-const value =
-localStorage.getItem(key);
-
-if(value){
-
-savedName = value;
-
-break;
-
+    if(username){
+      nameElement.textContent = username;
+    }
+  }
+} catch(error) {
+  console.warn("Could not load account username:", error);
 }
 
+// Keep existing local-storage fallback for older/guest sessions.
+if(!nameElement.textContent.trim() || nameElement.textContent.trim() === "User"){
+  const possibleKeys = [
+    "ssc-edge-username",
+    "sscEdgeUsername",
+    "username",
+    "ssc-edge-name",
+    "sscEdgeName",
+    "name"
+  ];
+
+  let savedName = "";
+
+  for(const key of possibleKeys){
+    const value = localStorage.getItem(key);
+    if(value){
+      savedName = value.trim();
+      if(savedName) break;
+    }
+  }
+
+  nameElement.textContent = savedName || "User";
 }
-
-if(!savedName){
-
-savedName = "User";
-
-}
-
-document.getElementById(
-"sideProfileName"
-).textContent = savedName;
 
 const possiblePhotoKeys = [
-
-"ssc-edge-profile-photo",
-"ssc-edge-profile-image",
-"sscEdgeProfilePhoto",
-"profilePhoto"
-
+  "ssc-edge-profile-photo",
+  "ssc-edge-profile-image",
+  "sscEdgeProfilePhoto",
+  "profilePhoto"
 ];
 
 for(const key of possiblePhotoKeys){
-
-const photo =
-localStorage.getItem(key);
-
-if(photo){
-
-document.getElementById(
-"sideProfilePhoto"
-).innerHTML =
-`<img src="${escapeHtml(photo)}" alt="Profile">`;
-
-break;
-
-}
-
+  const photo = localStorage.getItem(key);
+  if(photo){
+    document.getElementById("sideProfilePhoto").innerHTML =
+      `<img src="${escapeHtml(photo)}" alt="Profile">`;
+    break;
+  }
 }
 
 }

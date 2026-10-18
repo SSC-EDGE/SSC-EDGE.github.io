@@ -1460,24 +1460,41 @@ async function loadProfile(){
     const metadata =
       user.user_metadata || {};
 
-    const name =
+    // Use the username saved during account creation, not the
+    // generated internal Auth email or the display name.
+    let profile = null;
+
+    const profileResult = await db
+      .from("user_login_methods")
+      .select("username,full_name,email")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if(!profileResult.error && profileResult.data){
+      profile = profileResult.data;
+    }
+
+    const username =
+      (profile?.username || metadata.username || "").trim();
+
+    const displayName =
+      username ||
+      metadata.username ||
       metadata.name ||
       metadata.full_name ||
-      metadata.username ||
       "Candidate";
 
     $("profileName").textContent =
-      name;
+      displayName;
 
-    /*
-      Google email remains the account email.
-      Mobile is NOT displayed here.
-    */
+    // Never show the generated internal Auth email when the user
+    // has not provided a contact email.
+    const contactEmail =
+      (profile?.email || metadata.contact_email || "").trim();
 
     $("profileEmail").textContent =
-      metadata.contact_email ||
-      user.email ||
-      "Account";
+      contactEmail ||
+      (username ? "@" + username : "SSC EDGE Account");
 
   }
 
@@ -1646,8 +1663,10 @@ async function saveProfileEdit(){
       throw profileResult.error;
     }
 
-    $("profileName").textContent = name;
-    $("profileEmail").textContent = email || updateResult.data?.user?.email || "Account";
+    // Keep the profile heading aligned with the saved username.
+    $("profileName").textContent = username;
+    // Do not expose the generated internal Auth email if no contact email was entered.
+    $("profileEmail").textContent = email || "@" + username;
     $("profileEditMessage").textContent = password
       ? "Profile and password updated successfully."
       : "Profile updated successfully.";
