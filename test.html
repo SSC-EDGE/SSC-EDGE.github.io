@@ -155,13 +155,17 @@ body{
   align-items:center;
   justify-content:space-between;
   gap:10px;
-  margin-top:9px;
-  padding-top:8px;
-  border-top:1px solid var(--border);
+  margin-top:8px;
+  padding:8px 10px;
+  border:1px solid #49345f;
+  border-radius:11px;
+  background:#291a3b;
+  min-height:54px;
 }
 
 .test-info-left{
   min-width:0;
+  flex:1;
 }
 
 .test-name{
@@ -169,35 +173,55 @@ body{
   font-size:15px;
   font-weight:900;
   line-height:1.3;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  min-width:0;
 }
 
 .test-name-main{
   display:block;
-  color:var(--text);
-  font-size:15px;
+  color:#ffffff;
+  font-size:14px;
   font-weight:900;
-  line-height:1.3;
+  line-height:1.25;
   overflow-wrap:anywhere;
 }
 
 .test-name-type{
   display:block;
-  margin-top:2px;
-  color:var(--text);
+  margin-top:3px;
+  color:#d2b9f5;
   font-size:11px;
-  font-weight:800;
-  line-height:1.3;
+  font-weight:750;
+  line-height:1.25;
   overflow-wrap:anywhere;
 }
 
 .test-number{
-  display:block;
-  margin-top:3px;
-  color:var(--muted);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  min-height:30px;
+  padding:6px 9px;
+  border:1px solid #9b79c5;
+  border-radius:9px;
+  background:#3b2852;
+  color:#f0e5ff;
   font-size:11px;
-  font-weight:700;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+[data-theme="light"] .test-info{
+  background:#eee5fb;
+  border-color:#d4c2ee;
+}
+
+[data-theme="light"] .test-name-main{ color:#28163d; }
+[data-theme="light"] .test-name-type{ color:#68449a; }
+[data-theme="light"] .test-number{
+  background:#e0d0f5;
+  border-color:#c2a8e7;
+  color:#45266c;
 }
 
 .test-header-right{
@@ -1516,6 +1540,16 @@ body{
 
   </div>
 
+  <div class="test-info" id="testInfo">
+    <div class="test-info-left">
+      <div class="test-name" id="testName">
+        <span class="test-name-main">Mock Test</span>
+        <span class="test-name-type">Full mock test</span>
+      </div>
+    </div>
+    <span class="test-number" id="testNumber">MOCK NO. —</span>
+  </div>
+
   <div
     id="sectionBar"
     class="section-bar hidden"
@@ -2576,24 +2610,19 @@ async function loadTestData(){
         <span class="test-name-main">
           ${escapeHtml(headerTitle.main)}
         </span>
-
         <span class="test-name-type">
           ${escapeHtml(headerTitle.type)}
-          ${
-            headerTitle.number
-              ? " " + escapeHtml(headerTitle.number)
-              : ""
-          }
         </span>
       `;
 
     }
 
-    /*
-      The new two-line header already contains the
-      mock number, so the old "Test" line is hidden.
-    */
-    hide("testNumber");
+    const mockNumberEl = $("testNumber");
+    if(mockNumberEl){
+      mockNumberEl.textContent = headerTitle.number
+        ? "MOCK NO. " + headerTitle.number
+        : "MOCK TEST";
+    }
 
     await loadSections();
 
@@ -2716,6 +2745,7 @@ async function loadAllQuestionsForTest(){
       questions(
         id,
         question_text,
+        question_text_hi,
         explanation,
         marks,
         negative_marks,
@@ -2791,6 +2821,7 @@ async function loadAllQuestionsForTest(){
       .select(`
         id,
         question_text,
+        question_text_hi,
         explanation,
         marks,
         negative_marks,
