@@ -248,7 +248,7 @@ padding-top:13px;border-top:1px solid var(--border)
 .grid-question.wrong{background:#ef4444!important;border-color:#dc2626!important;color:#fff!important}
 .grid-question.unanswered{background:#fff!important;border-color:#d1d5db!important;color:#24152f!important}
 .grid-question.correct.current,.grid-question.wrong.current,.grid-question.unanswered.current{outline:3px solid rgba(168,85,247,.45)}
-.saved-top-btn{color:#fff;background:var(--card2)}
+.saved-top-btn{color:#756b83;background:var(--card2);border:1px solid #8b8198}
 .saved-top-btn.active{color:#a66bff;background:rgba(124,58,237,.16);border-color:#7c3aed}
 
 .solution-page .solution-meta{
@@ -361,7 +361,7 @@ margin-top:20px;font-size:13px
 
 <div class="header-actions">
 <select id="attemptSelect" class="attempt-select" aria-label="Select attempt"></select>
-<a class="pause-btn pause-icon-btn" href="practice.html" aria-label="Back to practice" title="Back to practice" style="text-decoration:none;"><span aria-hidden="true">Ⅱ</span></a>
+<a class="pause-btn" href="practice.html" style="text-decoration:none;">Back</a>
 </div>
 
 </div>
@@ -749,7 +749,7 @@ lb.classList.toggle(
 language==="hi"
 );
 
-$("savedTopBtn").innerHTML='<svg viewBox="0 0 18 22" width="15" height="18" aria-hidden="true"><path d="M2.5 2.5A1.5 1.5 0 0 1 4 1h10a1.5 1.5 0 0 1 1.5 1.5V20l-6.5-4-6.5 4V2.5Z" fill="currentColor" stroke="currentColor" stroke-width="1.2"/></svg>';
+$("savedTopBtn").innerHTML='<svg viewBox="0 0 18 22" width="15" height="18" aria-hidden="true"><path d="M2.5 2.5A1.5 1.5 0 0 1 4 1h10a1.5 1.5 0 0 1 1.5 1.5V20l-6.5-4-6.5 4V2.5Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
 
 $("savedTopBtn").classList.toggle(
 "active",
