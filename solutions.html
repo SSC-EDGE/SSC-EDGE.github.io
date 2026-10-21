@@ -38,12 +38,19 @@ border:1px solid var(--border);background:var(--card2);color:var(--text);
 padding:8px 11px;border-radius:10px;font-size:12px;font-weight:900;cursor:pointer
 }
 
+
+.pause-icon-btn{
+width:46px;height:46px;display:inline-flex;align-items:center;justify-content:center;
+background:#c5a4ff;border:0;color:#7135d0;border-radius:14px;padding:0;font-size:25px;font-weight:900;
+}
+
 .attempt-select{
 border-color:var(--purple);color:var(--purple2);max-width:120px
 }
 
 .test-info{
-display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px
+display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;
+padding:14px 13px;background:var(--card2);border:1px solid var(--border);border-radius:17px
 }
 
 .test-info-left{min-width:0}
@@ -57,9 +64,13 @@ white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 display:block;margin-top:3px;color:var(--muted);font-size:11px;font-weight:700
 }
 
+
+.header-solution-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.header-grid-btn{width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:12px;background:var(--card2);color:var(--purple2);font-size:25px;font-weight:900;cursor:pointer}
+
 .submit-section{
-flex-shrink:0;border:0;background:var(--purple);color:white;
-padding:9px 11px;border-radius:10px;font-size:11px;font-weight:900
+flex-shrink:0;border:1px solid rgba(124,58,237,.25);background:rgba(124,58,237,.12);color:var(--purple2);
+padding:10px 13px;border-radius:13px;font-size:12px;font-weight:900
 }
 
 .section-bar{
@@ -350,7 +361,7 @@ margin-top:20px;font-size:13px
 
 <div class="header-actions">
 <select id="attemptSelect" class="attempt-select" aria-label="Select attempt"></select>
-<a class="pause-btn" href="practice.html" style="text-decoration:none;">Back</a>
+<a class="pause-btn pause-icon-btn" href="practice.html" aria-label="Back to practice" title="Back to practice" style="text-decoration:none;"><span aria-hidden="true">Ⅱ</span></a>
 </div>
 
 </div>
@@ -361,7 +372,7 @@ margin-top:20px;font-size:13px
 <span id="testNumber" class="test-number">Test</span>
 </div>
 
-<div class="submit-section" style="cursor:default;">Solutions</div>
+<div class="header-solution-actions"><button id="headerGridBtn" class="header-grid-btn" type="button" aria-label="Question palette" title="Question palette">☷</button><div class="submit-section" style="cursor:default;">Solutions</div></div>
 </div>
 
 <div id="sectionBar" class="section-bar hidden"></div>
@@ -697,6 +708,8 @@ function closeGrid(){
 $("gridOverlay").classList.remove("show");
 }
 
+$("headerGridBtn").onclick=openGrid;
+
 function render(){
 
 const q=questions[currentIndex];
@@ -885,21 +898,6 @@ card.appendChild(ex);
 const nav=$("navigation");
 
 nav.innerHTML="";
-
-const gr=document.createElement("div");
-
-gr.className="grid-button-row";
-
-const gb=document.createElement("button");
-
-gb.type="button";
-gb.className="grid-btn";
-gb.textContent="▦";
-gb.onclick=openGrid;
-
-gr.appendChild(gb);
-
-nav.appendChild(gr);
 
 const row=document.createElement("div");
 
