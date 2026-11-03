@@ -29,7 +29,7 @@ label{display:block;color:var(--muted);font-size:12px;font-weight:800;margin:12p
 <header><div class="row"><button class="back" id="backHome">‹</button><div><div class="brand">SSC <span>EDGE</span></div><div class="muted">Typing Management</div></div></div><button class="secondary" id="refresh">↻ Refresh</button></header>
 <main>
 <h1 class="title">Typing Test Admin</h1><p class="sub">Manage typing exams and each exam's independent mock tests.</p>
-<div class="note">This page manages only <b>typing_exams</b> and <b>typing_mocks</b>. Existing practice exams and mock tests are not modified. Typing engine is not included in this phase.</div>
+<div class="note">Manage typing exams, mocks, duration, keystrokes and the passage candidates must type. Existing practice exams and mock tests are not modified.</div>
 <section class="panel">
 <div class="row"><div><h2>Exams</h2><div class="muted">Add, edit, delete and reorder exams.</div></div><button class="primary" id="addExam">+ Add Exam</button></div>
 <div id="examList" class="list"><div class="empty">Loading...</div></div>
@@ -46,6 +46,7 @@ label{display:block;color:var(--muted);font-size:12px;font-weight:800;margin:12p
 <div id="mockFields" class="hidden">
 <label>Mock name</label><input id="mockName" maxlength="100" placeholder="e.g. TYPING MOCK TEST 01">
 <div class="form-grid"><div><label>Time (minutes)</label><input id="mockDuration" type="number" min="1" max="240" value="10"></div><div><label>Keystrokes</label><input id="mockKeystrokes" type="number" min="1" max="100000" value="2000"></div></div>
+ <label>Typing passage</label><textarea id="mockPassage" rows="9" maxlength="30000" placeholder="Paste the passage candidates will type..." style="width:100%;resize:vertical;background:#100b19;border:1px solid var(--border);border-radius:9px;color:#fff;padding:12px;font:14px/1.6 Arial,sans-serif;outline:none"></textarea>
 </div>
 <div class="form-actions"><button class="primary" id="saveForm">Save</button><button class="secondary" id="cancelForm">Cancel</button></div>
 </section>
@@ -118,7 +119,7 @@ function showForm(type,item=null){
  $("formPanel").classList.remove("hidden");$("examFields").classList.toggle("hidden",type!=="exam");$("mockFields").classList.toggle("hidden",type!=="mock");
  $("formTitle").textContent=(item?"Edit ":"Add ")+(type==="exam"?"Exam":"Mock");
  if(type==="exam")$("examName").value=item?.name||"";
- else{$("mockName").value=item?.name||"";$("mockDuration").value=item?.duration_minutes??10;$("mockKeystrokes").value=item?.keystrokes??2000;}
+ else{$("mockName").value=item?.name||"";$("mockDuration").value=item?.duration_minutes??10;$("mockKeystrokes").value=item?.keystrokes??2000;$("mockPassage").value=item?.passage_text||"";}
  $("formPanel").scrollIntoView({behavior:"smooth"});
 }
 function hideForm(){$("formPanel").classList.add("hidden");editingId=null;}
