@@ -8,7 +8,7 @@
 *{box-sizing:border-box}
 :root{--blue:#355f8e;--paper:#f0f0f0;--ink:#111;--green:#c8ff9a}
 html,body{margin:0;min-height:100%;background:var(--paper);font-family:Georgia,"Times New Roman",serif;color:var(--ink)}
-.topbar{height:48px;background:var(--blue);color:#fff;display:flex;align-items:center;gap:7px;padding:0 9px;position:sticky;top:0;z-index:5;font-family:Arial,sans-serif}
+.topbar{height:52px;background:var(--blue);color:#fff;display:flex;align-items:center;gap:8px;padding:0 10px;position:sticky;top:0;z-index:5;font-family:Arial,sans-serif}
 .tool{height:30px;min-width:34px;border:1px solid #bbb;border-radius:5px;background:#fff;color:#111;font-size:21px;font-weight:700;line-height:1;padding:0 7px}
 #back{font-size:22px}.brand{font-weight:900;font-size:16px;white-space:nowrap;margin-left:7px}.brand span{color:#c6a0ff}
 .exam-name,.mock-name{font:700 11px Arial,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px;border-left:1px solid #ffffff66;max-width:18%;letter-spacing:.2px}
@@ -16,14 +16,14 @@ html,body{margin:0;min-height:100%;background:var(--paper);font-family:Georgia,"
 
 .timer{font-family:Georgia,serif;font-weight:bold;font-size:17px;white-space:nowrap}
 .page{padding:5px 8px 24px;max-width:1600px;margin:auto}
-.passage{height:36vh;min-height:180px;max-height:360px;overflow:auto;background:#fff;border:2px solid #777;box-shadow:0 1px 3px #aaa;padding:10px 12px;font-size:20px;line-height:1.42;white-space:normal;overflow-wrap:anywhere}
+.passage{height:46vh;min-height:240px;max-height:58vh;overflow-y:auto;overflow-x:hidden;background:#fff;border:2px solid #777;box-shadow:0 1px 3px #aaa;padding:12px 14px;font-size:20px;line-height:1.48;white-space:normal;overflow-wrap:anywhere;scrollbar-gutter:stable}
 
 #typingInput{display:block;width:100%;height:19vh;min-height:115px;max-height:220px;margin-top:7px;padding:9px 12px;resize:none;border:2px solid #777;box-shadow:0 1px 3px #aaa;background:var(--green);color:#111;font:20px/1.42 Georgia,"Times New Roman",serif;outline:none;border-radius:0}
 #typingInput::placeholder{color:#666;opacity:1}
 .submit-wrap{text-align:center;padding:10px}.submit{background:#e3e3e3;border:1px solid #555;border-radius:9px;padding:11px 28px;font:700 16px Arial,sans-serif;color:#111;box-shadow:0 1px 1px #aaa}
 .result{max-width:600px;margin:20px auto;background:#fff;border:1px solid #aaa;padding:22px;text-align:center;font-family:Arial,sans-serif}.result h2{margin:0 0 15px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#f1f1f1;padding:13px;border-radius:7px}.stat b{display:block;font-size:23px;margin-bottom:4px}.hidden{display:none!important}
-@media(min-width:900px){.page{padding:8px 16px 35px}.passage{height:35vh;max-height:420px;font-size:22px}.brand{font-size:18px}.timer{font-size:19px}#typingInput{height:21vh;font-size:22px}}
-@media(max-width:420px){.topbar{gap:4px;padding:0 5px}.tool{min-width:29px;height:27px;padding:0 5px;font-size:18px}.brand{font-size:12px;margin-left:3px}.exam-name,.mock-name{font-size:9px;padding:0 4px;max-width:17%}.timer{font-size:14px}.passage{font-size:16px;line-height:1.35;padding:8px}.page{padding:5px 7px}.submit{padding:9px 22px}}
+@media(min-width:900px){.page{padding:8px 16px 35px}.passage{height:48vh;max-height:560px;font-size:22px}.brand{font-size:19px}.exam-name,.mock-name{font-size:15px}.timer{font-size:20px}#typingInput{height:21vh;font-size:22px}}
+@media(max-width:420px){.topbar{gap:4px;padding:0 5px;height:50px}.tool{min-width:28px;height:27px;padding:0 4px;font-size:18px}.brand{font-size:14px;margin-left:2px}.exam-name,.mock-name{font-size:11px;padding:0 5px;max-width:20%}.timer{font-size:13px;padding-left:3px}.passage{height:48vh;min-height:230px;max-height:60vh;font-size:16px;line-height:1.4;padding:9px}.page{padding:5px 7px}.submit{padding:9px 22px}}
 </style>
 </head>
 <body>
