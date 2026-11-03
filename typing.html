@@ -45,8 +45,7 @@
 </section>
 <section id="mockScreen" class="hidden">
 <div class="back" id="backBtn">‹ Back to exams</div>
-<h1 class="page-title">SSC <span style="color:var(--purple2)">EDGE</span></h1>
- <h2 class="page-title" id="examHeading" style="font-size:19px;margin-top:4px">Typing Mocks</h2>
+<h1 class="page-title" id="examHeading">Typing Mocks</h1>
 <p class="page-subtitle">Select a mock test to begin.</p>
 <div class="section-title">AVAILABLE MOCKS</div>
 <div id="mockList" class="mock-list"></div>
@@ -87,8 +86,7 @@ async function openExam(exam){
  if(error){list.innerHTML='<div class="empty">Unable to load mocks.</div>';console.error(error);return;}
  if(!data.length){list.innerHTML='<div class="empty">No mocks added for this exam yet.</div>';return;}
  list.innerHTML=data.map(m=>`<article class="mock-card"><div class="mock-icon">⌨️</div><div class="mock-main"><h3>${escapeHtml(m.name)}</h3><div class="mock-meta"><span>⏱ ${Number(m.duration_minutes)||0} min</span><span>⌨ ${Number(m.keystrokes)||0} keystrokes</span></div></div><button class="start-btn" type="button" data-id="${m.id}">Start</button></article>`).join("");
- // Typing engine is intentionally not part of this phase.
- list.querySelectorAll(".start-btn").forEach(btn=>btn.addEventListener("click",()=>alert("Typing test engine will be added in the next phase.")));
+ list.querySelectorAll(".start-btn").forEach(btn=>btn.addEventListener("click",()=>{pendingMockId=btn.dataset.id;$("modeModal").classList.remove("hidden");}));
 }
 $("backBtn").addEventListener("click",()=>{$("mockScreen").classList.add("hidden");$("examScreen").classList.remove("hidden");selectedExam=null;});
  $("closeMode").addEventListener("click",()=>{$("modeModal").classList.add("hidden");pendingMockId=null;});

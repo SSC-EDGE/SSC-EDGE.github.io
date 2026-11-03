@@ -29,7 +29,7 @@ label{display:block;color:var(--muted);font-size:12px;font-weight:800;margin:12p
 <header><div class="row"><button class="back" id="backHome">‹</button><div><div class="brand">SSC <span>EDGE</span></div><div class="muted">Typing Management</div></div></div><button class="secondary" id="refresh">↻ Refresh</button></header>
 <main>
 <h1 class="title">Typing Test Admin</h1><p class="sub">Manage typing exams and each exam's independent mock tests.</p>
-<div class="note">Manage typing exams, mocks, duration, keystrokes and the passage candidates must type. Existing practice exams and mock tests are not modified.</div>
+<div class="note">Manage typing exams, mocks, duration, keystrokes and the passage candidates must type. Run typing-passage-migration.sql once in Supabase before saving passages. Existing practice exams and mock tests are not modified.</div>
 <section class="panel">
 <div class="row"><div><h2>Exams</h2><div class="muted">Add, edit, delete and reorder exams.</div></div><button class="primary" id="addExam">+ Add Exam</button></div>
 <div id="examList" class="list"><div class="empty">Loading...</div></div>
@@ -131,14 +131,17 @@ async function saveForm(){
   else{({error}=await db.from("typing_exams").insert({name,sort_order:exams.length+1,is_active:true}));}
  }else{
   if(!selectedExam)return alert("Select an exam first.");
-  const name=$("mockName").value.trim(),duration=Number($("mockDuration").value),keys=Number($("mockKeystrokes").value);
-  if(!name||duration<1||keys<1)return alert("Enter valid mock details.");
-  const payload={name,duration_minutes:duration,keystrokes:keys};
+  const name=$("mockName").value.trim(),duration=Number($("mockDuration").value),keys=Number($("mockKeystrokes").value),passage=$("mockPassage").value.trim();
+  if(!name||duration<1||keys<1||!passage)return alert("Enter mock name, valid time/keystrokes and typing passage.");
+  const payload={name,duration_minutes:duration,keystrokes:keys,passage_text:passage};
   if(editingId){({error}=await db.from("typing_mocks").update(payload).eq("id",editingId));}
   else{const {count}=await db.from("typing_mocks").select("id",{count:"exact",head:true}).eq("exam_id",selectedExam.id);payload.exam_id=selectedExam.id;payload.sort_order=(count||0)+1;({error}=await db.from("typing_mocks").insert(payload));}
  }
- if(error){alert(error.message);return;}
- hideForm();if(formType==="exam")await loadExams();else await loadMocks();
+ if(error){alert("Save failed: "+error.message);return;}
+ const savedType=formType;
+ hideForm();
+ if(savedType==="exam")await loadExams();else await loadMocks();
+ alert(savedType==="exam"?"Exam saved successfully.":"Typing mock and passage saved successfully.");
 }
 $("saveForm").onclick=saveForm;
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
