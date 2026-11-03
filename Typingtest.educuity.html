@@ -10,26 +10,30 @@
 html,body{margin:0;min-height:100%;background:var(--paper);font-family:Georgia,"Times New Roman",serif;color:var(--ink)}
 .topbar{height:48px;background:var(--blue);color:#fff;display:flex;align-items:center;gap:7px;padding:0 9px;position:sticky;top:0;z-index:5;font-family:Arial,sans-serif}
 .tool{height:30px;min-width:34px;border:1px solid #bbb;border-radius:5px;background:#fff;color:#111;font-size:21px;font-weight:700;line-height:1;padding:0 7px}
-#back{font-size:22px}.test-name{font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto;margin-right:12px;max-width:48%;text-align:center}
+#back{font-size:22px}.brand{font-weight:900;font-size:16px;white-space:nowrap;margin-left:7px}.brand span{color:#c6a0ff}
+.exam-name,.mock-name{font:700 11px Arial,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px;border-left:1px solid #ffffff66;max-width:18%;letter-spacing:.2px}
+.mock-name{max-width:16%;color:#e4d9f7}
+
 .timer{font-family:Georgia,serif;font-weight:bold;font-size:17px;white-space:nowrap}
 .page{padding:5px 8px 24px;max-width:1600px;margin:auto}
-.passage{height:36vh;min-height:180px;max-height:360px;overflow:auto;background:#fff;border:2px solid #777;box-shadow:0 1px 3px #aaa;padding:10px 12px;font-size:20px;line-height:1.42;white-space:pre-wrap;overflow-wrap:anywhere}
-.passage span.done{color:#248a36}.passage span.wrong{color:#d21f2b;background:#ffd6d6}.passage span.current{background:#ffe78b;color:#111}
+.passage{height:36vh;min-height:180px;max-height:360px;overflow:auto;background:#fff;border:2px solid #777;box-shadow:0 1px 3px #aaa;padding:10px 12px;font-size:20px;line-height:1.42;white-space:normal;overflow-wrap:anywhere}
+
 #typingInput{display:block;width:100%;height:19vh;min-height:115px;max-height:220px;margin-top:7px;padding:9px 12px;resize:none;border:2px solid #777;box-shadow:0 1px 3px #aaa;background:var(--green);color:#111;font:20px/1.42 Georgia,"Times New Roman",serif;outline:none;border-radius:0}
 #typingInput::placeholder{color:#666;opacity:1}
 .submit-wrap{text-align:center;padding:10px}.submit{background:#e3e3e3;border:1px solid #555;border-radius:9px;padding:11px 28px;font:700 16px Arial,sans-serif;color:#111;box-shadow:0 1px 1px #aaa}
 .result{max-width:600px;margin:20px auto;background:#fff;border:1px solid #aaa;padding:22px;text-align:center;font-family:Arial,sans-serif}.result h2{margin:0 0 15px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#f1f1f1;padding:13px;border-radius:7px}.stat b{display:block;font-size:23px;margin-bottom:4px}.hidden{display:none!important}
-@media(min-width:900px){.page{padding:8px 16px 35px}.passage{height:35vh;max-height:420px;font-size:22px}.test-name{font-size:18px}.timer{font-size:19px}#typingInput{height:21vh;font-size:22px}}
-@media(max-width:420px){.topbar{gap:4px;padding:0 5px}.tool{min-width:29px;height:27px;padding:0 5px;font-size:18px}.test-name{font-size:12px;margin:0 4px;max-width:35%}.timer{font-size:14px}.passage{font-size:16px;line-height:1.35;padding:8px}.page{padding:5px 7px}.submit{padding:9px 22px}}
+@media(min-width:900px){.page{padding:8px 16px 35px}.passage{height:35vh;max-height:420px;font-size:22px}.brand{font-size:18px}.timer{font-size:19px}#typingInput{height:21vh;font-size:22px}}
+@media(max-width:420px){.topbar{gap:4px;padding:0 5px}.tool{min-width:29px;height:27px;padding:0 5px;font-size:18px}.brand{font-size:12px;margin-left:3px}.exam-name,.mock-name{font-size:9px;padding:0 4px;max-width:17%}.timer{font-size:14px}.passage{font-size:16px;line-height:1.35;padding:8px}.page{padding:5px 7px}.submit{padding:9px 22px}}
 </style>
 </head>
 <body>
 <header class="topbar">
- <button class="tool" id="back" aria-label="Back">🔙</button>
  <button class="tool" id="increase" aria-label="Increase text size">+</button>
  <button class="tool" id="decrease" aria-label="Decrease text size">−</button>
- <div class="test-name" id="testName">Typing Test</div>
- <div class="timer" id="timer">Time Left 00:00</div>
+ <div class="brand">SSC <span>EDGE</span></div>
+ <div class="exam-name" id="examName">EXAM</div>
+ <div class="mock-name" id="testName">MOCK</div>
+ <div class="timer" id="timer">00:00</div>
 </header>
 <main class="page" id="testPage">
  <div class="passage" id="passage">Loading passage...</div>
@@ -45,14 +49,15 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
 const params=new URLSearchParams(location.search),mockId=params.get("mock_id");
 let mock=null,passageText="",secondsLeft=0,timerHandle=null,finished=false,fontSize=20;
+const candidateId=(()=>{let id=localStorage.getItem("ssc_edge_typing_candidate_id");if(!id){id=crypto.randomUUID?crypto.randomUUID():"cand-"+Date.now()+"-"+Math.random().toString(36).slice(2);localStorage.setItem("ssc_edge_typing_candidate_id",id);}return id;})();
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 async function init(){
  if(!mockId){$("passage").textContent="Mock not found. Please go back and select a mock.";return;}
- const {data,error}=await db.from("typing_mocks").select("id,name,duration_minutes,keystrokes,passage_text").eq("id",mockId).maybeSingle();
+ const {data,error}=await db.from("typing_mocks").select("id,name,duration_minutes,keystrokes,passage_text,exam_id,typing_exams(name)").eq("id",mockId).maybeSingle();
  if(error||!data){$("passage").textContent="Unable to load this typing test.";console.error(error);return;}
  mock=data;passageText=String(data.passage_text||"");
  if(!passageText.trim()){$("passage").textContent="Passage has not been added by admin.";return;}
- $("testName").textContent=data.name;
+ $("examName").textContent=data.typing_exams?.name||"EXAM";$("testName").textContent=data.name;
  $("passage").textContent=passageText;
  secondsLeft=Math.max(1,Number(data.duration_minutes)||10)*60;
  updateTimer();timerHandle=setInterval(()=>{secondsLeft--;updateTimer();if(secondsLeft<=0)finishTest(true);},1000);
@@ -68,23 +73,17 @@ function getMetrics(){
  return {typed,correct,wrong,accuracy,wpm,typedCount:typed.length};
 }
 function paintPassage(){
- const typed=$("typingInput").value,frag=document.createDocumentFragment();
- for(let i=0;i<passageText.length;i++){
-  const span=document.createElement("span");span.textContent=passageText[i];
-  if(i<typed.length)span.className=typed[i]===passageText[i]?"done":"wrong";
-  else if(i===typed.length)span.className="current";
-  frag.appendChild(span);
- }
- $("passage").replaceChildren(frag);
- const current=$("passage").querySelector(".current");if(current){const box=$("passage").getBoundingClientRect(),r=current.getBoundingClientRect();if(r.bottom>box.bottom-12||r.top<box.top+12)current.scrollIntoView({block:"center"});}
+ // Keep the reference passage clean: no per-character hints or colour feedback.
 }
-$("typingInput").addEventListener("input",()=>{if(finished)return;paintPassage();if($("typingInput").value.length>=passageText.length)finishTest(false);});
+$("typingInput").addEventListener("input",()=>{if(finished)return;if($("typingInput").value.length>=passageText.length)finishTest(false);});
 $("submit").addEventListener("click",()=>finishTest(false));
-function finishTest(auto){
+async function finishTest(auto){
  if(finished)return;finished=true;if(timerHandle)clearInterval(timerHandle);$("typingInput").disabled=true;$("submit").disabled=true;
  const m=getMetrics(),elapsed=Math.max(1,(Number(mock.duration_minutes)*60)-secondsLeft);
+ const attempt={candidate_id:candidateId,mock_id:mock.id,exam_id:mock.exam_id,typed_text:m.typed,correct_chars:m.correct,incorrect_chars:m.wrong,typed_chars:m.typedCount,accuracy:Number(m.accuracy.toFixed(2)),gross_wpm:Number(m.wpm.toFixed(2)),duration_seconds:elapsed,auto_submitted:auto};
+ const {error}=await db.from("typing_attempts").insert(attempt);
  $("testPage").classList.add("hidden");$("result").classList.remove("hidden");
- $("result").innerHTML=`<h2>Typing Test Result</h2><p>${auto?"Time is over.":"Test submitted successfully."}</p><div class="stats">
+ $("result").innerHTML=`<h2>Typing Test Result</h2><p>${auto?"Time is over.":"Test submitted successfully."}</p>${error?'<p style="color:#b00020">Result could not be saved. Please inform support.</p>':''}<div class="stats">
  <div class="stat"><b>${m.wpm.toFixed(1)}</b>Gross WPM</div>
  <div class="stat"><b>${m.accuracy.toFixed(1)}%</b>Accuracy</div>
  <div class="stat"><b>${m.correct}</b>Correct characters</div>
@@ -93,7 +92,6 @@ function finishTest(auto){
  <div class="stat"><b>${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,"0")}</b>Time used</div>
  </div><p style="margin-top:18px"><button class="submit" onclick="location.href='typing.html'">Back to Typing</button></p>`;
 }
-$("back").addEventListener("click",()=>{if(!finished&&$("typingInput").value.length&&!confirm("Exit this test? Your progress will not be saved."))return;location.href="typing.html";});
 $("increase").addEventListener("click",()=>{fontSize=Math.min(34,fontSize+2);$("passage").style.fontSize=fontSize+"px";$("typingInput").style.fontSize=fontSize+"px";});
 $("decrease").addEventListener("click",()=>{fontSize=Math.max(12,fontSize-2);$("passage").style.fontSize=fontSize+"px";$("typingInput").style.fontSize=fontSize+"px";});
 init();
