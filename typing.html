@@ -57,6 +57,9 @@
   <button type="button" class="mode-option active" id="eduquityMode"><span>EDUQUITY MODE</span><small>Start typing test →</small></button>
  </div>
 </div>
+<div id="attemptResultModal" class="mode-modal hidden" role="dialog" aria-modal="true">
+ <div class="mode-box"><button type="button" class="mode-close" id="closeAttemptResult">×</button><h2>Last Attempt Result</h2><div id="attemptResultBody"></div></div>
+</div>
 </main>
 <nav class="bottom-nav">
 <a href="home.html"><span class="nav-icon">🏠</span><small>Home</small></a>
@@ -71,6 +74,7 @@ const SUPABASE_KEY="sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
 let selectedExam=null,pendingMockId=null;
+const candidateId=(()=>{let id=localStorage.getItem("ssc_edge_typing_candidate_id");if(!id){id=crypto.randomUUID?crypto.randomUUID():"cand-"+Date.now()+"-"+Math.random().toString(36).slice(2);localStorage.setItem("ssc_edge_typing_candidate_id",id);}return id;})();
 async function loadExams(){
  const grid=$("examGrid");grid.innerHTML='<div class="empty">Loading exams...</div>';
  const {data,error}=await db.from("typing_exams").select("*").eq("is_active",true).order("sort_order").order("created_at");
@@ -85,9 +89,25 @@ async function openExam(exam){
  const {data,error}=await db.from("typing_mocks").select("*").eq("exam_id",exam.id).eq("is_active",true).order("sort_order").order("created_at");
  if(error){list.innerHTML='<div class="empty">Unable to load mocks.</div>';console.error(error);return;}
  if(!data.length){list.innerHTML='<div class="empty">No mocks added for this exam yet.</div>';return;}
- list.innerHTML=data.map(m=>`<article class="mock-card"><div class="mock-icon">⌨️</div><div class="mock-main"><h3>${escapeHtml(m.name)}</h3><div class="mock-meta"><span>⏱ ${Number(m.duration_minutes)||0} min</span><span>⌨ ${Number(m.keystrokes)||0} keystrokes</span></div></div><button class="start-btn" type="button" data-id="${m.id}">Start</button></article>`).join("");
- list.querySelectorAll(".start-btn").forEach(btn=>btn.addEventListener("click",()=>{pendingMockId=btn.dataset.id;$("modeModal").classList.remove("hidden");}));
+ const attemptMap={};
+ for(const m of data){
+  const {data:attempts,error:attemptError}=await db.from("typing_attempts").select("*").eq("candidate_id",candidateId).eq("mock_id",m.id).order("created_at",{ascending:false}).limit(1);
+  if(!attemptError&&attempts?.length)attemptMap[m.id]=attempts[0];
+ }
+ list.innerHTML=data.map(m=>{
+  const last=attemptMap[m.id];
+  return `<article class="mock-card"><div class="mock-icon">⌨️</div><div class="mock-main"><h3>${escapeHtml(m.name)}</h3><div class="mock-meta"><span>⏱ ${Number(m.duration_minutes)||0} min</span><span>⌨ ${Number(m.keystrokes)||0} keystrokes</span></div></div>${last?`<button class="start-btn result-btn" type="button" data-id="${m.id}">Result</button><button class="start-btn" type="button" data-id="${m.id}">Retake</button>`:`<button class="start-btn" type="button" data-id="${m.id}">Start</button>`}</article>`;
+ }).join("");
+ list.querySelectorAll(".start-btn:not(.result-btn)").forEach(btn=>btn.addEventListener("click",()=>{pendingMockId=btn.dataset.id;$("modeModal").classList.remove("hidden");}));
+ list.querySelectorAll(".result-btn").forEach(btn=>btn.addEventListener("click",()=>showLastResult(attemptMap[btn.dataset.id])));
+
 }
+function showLastResult(a){
+ $("attemptResultBody").innerHTML=`<div class="mock-meta" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px"><div>Gross WPM<br><b>${Number(a.gross_wpm).toFixed(1)}</b></div><div>Accuracy<br><b>${Number(a.accuracy).toFixed(1)}%</b></div><div>Correct characters<br><b>${a.correct_chars}</b></div><div>Incorrect characters<br><b>${a.incorrect_chars}</b></div><div>Typed characters<br><b>${a.typed_chars}</b></div><div>Attempt date<br><b>${new Date(a.created_at).toLocaleString()}</b></div></div>`;
+ $("attemptResultModal").classList.remove("hidden");
+}
+$("closeAttemptResult").addEventListener("click",()=>$("attemptResultModal").classList.add("hidden"));
+$("attemptResultModal").addEventListener("click",e=>{if(e.target.id==="attemptResultModal")$("attemptResultModal").classList.add("hidden");});
 $("backBtn").addEventListener("click",()=>{$("mockScreen").classList.add("hidden");$("examScreen").classList.remove("hidden");selectedExam=null;});
  $("closeMode").addEventListener("click",()=>{$("modeModal").classList.add("hidden");pendingMockId=null;});
  $("modeModal").addEventListener("click",e=>{if(e.target.id==="modeModal"){$("modeModal").classList.add("hidden");pendingMockId=null;}});
