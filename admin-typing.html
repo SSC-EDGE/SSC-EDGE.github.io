@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Typing Admin | SSC EDGE</title><link rel="stylesheet" href="css/style.css">
+<style>
+:root{--bg:#08050e;--card:#171025;--card2:#251344;--purple:#7c3aed;--purple2:#a66bff;--text:#fff;--muted:#aaa2b9;--border:#302044}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+header{height:64px;background:#100b19;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 15px}
+.brand{font-size:18px;font-weight:900}.brand span{color:var(--purple2)}.back{border:0;background:transparent;color:var(--purple2);font-size:24px;margin-right:8px}
+main{max-width:950px;margin:auto;padding:22px 15px 60px}.title{font-size:25px;font-weight:900;margin:5px 0}.sub{color:var(--muted);font-size:13px;margin:7px 0 22px}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:15px;margin:14px 0}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+h2{font-size:16px;margin:0}.muted{font-size:12px;color:var(--muted);margin-top:5px}
+button{cursor:pointer;font-weight:800;border:0;border-radius:9px;padding:10px 13px}
+.primary{background:var(--purple);color:#fff}.secondary{background:#302044;color:#fff}.danger{background:#5a202b;color:#fff}.small{padding:7px 10px}
+.list{display:grid;gap:9px;margin-top:14px}.item{display:flex;align-items:center;gap:9px;background:#211630;border:1px solid var(--border);border-radius:11px;padding:11px}
+.item-info{flex:1;min-width:120px}.item-name{font-size:14px;font-weight:900}.item-meta{font-size:11px;color:var(--muted);margin-top:5px}
+.actions{display:flex;gap:6px;flex-wrap:wrap}.actions button{padding:7px 9px;font-size:12px}
+input{width:100%;background:#100b19;border:1px solid var(--border);border-radius:9px;color:#fff;padding:12px;font-size:14px;outline:none}
+label{display:block;color:var(--muted);font-size:12px;font-weight:800;margin:12px 0 6px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.form-actions{display:flex;gap:8px;margin-top:15px}
+.note{background:#241b31;color:#d6c9e8;padding:11px;border-radius:10px;font-size:12px;line-height:1.5;margin:12px 0}
+.empty{text-align:center;padding:20px;color:var(--muted);border:1px dashed var(--border);border-radius:10px;font-size:13px}
+.hidden{display:none!important}
+@media(max-width:520px){main{padding:18px 11px}.form-grid{grid-template-columns:1fr}.item{align-items:flex-start}.actions{justify-content:flex-end}}
+</style></head>
+<body>
+<header><div class="row"><button class="back" id="backHome">‹</button><div><div class="brand">SSC <span>EDGE</span></div><div class="muted">Typing Management</div></div></div><button class="secondary" id="refresh">↻ Refresh</button></header>
+<main>
+<h1 class="title">Typing Test Admin</h1><p class="sub">Manage typing exams and each exam's independent mock tests.</p>
+<div class="note">This page manages only <b>typing_exams</b> and <b>typing_mocks</b>. Existing practice exams and mock tests are not modified. Typing engine is not included in this phase.</div>
+<section class="panel">
+<div class="row"><div><h2>Exams</h2><div class="muted">Add, edit, delete and reorder exams.</div></div><button class="primary" id="addExam">+ Add Exam</button></div>
+<div id="examList" class="list"><div class="empty">Loading...</div></div>
+</section>
+<section class="panel hidden" id="mockPanel">
+<div class="row"><div><h2 id="selectedTitle">Exam Mocks</h2><div class="muted">Mocks shown here belong only to this exam.</div></div><button class="primary" id="addMock">+ Add Mock</button></div>
+<div id="mockList" class="list"></div>
+</section>
+<section class="panel hidden" id="formPanel">
+<h2 id="formTitle">Add Exam</h2>
+<div id="examFields">
+<label>Exam name</label><input id="examName" maxlength="80" placeholder="e.g. SSC CGL">
+</div>
+<div id="mockFields" class="hidden">
+<label>Mock name</label><input id="mockName" maxlength="100" placeholder="e.g. TYPING MOCK TEST 01">
+<div class="form-grid"><div><label>Time (minutes)</label><input id="mockDuration" type="number" min="1" max="240" value="10"></div><div><label>Keystrokes</label><input id="mockKeystrokes" type="number" min="1" max="100000" value="2000"></div></div>
+</div>
+<div class="form-actions"><button class="primary" id="saveForm">Save</button><button class="secondary" id="cancelForm">Cancel</button></div>
+</section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://dvvyoygahzzbnpqrfhen.supabase.co";
+const SUPABASE_KEY="sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+let exams=[],selectedExam=null,formType="",editingId=null;
+$("backHome").onclick=()=>location.href="practice.html";
+$("refresh").onclick=loadExams;
+$("addExam").onclick=()=>showForm("exam");
+$("addMock").onclick=()=>showForm("mock");
+$("cancelForm").onclick=hideForm;
+async function loadExams(){
+ $("examList").innerHTML='<div class="empty">Loading exams...</div>';
+ const {data,error}=await db.from("typing_exams").select("*").order("sort_order").order("created_at");
+ if(error){$("examList").innerHTML='<div class="empty">Load failed. Run typing-module.sql first.</div>';console.error(error);return;}
+ exams=data||[];renderExams();
+ if(selectedExam){selectedExam=exams.find(e=>e.id===selectedExam.id)||null;if(selectedExam)await loadMocks();else $("mockPanel").classList.add("hidden");}
+}
+function renderExams(){
+ if(!exams.length){$("examList").innerHTML='<div class="empty">No exams added. Use Add Exam.</div>';return;}
+ $("examList").innerHTML=exams.map((e,i)=>`<div class="item"><div class="item-info"><div class="item-name">${esc(e.name)}</div><div class="item-meta">${e.is_active?"Visible to students":"Hidden from students"}</div></div><div class="actions"><button class="secondary" data-act="up" data-id="${e.id}" ${i===0?"disabled":""}>↑</button><button class="secondary" data-act="down" data-id="${e.id}" ${i===exams.length-1?"disabled":""}>↓</button><button class="secondary" data-act="select" data-id="${e.id}">Mocks</button><button class="secondary" data-act="edit" data-id="${e.id}">Edit</button><button class="danger" data-act="delete" data-id="${e.id}">Delete</button></div></div>`).join("");
+ $("examList").querySelectorAll("button").forEach(b=>b.onclick=()=>examAction(b.dataset.act,b.dataset.id));
+}
+async function examAction(act,id){
+ const idx=exams.findIndex(e=>e.id===id),e=exams[idx];if(!e)return;
+ if(act==="select"){selectedExam=e;$("selectedTitle").textContent=e.name+" — Mocks";$("mockPanel").classList.remove("hidden");await loadMocks();$("mockPanel").scrollIntoView({behavior:"smooth"});}
+ if(act==="edit"){showForm("exam",e);}
+ if(act==="delete"){
+  if(!confirm(`Delete "${e.name}" and all its typing mocks?`))return;
+  const {error}=await db.from("typing_exams").delete().eq("id",id);
+  if(error)return alert(error.message);
+  if(selectedExam?.id===id){selectedExam=null;$("mockPanel").classList.add("hidden");}
+  await loadExams();
+ }
+ if(act==="up"||act==="down"){
+  const other=exams[idx+(act==="up"?-1:1)];if(!other)return;
+  const a=await db.from("typing_exams").update({sort_order:other.sort_order}).eq("id",e.id);
+  const b=await db.from("typing_exams").update({sort_order:e.sort_order}).eq("id",other.id);
+  if(a.error||b.error)return alert((a.error||b.error).message);
+  await loadExams();
+ }
+}
+async function loadMocks(){
+ if(!selectedExam)return;
+ $("mockList").innerHTML='<div class="empty">Loading mocks...</div>';
+ const {data,error}=await db.from("typing_mocks").select("*").eq("exam_id",selectedExam.id).order("sort_order").order("created_at");
+ if(error){$("mockList").innerHTML='<div class="empty">Unable to load mocks.</div>';console.error(error);return;}
+ if(!data.length){$("mockList").innerHTML='<div class="empty">No mocks for this exam yet.</div>';return;}
+ $("mockList").innerHTML=data.map((m,i)=>`<div class="item"><div class="item-info"><div class="item-name">${esc(m.name)}</div><div class="item-meta">${m.duration_minutes} min · ${Number(m.keystrokes).toLocaleString()} keystrokes · ${m.is_active?"Visible":"Hidden"}</div></div><div class="actions"><button class="secondary" data-act="up" data-id="${m.id}" ${i===0?"disabled":""}>↑</button><button class="secondary" data-act="down" data-id="${m.id}" ${i===data.length-1?"disabled":""}>↓</button><button class="secondary" data-act="edit" data-id="${m.id}">Edit</button><button class="danger" data-act="delete" data-id="${m.id}">Delete</button></div></div>`).join("");
+ $("mockList").querySelectorAll("button").forEach(b=>b.onclick=()=>mockAction(b.dataset.act,b.dataset.id,data));
+}
+async function mockAction(act,id,data){
+ const i=data.findIndex(m=>m.id===id),m=data[i];if(!m)return;
+ if(act==="edit")return showForm("mock",m);
+ if(act==="delete"){if(!confirm(`Delete "${m.name}"?`))return;const {error}=await db.from("typing_mocks").delete().eq("id",id);if(error)return alert(error.message);return loadMocks();}
+ if(act==="up"||act==="down"){
+  const other=data[i+(act==="up"?-1:1)];if(!other)return;
+  const a=await db.from("typing_mocks").update({sort_order:other.sort_order}).eq("id",m.id);
+  const b=await db.from("typing_mocks").update({sort_order:m.sort_order}).eq("id",other.id);
+  if(a.error||b.error)return alert((a.error||b.error).message);return loadMocks();
+ }
+}
+function showForm(type,item=null){
+ formType=type;editingId=item?.id||null;
+ $("formPanel").classList.remove("hidden");$("examFields").classList.toggle("hidden",type!=="exam");$("mockFields").classList.toggle("hidden",type!=="mock");
+ $("formTitle").textContent=(item?"Edit ":"Add ")+(type==="exam"?"Exam":"Mock");
+ if(type==="exam")$("examName").value=item?.name||"";
+ else{$("mockName").value=item?.name||"";$("mockDuration").value=item?.duration_minutes??10;$("mockKeystrokes").value=item?.keystrokes??2000;}
+ $("formPanel").scrollIntoView({behavior:"smooth"});
+}
+function hideForm(){$("formPanel").classList.add("hidden");editingId=null;}
+async function saveForm(){
+ let error;
+ if(formType==="exam"){
+  const name=$("examName").value.trim();if(!name)return alert("Enter exam name.");
+  if(editingId){({error}=await db.from("typing_exams").update({name}).eq("id",editingId));}
+  else{({error}=await db.from("typing_exams").insert({name,sort_order:exams.length+1,is_active:true}));}
+ }else{
+  if(!selectedExam)return alert("Select an exam first.");
+  const name=$("mockName").value.trim(),duration=Number($("mockDuration").value),keys=Number($("mockKeystrokes").value);
+  if(!name||duration<1||keys<1)return alert("Enter valid mock details.");
+  const payload={name,duration_minutes:duration,keystrokes:keys};
+  if(editingId){({error}=await db.from("typing_mocks").update(payload).eq("id",editingId));}
+  else{const {count}=await db.from("typing_mocks").select("id",{count:"exact",head:true}).eq("exam_id",selectedExam.id);payload.exam_id=selectedExam.id;payload.sort_order=(count||0)+1;({error}=await db.from("typing_mocks").insert(payload));}
+ }
+ if(error){alert(error.message);return;}
+ hideForm();if(formType==="exam")await loadExams();else await loadMocks();
+}
+$("saveForm").onclick=saveForm;
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+loadExams();
+</script></body></html>
