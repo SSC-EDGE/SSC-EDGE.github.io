@@ -3789,6 +3789,35 @@ const el=$("managementTestList");
 
 if(!el)return;
 
+// Always show mocks oldest-to-newest (newest at the bottom).
+// Full Mock numbers use their numeric suffix; sectional mocks use their date.
+const parseMockDate=value=>{
+ const text=String(value||"").trim();
+ let m=text.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+ if(m)return new Date(Number(m[3]),Number(m[2])-1,Number(m[1])).getTime();
+ m=text.match(/(20\d{2})[-\/](\d{1,2})[-\/](\d{1,2})/);
+ if(m)return new Date(Number(m[1]),Number(m[2])-1,Number(m[3])).getTime();
+ const parsed=Date.parse(text);
+ return Number.isFinite(parsed)?parsed:0;
+};
+
+list=[...list].sort((a,b)=>{
+ const aFull=isFull(a), bFull=isFull(b);
+ if(aFull&&bFull){
+  const an=Number((String(a.title||"").match(/(\d+)\s*$/)||[])[1]);
+  const bn=Number((String(b.title||"").match(/(\d+)\s*$/)||[])[1]);
+  if(Number.isFinite(an)&&Number.isFinite(bn)&&an!==bn)return an-bn;
+ }
+ const ad=parseMockDate(a.description||a.title);
+ const bd=parseMockDate(b.description||b.title);
+ if(ad&&bd&&ad!==bd)return ad-bd;
+ if(ad&&!bd)return -1;
+ if(!ad&&bd)return 1;
+ const ao=Number(a.sort_order),bo=Number(b.sort_order);
+ if(Number.isFinite(ao)&&Number.isFinite(bo)&&ao!==bo)return ao-bo;
+ return Number(a.id||0)-Number(b.id||0);
+});
+
 if(!list.length){
 
 el.innerHTML=
