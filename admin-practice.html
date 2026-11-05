@@ -3780,18 +3780,8 @@ renderTestList(list);
 }
 
 /* =========================================================
-   TEST LIST
+   SHARED MOCK DATE / SHIFT HELPERS
 ========================================================= */
-
-function renderTestList(list){
-
-const el=$("managementTestList");
-
-if(!el)return;
-
-// Consistent chronological ordering: oldest first, newest last.
-// Supports dates such as "30 September, Shift 2" (year optional),
-// "30-09-2026", and ISO dates.
 function practiceDateKey(value){
  const text=String(value||"").trim();
  let m=text.match(/(\d{1,2})\s+([A-Za-z]+)(?:\s*,?\s*(20\d{2}))?/);
@@ -3811,6 +3801,16 @@ function practiceShiftNumber(value){
  const m=String(value||"").match(/shift\s*(\d+)/i);
  return m?Number(m[1]):0;
 }
+
+/* =========================================================
+   TEST LIST
+========================================================= */
+
+function renderTestList(list){
+
+const el=$("managementTestList");
+
+if(!el)return;
 
 list=[...list].sort((a,b)=>{
  const aFull=isFull(a), bFull=isFull(b);
