@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 
-<title>SSC EDGE Bulk Import — SSC EDGE Question Bank</title>
+<title>SSC EDGE Question Bank</title>
 
 <script>
 document.documentElement.dataset.theme =
@@ -427,17 +427,9 @@ button.import-btn{
   }
 }
 </style>
-
-<style>
-/* Separate admin tools; underlying original handlers remain unchanged. */
-body.tool-bulk #manualCard,body.tool-bulk #filterCard,body.tool-bulk #bulkActions,body.tool-bulk #questionDeleteActions,body.tool-bulk #questionList{display:none!important}
-body.tool-create #bulkCard,body.tool-create #filterCard,body.tool-create #bulkActions,body.tool-create #questionDeleteActions,body.tool-create #questionList{display:none!important}
-body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
-.tool-top{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.tool-top a{padding:9px 12px;border:1px solid var(--border,#302044);border-radius:9px;text-decoration:none;color:inherit;background:var(--card,#171025);font-size:13px}
-</style>
 </head>
 
-<body class="tool-bulk">
+<body>
 
 <div class="page">
 
@@ -446,8 +438,7 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
     <a class="back" href="admin.html">← Admin</a>
   </div>
 
-  <div class="tool-top"><a href="questions.html">← Question Bank</a><a href="bulk-import.html">Bulk Import</a><a href="create-questions.html">Create Questions</a><a href="question-manager.html">Question Manager</a><a href="mock-manager.html">Mock Manager</a><a href="chapter-mock-manager.html">Chapter-wise Mocks</a><a href="question-shift-manager.html">Shift Manager</a></div>
-<div id="status" class="status">
+  <div id="status" class="status">
     Checking admin access...
   </div>
 
@@ -455,7 +446,7 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
 
     <!-- ADD / EDIT QUESTION -->
 
-    <div class="card" id="manualCard">
+    <div class="card">
 
       <h2 id="formTitle">Add Question</h2>
 
@@ -593,7 +584,7 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
 
     <!-- BULK IMPORT -->
 
-    <div class="card" id="bulkCard">
+    <div class="card">
 
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
 
@@ -712,7 +703,7 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
 
     <!-- QUESTION FILTER -->
 
-    <div class="card" id="filterCard">
+    <div class="card">
 
       <h2>Question Bank</h2>
 
@@ -837,6 +828,10 @@ let bulkImportSubjectId = null;
 let bulkImportChapterId = null;
 let bulkSelectedIds = new Set();
 let selectedQuestionIds = new Set();
+
+// Performance guards: prevent overlapping renders and rapid search requests.
+let questionRenderRequest = 0;
+let searchRenderTimer = null;
 
 /* ADMIN CHECK */
 
@@ -1103,136 +1098,109 @@ function updateFilterChapter(){
 
 async function loadQuestions(){
 
-  const { data,error } =
-    await db
-      .from("questions")
-      .select(`
-        *,
-        subjects(name),
-        chapters(name)
-      `)
-      .order("id",{ascending:false});
+  // Fetch in small pages so large question banks do not hit the API row cap
+  // or create one oversized response on mobile devices.
+  const pageSize = 500;
+  let allQuestions = [];
+  let from = 0;
 
-  if(error){
+  try{
+    while(true){
+      const { data,error } = await db
+        .from("questions")
+        .select(`
+          *,
+          subjects(name),
+          chapters(name)
+        `)
+        .order("id",{ascending:false})
+        .range(from,from + pageSize - 1);
 
+      if(error) throw error;
+
+      const page = data || [];
+      allQuestions.push(...page);
+
+      if(page.length < pageSize) break;
+      from += pageSize;
+    }
+
+    questions = allQuestions;
+    await renderQuestions();
+  }catch(error){
+    console.error(error);
     alert(
       "Could not load questions:\n" +
-      error.message
+      (error.message || "Unknown error")
     );
-
-    return;
   }
-
-  questions = data || [];
-
-  renderQuestions();
 }
 
 /* RENDER */
 
 async function renderQuestions(){
 
-  const list =
-    document.getElementById("questionList");
+  const requestId = ++questionRenderRequest;
+  const list = document.getElementById("questionList");
 
-  const subjectId =
-    document.getElementById("filterSubject").value;
+  const subjectId = document.getElementById("filterSubject").value;
+  const chapterId = document.getElementById("filterChapter").value;
+  const search = document.getElementById("search").value.trim().toLowerCase();
 
-  const chapterId =
-    document.getElementById("filterChapter").value;
+  const filtered = questions.filter(q => {
+    if(subjectId && String(q.subject_id) !== String(subjectId)) return false;
+    if(chapterId && String(q.chapter_id) !== String(chapterId)) return false;
 
-  const search =
-    document.getElementById("search").value
-      .trim()
-      .toLowerCase();
-
-  const filtered =
-    questions.filter(q => {
-
-      if(
-        subjectId &&
-        String(q.subject_id) !==
-        String(subjectId)
-      ){
-        return false;
-      }
-
-      if(
-        chapterId &&
-        String(q.chapter_id) !==
-        String(chapterId)
-      ){
-        return false;
-      }
-
-      if(search){
-
-        const combined = (
-
-          String(q.question_text || "") +
-          " " +
-          String(q.question_text_hi || "") +
-          " " +
-          String(q.explanation || "")
-
-        ).toLowerCase();
-
-        if(!combined.includes(search)){
-          return false;
-        }
-      }
-
-      return true;
-
-    });
-
-  if(!filtered.length){
-
-    list.innerHTML = `
-      <div class="card empty">
-        No questions found.
-      </div>`;
-    updateQuestionSelectionUI([]);
-
-    return;
-  }
-
-  const ids =
-    filtered.map(q => q.id);
-
-  const { data:options,error } =
-    await db
-      .from("question_options")
-      .select("*")
-      .in("question_id",ids)
-      .order("option_label");
-
-  if(error){
-
-    list.innerHTML = `
-      <div class="card empty">
-        Questions loaded, but options
-        could not be loaded.
-      </div>`;
-
-    return;
-  }
-
-  const optionMap = {};
-
-  (options || []).forEach(o => {
-
-    if(!optionMap[o.question_id]){
-      optionMap[o.question_id] = [];
+    if(search){
+      const combined = (
+        String(q.question_text || "") + " " +
+        String(q.question_text_hi || "") + " " +
+        String(q.explanation || "")
+      ).toLowerCase();
+      if(!combined.includes(search)) return false;
     }
-
-    optionMap[o.question_id].push(o);
-
+    return true;
   });
 
-  const isBulkView =
-    String(subjectId) === String(bulkImportSubjectId);
+  if(!filtered.length){
+    if(requestId !== questionRenderRequest) return;
+    list.innerHTML = `<div class="card empty">No questions found.</div>`;
+    updateQuestionSelectionUI([]);
+    return;
+  }
 
+  // Fetch options in bounded batches rather than sending a huge .in() query.
+  const optionMap = Object.create(null);
+  const optionBatchSize = 300;
+
+  for(let i = 0; i < filtered.length; i += optionBatchSize){
+    const batchIds = filtered.slice(i,i + optionBatchSize).map(q => q.id);
+    const { data:options,error } = await db
+      .from("question_options")
+      .select("*")
+      .in("question_id",batchIds)
+      .order("option_label");
+
+    if(requestId !== questionRenderRequest) return;
+
+    if(error){
+      list.innerHTML = `
+        <div class="card empty">
+          Questions loaded, but options could not be loaded.
+        </div>`;
+      return;
+    }
+
+    (options || []).forEach(o => {
+      const key = String(o.question_id);
+      if(!optionMap[key]) optionMap[key] = [];
+      optionMap[key].push(o);
+    });
+  }
+
+  if(requestId !== questionRenderRequest) return;
+
+  const isBulkView = String(subjectId) === String(bulkImportSubjectId);
   document.getElementById("bulkActions")
     .classList.toggle("hidden",!isBulkView);
 
@@ -1241,51 +1209,28 @@ async function renderQuestions(){
     updateBulkSelectionUI();
   }
 
-  list.innerHTML = "";
+  // Build once and update the DOM once; repeated innerHTML += reparses the
+  // entire growing question list on every iteration and becomes very slow.
+  const htmlParts = [];
 
   filtered.forEach((q,index) => {
+    const opts = optionMap[String(q.id)] || [];
 
-    const opts =
-      optionMap[q.id] || [];
+    const optionHtml = opts.map(o => `
+      <div class="option ${o.is_correct ? "correct" : ""}">
+        ${escapeHtml(o.option_label)}.
+        ${escapeHtml(o.option_text || "")}
+        ${o.option_text_hi ? " | " + escapeHtml(o.option_text_hi) : ""}
+        ${o.is_correct ? " ✓" : ""}
+      </div>`).join("");
 
-    let optionHtml = "";
+    const correctList = opts
+      .filter(o => o.is_correct)
+      .map(o => o.option_label)
+      .join(", ");
 
-    opts.forEach(o => {
-
-      optionHtml += `
-        <div class="option ${
-          o.is_correct ? "correct" : ""
-        }">
-
-          ${escapeHtml(o.option_label)}.
-          ${escapeHtml(o.option_text || "")}
-
-          ${
-            o.option_text_hi
-            ? " | " +
-              escapeHtml(o.option_text_hi)
-            : ""
-          }
-
-          ${
-            o.is_correct
-            ? " ✓"
-            : ""
-          }
-
-        </div>`;
-    });
-
-    const correctList =
-      opts
-        .filter(o => o.is_correct)
-        .map(o => o.option_label)
-        .join(", ");
-
-    list.innerHTML += `
-
+    htmlParts.push(`
       <div class="question">
-
         <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
           <input
             class="question-select"
@@ -1297,136 +1242,60 @@ async function renderQuestions(){
           <span class="small-note" style="margin:0;">Select for deletion</span>
         </div>
 
-        ${
-          isBulkView
-          ? `
-            <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
-              <input
-                class="question-select"
-                type="checkbox"
-                ${bulkSelectedIds.has(q.id) ? "checked" : ""}
-                onchange="toggleBulkQuestion(${q.id},this.checked)"
-              >
-              <span class="small-note" style="margin:0;">Select for Subject + Chapter assignment</span>
-            </div>
-          `
-          : ""
-        }
+        ${isBulkView ? `
+          <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
+            <input
+              class="question-select"
+              type="checkbox"
+              ${bulkSelectedIds.has(q.id) ? "checked" : ""}
+              onchange="toggleBulkQuestion(${q.id},this.checked)"
+            >
+            <span class="small-note" style="margin:0;">Select for Subject + Chapter assignment</span>
+          </div>` : ""}
 
         <div class="question-title">
-          ${index+1}.
-          ${escapeHtml(
-            q.question_text || ""
-          )}
+          ${index+1}. ${escapeHtml(q.question_text || "")}
         </div>
 
-        ${
-          q.question_text_hi
-          ? `
-            <div class="question-hi">
-              🇮🇳
-              ${escapeHtml(
-                q.question_text_hi
-              )}
-            </div>
-          `
-          : ""
-        }
+        ${q.question_text_hi ? `
+          <div class="question-hi">🇮🇳 ${escapeHtml(q.question_text_hi)}</div>
+        ` : ""}
 
         <div class="meta">
-
-          ${escapeHtml(
-            q.subjects?.name ||
-            "No Subject"
-          )}
-
-          •
-
-          ${escapeHtml(
-            q.chapters?.name ||
-            "No Chapter"
-          )}
-
-          •
-
-          Correct:
-          ${escapeHtml(
-            correctList || "Not set"
-          )}
-
+          ${escapeHtml(q.subjects?.name || "No Subject")}
+          • ${escapeHtml(q.chapters?.name || "No Chapter")}
+          • Correct: ${escapeHtml(correctList || "Not set")}
         </div>
 
-        ${
-          q.is_bonus
-          ? `
-            <span class="bonus">
-              BONUS QUESTION
-            </span>
-          `
-          : ""
-        }
+        ${q.is_bonus ? `<span class="bonus">BONUS QUESTION</span>` : ""}
 
-        <div style="margin-top:8px;">
-          ${optionHtml}
-        </div>
+        <div style="margin-top:8px;">${optionHtml}</div>
 
-        ${
-          q.explanation
-          ? `
-            <div class="solution-preview">
-              <b>Solution:</b><br>
-              ${escapeHtml(q.explanation)}
-            </div>
-          `
-          : ""
-        }
+        ${q.explanation ? `
+          <div class="solution-preview">
+            <b>Solution:</b><br>
+            ${escapeHtml(q.explanation)}
+          </div>` : ""}
 
-        ${
-          q.solution_image_url
-          ? `
-            <img
-              class="solution-image-preview"
-              src="${escapeHtml(
-                q.solution_image_url
-              )}"
-              alt="Solution image"
-            >
-          `
-          : ""
-        }
+        ${q.solution_image_url ? `
+          <img
+            class="solution-image-preview"
+            src="${escapeHtml(q.solution_image_url)}"
+            alt="Solution image"
+            loading="lazy"
+          >` : ""}
 
-        ${
-          q.solution_video_url
-          ? `
-            <div class="meta">
-              🎥 Video solution added
-            </div>
-          `
-          : ""
-        }
+        ${q.solution_video_url ? `<div class="meta">🎥 Video solution added</div>` : ""}
 
         <div class="actions">
-
-          <button
-            class="secondary"
-            onclick="editQuestion(${q.id})"
-          >
-            Edit
-          </button>
-
-          <button
-            class="danger"
-            onclick="deleteQuestion(${q.id})"
-          >
-            Delete
-          </button>
-
+          <button class="secondary" onclick="editQuestion(${q.id})">Edit</button>
+          <button class="danger" onclick="deleteQuestion(${q.id})">Delete</button>
         </div>
-
-      </div>`;
-
+      </div>`);
   });
 
+  if(requestId !== questionRenderRequest) return;
+  list.innerHTML = htmlParts.join("");
   updateQuestionSelectionUI(filtered.map(q => String(q.id)));
 }
 
@@ -2837,126 +2706,244 @@ async function nextFolderOrder(folderId){
   return (data?.length ? Number(data[0].question_order)||0 : 0)+1;
 }
 
-/* BULK IMPORT DATABASE — optimized batched inserts; UI unchanged */
+/* BULK IMPORT DATABASE */
 
 async function importAllQuestions(){
-  const validRows = bulkValidatedRows.filter(r => r.errors.length === 0);
-  if(!validRows.length){ alert("There are no valid questions to import."); return; }
 
-  const button = document.getElementById("importAllButton");
-  if(button.disabled) return;
+  const validRows =
+    bulkValidatedRows.filter(
+      r => r.errors.length === 0
+    );
+
+  if(!validRows.length){
+
+    alert(
+      "There are no valid questions to import."
+    );
+
+    return;
+  }
+
+  const button =
+    document.getElementById(
+      "importAllButton"
+    );
+
   button.disabled = true;
-  button.textContent = "Importing...";
-  const resultBox = document.getElementById("bulkImportResult");
-  resultBox.innerHTML = `<div class="status">Preparing ${validRows.length} questions...</div>`;
+
+  button.textContent =
+    "Importing...";
+
+  const resultBox =
+    document.getElementById(
+      "bulkImportResult"
+    );
+
+  resultBox.innerHTML =
+    `<div class="status">
+      Importing ${validRows.length} questions...
+    </div>`;
 
   let imported = 0;
   let failed = 0;
   const failures = [];
-  const BATCH_SIZE = 25;
-  const folderCache = new Map();
-  const chapterCache = new Map();
-  const orderCache = new Map();
 
-  try {
-    // Resolve each date/shift folder only once, rather than once per question.
-    for (const r of validRows) {
-      const key = `${r.subjectId}|${r.examDate}|${r.shiftNo}`;
-      if (!folderCache.has(key)) {
-        folderCache.set(key, getOrCreateShiftFolder(r.subjectId, r.examDate, r.shiftNo));
-      }
-      r._folderKey = key;
-    }
-    await Promise.all([...folderCache.entries()].map(async ([key, promise]) => folderCache.set(key, await promise)));
+  try{
 
-    // Resolve the fallback chapter once per subject.
-    for (const r of validRows) {
-      if (!r.chapterId && !chapterCache.has(String(r.subjectId))) {
-        chapterCache.set(String(r.subjectId), getOrCreateShiftImportChapter(r.subjectId));
-      }
-    }
-    await Promise.all([...chapterCache.entries()].map(async ([key, promise]) => chapterCache.set(key, await promise)));
+    for(
+      let i=0;
+      i<validRows.length;
+      i++
+    ){
 
-    // Read each folder's starting order once.
-    for (const r of validRows) {
-      const folderId = folderCache.get(r._folderKey);
-      if (!orderCache.has(String(folderId))) {
-        orderCache.set(String(folderId), nextFolderOrder(folderId));
-      }
-    }
-    await Promise.all([...orderCache.entries()].map(async ([key, promise]) => orderCache.set(key, await promise)));
+      const r =
+        validRows[i];
 
-    for (let offset = 0; offset < validRows.length; offset += BATCH_SIZE) {
-      const batch = validRows.slice(offset, offset + BATCH_SIZE);
-      resultBox.innerHTML = `<div class="status">Importing questions ${offset + 1}–${Math.min(offset + batch.length, validRows.length)} of ${validRows.length}...</div>`;
+      try{
 
-      let insertedQuestions = [];
-      try {
-        const questionPayload = batch.map(r => ({
-          subject_id: r.subjectId,
-          chapter_id: r.chapterId || chapterCache.get(String(r.subjectId)),
-          question_text: r.questionEnglish,
-          question_text_hi: r.questionHindi,
-          explanation: r.explanation,
-          correct_options: r.correct,
-          is_bonus: r.bonus,
-          solution_video_url: r.video || null,
-          mock_test_id: null
-        }));
+        const folderId = await getOrCreateShiftFolder(r.subjectId, r.examDate, r.shiftNo);
+        const chapterId = r.chapterId || await getOrCreateShiftImportChapter(r.subjectId);
 
-        const { data: qData, error: qError } = await db
-          .from("questions").insert(questionPayload).select("id");
-        if (qError) throw qError;
-        if (!qData || qData.length !== batch.length) throw new Error("Database returned an unexpected number of inserted questions.");
-        insertedQuestions = qData;
+        const questionData = {
 
-        // Supabase returns inserted rows in insert order for this bulk insert.
-        const optionPayload = [];
-        const linkPayload = [];
-        batch.forEach((r, index) => {
-          const questionId = insertedQuestions[index].id;
-          optionPayload.push(
-            {question_id:questionId, option_label:"A", option_text:r.A, option_text_hi:r.AHi, is_correct:r.correct.includes("A")},
-            {question_id:questionId, option_label:"B", option_text:r.B, option_text_hi:r.BHi, is_correct:r.correct.includes("B")},
-            {question_id:questionId, option_label:"C", option_text:r.C, option_text_hi:r.CHi, is_correct:r.correct.includes("C")},
-            {question_id:questionId, option_label:"D", option_text:r.D, option_text_hi:r.DHi, is_correct:r.correct.includes("D")}
-          );
-          const folderId = folderCache.get(r._folderKey);
-          const nextOrder = Number(orderCache.get(String(folderId))) || 1;
-          linkPayload.push({group_id:folderId, question_id:questionId, question_order:nextOrder});
-          orderCache.set(String(folderId), nextOrder + 1);
-        });
+          subject_id:
+            r.subjectId,
 
-        const { error: optionError } = await db.from("question_options").insert(optionPayload);
-        if (optionError) throw optionError;
-        const { error: linkError } = await db.from("question_shift_group_questions").insert(linkPayload);
-        if (linkError) throw linkError;
-        imported += batch.length;
-      } catch (error) {
-        // Clean up this batch if a later step fails, preventing orphaned questions.
-        if (insertedQuestions.length) {
-          const ids = insertedQuestions.map(q => q.id);
-          await db.from("question_shift_group_questions").delete().in("question_id", ids);
-          await db.from("question_options").delete().in("question_id", ids);
-          await db.from("questions").delete().in("id", ids);
+          chapter_id:
+            chapterId,
+
+          question_text:
+            r.questionEnglish,
+
+          question_text_hi:
+            r.questionHindi,
+
+          explanation:
+            r.explanation,
+
+          correct_options:
+            r.correct,
+
+          is_bonus:
+            r.bonus,
+
+          solution_video_url:
+            r.video || null,
+
+          mock_test_id:
+            null
+        };
+
+        const {
+          data,
+          error
+        } =
+          await db
+            .from("questions")
+            .insert(questionData)
+            .select("id")
+            .single();
+
+        if(error) throw error;
+
+        const questionId =
+          data.id;
+
+        const optionRows = [
+
+          {
+            question_id:questionId,
+            option_label:"A",
+            option_text:r.A,
+            option_text_hi:r.AHi,
+            is_correct:
+              r.correct.includes("A")
+          },
+
+          {
+            question_id:questionId,
+            option_label:"B",
+            option_text:r.B,
+            option_text_hi:r.BHi,
+            is_correct:
+              r.correct.includes("B")
+          },
+
+          {
+            question_id:questionId,
+            option_label:"C",
+            option_text:r.C,
+            option_text_hi:r.CHi,
+            is_correct:
+              r.correct.includes("C")
+          },
+
+          {
+            question_id:questionId,
+            option_label:"D",
+            option_text:r.D,
+            option_text_hi:r.DHi,
+            is_correct:
+              r.correct.includes("D")
+          }
+
+        ];
+
+        const {
+          error:optionError
+        } =
+          await db
+            .from("question_options")
+            .insert(optionRows);
+
+        if(optionError){
+          await db.from("questions").delete().eq("id",questionId);
+          throw optionError;
         }
-        failed += batch.length;
-        failures.push(`Rows ${batch[0].rowNumber}–${batch[batch.length-1].rowNumber}: ${error.message || "Unknown database error"}`);
+
+        const { error:linkError } = await db
+          .from("question_shift_group_questions")
+          .insert({group_id:folderId, question_id:questionId, question_order:await nextFolderOrder(folderId)});
+
+        if(linkError){
+          await db.from("question_options").delete().eq("question_id",questionId);
+          await db.from("questions").delete().eq("id",questionId);
+          throw linkError;
+        }
+
+        imported++;
+
+      }
+      catch(error){
+
+        failed++;
+
+        failures.push(
+          `Row ${r.rowNumber}: ${
+            error.message
+          }`
+        );
       }
     }
 
-    resultBox.innerHTML = `<div class="status">
-      <div class="import-success">✓ ${imported} questions imported successfully.</div>
-      ${failed ? `<div class="import-error" style="margin-top:8px;">${failed} questions failed.<br>${escapeHtml(failures.join("\n"))}</div>` : `<div class="small-note" style="margin-top:8px;">All valid questions were imported.</div>`}
-    </div>`;
+    resultBox.innerHTML = `
+
+      <div class="status">
+
+        <div class="import-success">
+          ✓ ${imported} questions imported successfully.
+        </div>
+
+        ${
+          failed
+          ? `
+            <div class="import-error"
+                 style="margin-top:8px;">
+              ${failed} questions failed.
+              ${escapeHtml(
+                failures.join("\n")
+              )}
+            </div>
+          `
+          : `
+            <div class="small-note"
+                 style="margin-top:8px;">
+              All valid questions were imported.
+            </div>
+          `
+        }
+
+      </div>
+    `;
+
     await loadQuestions();
-  } catch(error) {
-    console.error(error);
-    resultBox.innerHTML = `<div class="status"><div class="import-error">Import failed: ${escapeHtml(error.message || "Unknown error")}</div></div>`;
-  } finally {
-    button.disabled = false;
-    button.textContent = imported ? "Import Completed" : "Import All Valid Questions";
+
   }
+  catch(error){
+
+    console.error(error);
+
+    resultBox.innerHTML = `
+
+      <div class="status">
+
+        <div class="import-error">
+          Import failed:
+          ${escapeHtml(
+            error.message
+          )}
+        </div>
+
+      </div>
+    `;
+  }
+
+  button.disabled = false;
+
+  button.textContent =
+    imported
+    ? "Import Completed"
+    : "Import All Valid Questions";
 }
 
 /* BULK QUESTION SELECTION / MOVE */
@@ -3330,7 +3317,10 @@ document.getElementById("filterChapter")
 document.getElementById("search")
   .addEventListener(
     "input",
-    renderQuestions
+    () => {
+      clearTimeout(searchRenderTimer);
+      searchRenderTimer = setTimeout(renderQuestions,250);
+    }
   );
 
 /* START */
