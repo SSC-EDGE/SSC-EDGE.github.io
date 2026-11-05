@@ -1848,6 +1848,8 @@ return 1;
 return Number(b.id||0)-Number(a.id||0);
 });
 
+await repairSectionalMockSections();
+
 renderExams();
 
 if(selectedExam){
@@ -4174,7 +4176,7 @@ test
 test.subject_wise_timing||
 test.sectional_timing
 )
-:false;
+:type==="SECTIONAL";
 
 let sections=test
 ?await loadExistingSections(test.id)
@@ -4358,7 +4360,12 @@ async function createBulkMocks(){
 
    let targets=[];
    if(bulkMockType==="SECTIONAL"){
-    targets=sectionalFolders.map(f=>({folderId:f.id,subjectId:f.subject_id||null}));
+    targets=sectionalFolders.map(f=>{
+      const matchedSubject=subjects.find(sub=>
+       nameOfSubject(sub).trim().toLowerCase()===folderName(f).trim().toLowerCase()
+      );
+      return {folderId:f.id,subjectId:f.subject_id||matchedSubject?.id||null};
+     });
    }else{
     let targetFolderId=fullFolder.id;
     if(selectedBranch==="PYQ"){
@@ -4392,12 +4399,24 @@ async function createBulkMocks(){
      unattempted_marks_per_question:0,
      is_active:true,
      test_type:bulkMockType,
-     subject_wise_timing:false
+     subject_wise_timing:bulkMockType==="SECTIONAL"
     };
     if(bulkMockType==="SECTIONAL")payload.subject_id=target.subjectId;
     const response=await db.from("mock_tests").insert(payload).select().single();
     if(response.error)throw response.error;
-    if(bulkMockType==="FULL")await saveMockSections(response.data.id,defaultSections);
+    if(bulkMockType==="FULL"){
+     await saveMockSections(response.data.id,defaultSections);
+    }else{
+     const folder=sectionalFolders.find(f=>String(f.id)===String(target.folderId));
+     const subject=subjects.find(sub=>String(sub.id)===String(target.subjectId));
+     const sectionName=subject?nameOfSubject(subject):folderName(folder);
+     const sectionSubjectId=target.subjectId||subject?.id;
+     if(sectionSubjectId){
+      await saveMockSections(response.data.id,[{
+       name:sectionName,subject_id:sectionSubjectId,duration:15,questions:25
+      }]);
+     }
+    }
     created++;
    }
   }
@@ -4417,6 +4436,46 @@ async function createBulkMocks(){
 }
 
 bindClick("createBulkMocksBtn",createBulkMocks);
+
+/* =========================================================
+   NORMALIZE EXISTING SECTIONAL MOCK SECTIONS
+   Only updates mock_test_sections; assigned questions are untouched.
+========================================================= */
+async function repairSectionalMockSections(){
+ for(const test of tests.filter(isSectional)){
+  const folder=getFolder(test.folder_id);
+  const subjectId=test.subject_id||folder?.subject_id;
+  const subject=subjects.find(item=>String(item.id)===String(subjectId));
+  if(!subjectId||!subject) continue;
+
+  const desiredName=nameOfSubject(subject);
+  const existing=await db.from("mock_test_sections")
+   .select("*").eq("mock_test_id",test.id);
+
+  if(existing.error){
+   console.warn("Sectional section check skipped:",test.id,existing.error.message);
+   continue;
+  }
+
+  const rows=existing.data||[];
+  const alreadyCorrect=rows.length===1&&
+   String(rows[0].subject_id)===String(subjectId)&&
+   String(rows[0].section_name||"").trim().toLowerCase()===desiredName.trim().toLowerCase();
+
+  if(alreadyCorrect) continue;
+
+  try{
+   await saveMockSections(test.id,[{
+    name:desiredName,
+    subject_id:subjectId,
+    duration:Number(test.duration_minutes)||15,
+    questions:Number(test.total_questions)||25
+   }]);
+  }catch(error){
+   console.warn("Sectional mock repair failed:",test.id,error.message);
+  }
+ }
+}
 
 /* =========================================================
    SAVE MOCK
@@ -4474,7 +4533,7 @@ return;
 
 }
 
-const sections=[
+let sections=[
 ...document.querySelectorAll(
 ".ap-section-row"
 )
@@ -4528,6 +4587,34 @@ questions
 
 })
 .filter(section=>section.name);
+
+/* A sectional mock must contain only its own subject section. */
+if(editorType==="SECTIONAL"){
+ const ownerFolder=getFolder(editorFolderId);
+ const ownerSubjectId=
+  selectedFolder&&String(selectedFolder.id)===String(editorFolderId)
+   ?selectedFolder.subject_id
+   :ownerFolder?.subject_id;
+ const ownerSubject=subjects.find(item=>
+  String(item.id)===String(ownerSubjectId)
+ );
+ const ownerName=ownerSubject
+  ?nameOfSubject(ownerSubject)
+  :folderName(ownerFolder);
+ const matched=sections.find(section=>
+  section.name.trim().toLowerCase()===String(ownerName||"").trim().toLowerCase()
+ );
+ const chosen=matched||sections[0];
+ const subject=subjects.find(item=>
+  nameOfSubject(item).trim().toLowerCase()===String(ownerName||chosen.name).trim().toLowerCase()
+ );
+ sections=[{
+  name:ownerName||chosen.name,
+  subject_id:subject?.id||ownerSubjectId||chosen.subject_id||null,
+  duration:chosen.duration||Number($("mockDurationInput").value)||15,
+  questions:chosen.questions||Number($("mockQuestionsInput").value)||25
+ }];
+}
 
 if(!sections.length){
 
