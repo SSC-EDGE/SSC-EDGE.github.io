@@ -1848,8 +1848,6 @@ return 1;
 return Number(b.id||0)-Number(a.id||0);
 });
 
-await repairSectionalMockSections();
-
 renderExams();
 
 if(selectedExam){
@@ -4176,7 +4174,7 @@ test
 test.subject_wise_timing||
 test.sectional_timing
 )
-:type==="SECTIONAL";
+:true;
 
 let sections=test
 ?await loadExistingSections(test.id)
@@ -4352,7 +4350,20 @@ async function createBulkMocks(){
 
   let fullIndex=tests.filter(t=>String(t.exam_id)===String(selectedExam.id)&&isFull(t)).length+1;
 
-  for(const entry of entries){
+  // Existing mock ordering is untouched. Bulk entries are inserted newest-first,
+ // so the existing newest-to-oldest ID display naturally shows them oldest-to-newest.
+ const creationEntries=[...entries].sort((a,b)=>{
+  const parseDate=value=>{
+   const m=String(value||"").match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+   if(m)return new Date(Number(m[3]),Number(m[2])-1,Number(m[1])).getTime();
+   const iso=String(value||"").match(/(20\d{2})[-\/](\d{1,2})[-\/](\d{1,2})/);
+   if(iso)return new Date(Number(iso[1]),Number(iso[2])-1,Number(iso[3])).getTime();
+   const parsed=Date.parse(String(value||""));
+   return Number.isFinite(parsed)?parsed:0;
+  };
+  return parseDate(b.date)-parseDate(a.date);
+ });
+ for(const entry of creationEntries){
    const description=entry.date+" – "+entry.shift;
    const title=bulkMockType==="FULL"
     ?"Full Mock "+String(fullIndex++).padStart(2,"0")
@@ -4399,7 +4410,7 @@ async function createBulkMocks(){
      unattempted_marks_per_question:0,
      is_active:true,
      test_type:bulkMockType,
-     subject_wise_timing:bulkMockType==="SECTIONAL"
+     subject_wise_timing:true
     };
     if(bulkMockType==="SECTIONAL")payload.subject_id=target.subjectId;
     const response=await db.from("mock_tests").insert(payload).select().single();
@@ -4436,46 +4447,6 @@ async function createBulkMocks(){
 }
 
 bindClick("createBulkMocksBtn",createBulkMocks);
-
-/* =========================================================
-   NORMALIZE EXISTING SECTIONAL MOCK SECTIONS
-   Only updates mock_test_sections; assigned questions are untouched.
-========================================================= */
-async function repairSectionalMockSections(){
- for(const test of tests.filter(isSectional)){
-  const folder=getFolder(test.folder_id);
-  const subjectId=test.subject_id||folder?.subject_id;
-  const subject=subjects.find(item=>String(item.id)===String(subjectId));
-  if(!subjectId||!subject) continue;
-
-  const desiredName=nameOfSubject(subject);
-  const existing=await db.from("mock_test_sections")
-   .select("*").eq("mock_test_id",test.id);
-
-  if(existing.error){
-   console.warn("Sectional section check skipped:",test.id,existing.error.message);
-   continue;
-  }
-
-  const rows=existing.data||[];
-  const alreadyCorrect=rows.length===1&&
-   String(rows[0].subject_id)===String(subjectId)&&
-   String(rows[0].section_name||"").trim().toLowerCase()===desiredName.trim().toLowerCase();
-
-  if(alreadyCorrect) continue;
-
-  try{
-   await saveMockSections(test.id,[{
-    name:desiredName,
-    subject_id:subjectId,
-    duration:Number(test.duration_minutes)||15,
-    questions:Number(test.total_questions)||25
-   }]);
-  }catch(error){
-   console.warn("Sectional mock repair failed:",test.id,error.message);
-  }
- }
-}
 
 /* =========================================================
    SAVE MOCK
@@ -4533,7 +4504,7 @@ return;
 
 }
 
-let sections=[
+const sections=[
 ...document.querySelectorAll(
 ".ap-section-row"
 )
@@ -4587,34 +4558,6 @@ questions
 
 })
 .filter(section=>section.name);
-
-/* A sectional mock must contain only its own subject section. */
-if(editorType==="SECTIONAL"){
- const ownerFolder=getFolder(editorFolderId);
- const ownerSubjectId=
-  selectedFolder&&String(selectedFolder.id)===String(editorFolderId)
-   ?selectedFolder.subject_id
-   :ownerFolder?.subject_id;
- const ownerSubject=subjects.find(item=>
-  String(item.id)===String(ownerSubjectId)
- );
- const ownerName=ownerSubject
-  ?nameOfSubject(ownerSubject)
-  :folderName(ownerFolder);
- const matched=sections.find(section=>
-  section.name.trim().toLowerCase()===String(ownerName||"").trim().toLowerCase()
- );
- const chosen=matched||sections[0];
- const subject=subjects.find(item=>
-  nameOfSubject(item).trim().toLowerCase()===String(ownerName||chosen.name).trim().toLowerCase()
- );
- sections=[{
-  name:ownerName||chosen.name,
-  subject_id:subject?.id||ownerSubjectId||chosen.subject_id||null,
-  duration:chosen.duration||Number($("mockDurationInput").value)||15,
-  questions:chosen.questions||Number($("mockQuestionsInput").value)||25
- }];
-}
 
 if(!sections.length){
 
