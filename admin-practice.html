@@ -3789,17 +3789,28 @@ const el=$("managementTestList");
 
 if(!el)return;
 
-// Always show mocks oldest-to-newest (newest at the bottom).
-// Full Mock numbers use their numeric suffix; sectional mocks use their date.
-const parseMockDate=value=>{
+// Consistent chronological ordering: oldest first, newest last.
+// Supports dates such as "30 September, Shift 2" (year optional),
+// "30-09-2026", and ISO dates.
+function practiceDateKey(value){
  const text=String(value||"").trim();
- let m=text.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+ let m=text.match(/(\d{1,2})\s+([A-Za-z]+)(?:\s*,?\s*(20\d{2}))?/);
+ if(m){
+  const months={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  const mon=months[m[2].slice(0,3).toLowerCase()];
+  if(mon!==undefined)return new Date(Number(m[3]||new Date().getFullYear()),mon,Number(m[1])).getTime();
+ }
+ m=text.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
  if(m)return new Date(Number(m[3]),Number(m[2])-1,Number(m[1])).getTime();
  m=text.match(/(20\d{2})[-\/](\d{1,2})[-\/](\d{1,2})/);
  if(m)return new Date(Number(m[1]),Number(m[2])-1,Number(m[3])).getTime();
  const parsed=Date.parse(text);
  return Number.isFinite(parsed)?parsed:0;
-};
+}
+function practiceShiftNumber(value){
+ const m=String(value||"").match(/shift\s*(\d+)/i);
+ return m?Number(m[1]):0;
+}
 
 list=[...list].sort((a,b)=>{
  const aFull=isFull(a), bFull=isFull(b);
@@ -3808,11 +3819,13 @@ list=[...list].sort((a,b)=>{
   const bn=Number((String(b.title||"").match(/(\d+)\s*$/)||[])[1]);
   if(Number.isFinite(an)&&Number.isFinite(bn)&&an!==bn)return an-bn;
  }
- const ad=parseMockDate(a.description||a.title);
- const bd=parseMockDate(b.description||b.title);
+ const av=a.description||a.title, bv=b.description||b.title;
+ const ad=practiceDateKey(av), bd=practiceDateKey(bv);
  if(ad&&bd&&ad!==bd)return ad-bd;
  if(ad&&!bd)return -1;
  if(!ad&&bd)return 1;
+ const as=practiceShiftNumber(av), bs=practiceShiftNumber(bv);
+ if(as!==bs)return as-bs;
  const ao=Number(a.sort_order),bo=Number(b.sort_order);
  if(Number.isFinite(ao)&&Number.isFinite(bo)&&ao!==bo)return ao-bo;
  return Number(a.id||0)-Number(b.id||0);
@@ -4325,7 +4338,7 @@ function openBulkMockModal(type){
 
 function parseBulkDateShift(raw){
  return raw.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map((line,index)=>{
-  const parts=line.includes("|")?line.split("|"):line.split(/\t|,(?=\s*(?:shift\s*)?\d)/i);
+  const parts=line.includes("|")?line.split("|"):line.split(/\t|,\s*(?=shift\s*\d+\b|\d+\b)/i);
   if(parts.length<2) throw new Error("Line "+(index+1)+": Date aur Shift alag likho.");
   const date=parts[0].trim();
   const shift=parts.slice(1).join(" ").trim();
@@ -4379,18 +4392,12 @@ async function createBulkMocks(){
 
   let fullIndex=tests.filter(t=>String(t.exam_id)===String(selectedExam.id)&&isFull(t)).length+1;
 
-  // Existing mock ordering is untouched. Bulk entries are inserted newest-first,
- // so the existing newest-to-oldest ID display naturally shows them oldest-to-newest.
+  // Create in chronological order so Full Mock 01 is the oldest entry.
+  // For equal dates, Shift 1 comes before Shift 2, then Shift 3.
  const creationEntries=[...entries].sort((a,b)=>{
-  const parseDate=value=>{
-   const m=String(value||"").match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
-   if(m)return new Date(Number(m[3]),Number(m[2])-1,Number(m[1])).getTime();
-   const iso=String(value||"").match(/(20\d{2})[-\/](\d{1,2})[-\/](\d{1,2})/);
-   if(iso)return new Date(Number(iso[1]),Number(iso[2])-1,Number(iso[3])).getTime();
-   const parsed=Date.parse(String(value||""));
-   return Number.isFinite(parsed)?parsed:0;
-  };
-  return parseDate(b.date)-parseDate(a.date);
+  const dateDiff=practiceDateKey(a.date)-practiceDateKey(b.date);
+  if(dateDiff)return dateDiff;
+  return practiceShiftNumber(a.shift)-practiceShiftNumber(b.shift);
  });
  for(const entry of creationEntries){
    const description=entry.date+" – "+entry.shift;
