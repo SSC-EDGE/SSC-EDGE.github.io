@@ -689,6 +689,11 @@ transform:translate(-50%,0);
 .ap-modal{margin:10px auto}
 .ap-folder-card{padding:11px}
 }
+
+.ap-bulk-help{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:12px}
+.ap-bulk-table-input{min-height:190px;font-family:monospace;white-space:pre;overflow:auto}
+.ap-bulk-count{font-size:11px;color:var(--success);margin-top:7px}
+
 </style>
 </head>
 
@@ -972,6 +977,34 @@ Manage exams, branches, custom folders, categories, years, subjects and mock tes
 </div>
 
 </div>
+</div>
+
+
+<!-- BULK MOCK MODAL -->
+<div class="ap-modal-overlay" id="bulkMockModal">
+ <div class="ap-modal">
+  <div class="ap-modal-head">
+   <div class="ap-modal-title" id="bulkModalTitle">Bulk Add Mocks</div>
+   <button class="ap-modal-close" data-close-modal="bulkMockModal" type="button">×</button>
+  </div>
+  <div class="ap-modal-body">
+   <div class="ap-bulk-help" id="bulkModalHelp">
+    Paste one Date and Shift per line. Use: 22 Oct 2026, Shift 1
+   </div>
+   <div class="ap-form-group">
+    <label class="ap-form-label">Date and Shift (one mock per line)</label>
+    <textarea class="ap-form-textarea ap-bulk-table-input" id="bulkDateShiftInput" placeholder="22 Oct 2026, Shift 1&#10;22 Oct 2026, Shift 2&#10;23 Oct 2026, Shift 1"></textarea>
+   </div>
+   <div class="ap-bulk-count" id="bulkEntryCount">0 entries</div>
+   <div class="ap-bulk-help" style="margin-top:10px">
+    Sectional: each entry will be created in every available subject. Full: names will be generated as Full Mock 01, 02, 03… and the date/shift will be saved in Description.
+   </div>
+  </div>
+  <div class="ap-modal-footer">
+   <button class="ap-secondary-btn" data-close-modal="bulkMockModal" type="button">Cancel</button>
+   <button class="ap-primary-btn" id="createBulkMocksBtn" type="button">Create All</button>
+  </div>
+ </div>
 </div>
 
 <div class="ap-toast" id="toast"></div>
@@ -3086,6 +3119,7 @@ type="button"
 >
 + Add Full Mock
 </button>
+<button class="ap-primary-btn" id="bulkFullMockBtn" type="button">+ Bulk Add</button>
 
 `;
 
@@ -3098,6 +3132,8 @@ bindClick(
 "addFullMockBtn",
 ()=>openMockEditor("FULL")
 );
+
+bindClick("bulkFullMockBtn",()=>openBulkMockModal("FULL"));
 
 /*
 Year selection.
@@ -3237,6 +3273,7 @@ type="button"
 >
 + Add Full Mock
 </button>
+<button class="ap-secondary-btn" id="bulkFullMockBtn" type="button">+ Bulk Add</button>
 
 `;
 
@@ -3244,6 +3281,8 @@ bindClick(
 "addNewFullMockBtn",
 ()=>openMockEditor("FULL")
 );
+
+bindClick("bulkFullMockBtn",()=>openBulkMockModal("FULL"));
 
 }
 
@@ -3510,6 +3549,7 @@ type="button"
 >
 + Add Subject Clip
 </button>
+<button class="ap-primary-btn" id="bulkSectionalMockBtn" type="button">+ Bulk Add Sectional</button>
 
 `;
 
@@ -3532,6 +3572,8 @@ $("structureNameInput").value="";
 openModal("structureModal");
 
 });
+
+bindClick("bulkSectionalMockBtn",()=>openBulkMockModal("SECTIONAL"));
 
 document
 .querySelectorAll("[data-folder-id]")
@@ -4235,6 +4277,146 @@ row.remove();
 rows.appendChild(row);
 
 }
+
+
+/* =========================================================
+   BULK CREATE PYQ MOCKS
+========================================================= */
+let bulkMockType = null;
+
+function openBulkMockModal(type){
+ if(!selectedExam){toast("Select exam first");return;}
+ bulkMockType=type;
+ $("bulkModalTitle").textContent=type==="FULL"?"Bulk Add Full Mocks":"Bulk Add Sectional Mocks";
+ $("bulkModalHelp").textContent="Paste one Date and Shift per line. Format: 22 Oct 2026, Shift 1 (also accepts Date | Shift).";
+ $("bulkDateShiftInput").value="";
+ $("bulkEntryCount").textContent="0 entries";
+ openModal("bulkMockModal");
+}
+
+function parseBulkDateShift(raw){
+ return raw.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map((line,index)=>{
+  const parts=line.includes("|")?line.split("|"):line.split(/\t|,(?=\s*(?:shift\s*)?\d)/i);
+  if(parts.length<2) throw new Error("Line "+(index+1)+": Date aur Shift alag likho.");
+  const date=parts[0].trim();
+  const shift=parts.slice(1).join(" ").trim();
+  if(!date||!shift) throw new Error("Line "+(index+1)+": Date/Shift missing.");
+  return {date,shift};
+ });
+}
+
+$("bulkDateShiftInput").addEventListener("input",()=>{
+ const count=$("bulkDateShiftInput").value.split(/\r?\n/).filter(x=>x.trim()).length;
+ $("bulkEntryCount").textContent=count+" entries";
+});
+
+async function createBulkMocks(){
+ const button=$("createBulkMocksBtn");
+ const raw=$("bulkDateShiftInput").value.trim();
+ if(!raw){toast("Paste Date and Shift entries first");return;}
+ let entries;
+ try{entries=parseBulkDateShift(raw);}catch(e){toast(e.message);return;}
+ if(!entries.length){toast("No entries found");return;}
+ if(entries.length>300){toast("Maximum 300 entries at a time");return;}
+ if(!confirm("Create "+entries.length+" "+(bulkMockType==="FULL"?"Full":"Sectional")+" mock entries?"))return;
+
+ button.disabled=true;
+ button.textContent="Creating...";
+ let created=0;
+ try{
+  const defaultSections=[
+   {name:"Reasoning",duration:15,questions:25},
+   {name:"General Awareness",duration:15,questions:25},
+   {name:"Quantitative Aptitude",duration:15,questions:25},
+   {name:"English",duration:15,questions:25}
+  ].map(x=>{
+   const sub=subjects.find(y=>nameOfSubject(y).trim().toLowerCase()===x.name.toLowerCase());
+   return {...x,subject_id:sub?.id||null};
+  });
+
+  let sectionalFolders=[];
+  if(bulkMockType==="SECTIONAL"){
+   sectionalFolders=selectedBranch==="CUSTOM"
+    ?childrenOf(directChild(selectedRootFolder?.id,"SECTIONAL")?.id,"SUBJECT")
+    :getBranchSubjectFolders(selectedBranch);
+   const unique=new Map();
+   sectionalFolders.forEach(f=>unique.set(String(f.subject_id||folderName(f)).toLowerCase(),f));
+   sectionalFolders=[...unique.values()];
+   if(!sectionalFolders.length)throw new Error("No subject folders found. Add subject clips first.");
+  }
+
+  let fullFolder=null;
+  if(bulkMockType==="FULL") fullFolder=await getFullFolder();
+
+  let fullIndex=tests.filter(t=>String(t.exam_id)===String(selectedExam.id)&&isFull(t)).length+1;
+
+  for(const entry of entries){
+   const description=entry.date+" – "+entry.shift;
+   const title=bulkMockType==="FULL"
+    ?"Full Mock "+String(fullIndex++).padStart(2,"0")
+    :description;
+
+   let targets=[];
+   if(bulkMockType==="SECTIONAL"){
+    targets=sectionalFolders.map(f=>({folderId:f.id,subjectId:f.subject_id||null}));
+   }else{
+    let targetFolderId=fullFolder.id;
+    if(selectedBranch==="PYQ"){
+     const yearMatch=entry.date.match(/\b(20\d{2})\b/);
+     if(yearMatch){
+      const year=yearMatch[1];
+      let yearFolder=childrenOf(fullFolder.id,"YEAR").find(f=>folderName(f)===year);
+      if(!yearFolder){
+       yearFolder=await ensureFolder({examId:selectedExam.id,parentId:fullFolder.id,name:year,displayName:year,type:"YEAR",sortOrder:Number(year)});
+      }
+      targetFolderId=yearFolder.id;
+     }else if(selectedYear){
+      targetFolderId=selectedYear.id;
+     }else{
+      throw new Error("Date must include a 4-digit year for PYQ Full Mocks (line: "+description+").");
+     }
+    }
+    targets=[{folderId:targetFolderId}];
+   }
+
+   for(const target of targets){
+    const payload={
+     exam_id:selectedExam.id,
+     folder_id:target.folderId,
+     title,
+     description,
+     duration_minutes:bulkMockType==="SECTIONAL"?15:60,
+     total_questions:bulkMockType==="SECTIONAL"?25:100,
+     marks_per_question:2,
+     negative_marks_per_question:0.5,
+     unattempted_marks_per_question:0,
+     is_active:true,
+     test_type:bulkMockType,
+     subject_wise_timing:false
+    };
+    if(bulkMockType==="SECTIONAL")payload.subject_id=target.subjectId;
+    const response=await db.from("mock_tests").insert(payload).select().single();
+    if(response.error)throw response.error;
+    if(bulkMockType==="FULL")await saveMockSections(response.data.id,defaultSections);
+    created++;
+   }
+  }
+  closeModal("bulkMockModal");
+  toast(created+" mocks created successfully");
+  await loadAllData();
+  if(selectedCategory==="FULL")renderFullManagement();else renderSectionalManagement();
+ }catch(error){
+  console.error("Bulk mock creation error:",error);
+  toast("Bulk creation stopped after "+created+" mocks: "+error.message);
+  await loadAllData();
+  if(selectedCategory==="FULL")renderFullManagement();else renderSectionalManagement();
+ }finally{
+  button.disabled=false;
+  button.textContent="Create All";
+ }
+}
+
+bindClick("createBulkMocksBtn",createBulkMocks);
 
 /* =========================================================
    SAVE MOCK
