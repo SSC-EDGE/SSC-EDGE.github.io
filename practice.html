@@ -369,6 +369,13 @@ body{
   color:var(--p-text);
 }
 
+.test-desc{
+  margin:-2px 0 8px;
+  font-size:12px;
+  font-weight:700;
+  color:var(--p-purple2);
+}
+
 .test-info{
   font-size:12px;
   line-height:1.7;
@@ -1430,6 +1437,7 @@ async function loadExamData(examId){
           id,
           exam_id,
           title,
+          description,
           test_type,
           subject_id,
           folder_id,
@@ -2084,6 +2092,221 @@ function branchRoot(){
 
 }
 
+/*
+  All root folders that belong to the opened branch.
+  NEW / PYQ can exist twice in old data (e.g. PYQ and PYQ_MOCKS);
+  Admin merges them, so Practice does too.
+  A custom folder (Phase etc.) only ever uses itself.
+*/
+function branchRoots(){
+
+  if(currentBranch==="custom"){
+    return currentFolder ? [currentFolder] : [];
+  }
+
+  return examFolders().filter(f=>{
+    const root =
+      f.parent_id===null ||
+      f.parent_id===undefined ||
+      f.parent_id==="";
+    return root &&
+      f.is_active!==false &&
+      folderType(f)===currentBranch;
+  });
+
+}
+
+/* =========================================================
+   TEST HELPERS (folder + type filtering, ordering)
+========================================================= */
+
+function mockKind(test){
+
+  const v = compact(test?.test_type);
+
+  if(
+    v.includes("sectional") ||
+    v==="subjectwise" ||
+    v==="chapterwise"
+  ){
+    return "sectional";
+  }
+
+  if(v.includes("full")){
+    return "full";
+  }
+
+  return "";
+
+}
+
+function testsInFolders(
+  folderIds,
+  kind
+){
+
+  const ids =
+    new Set(
+      folderIds.map(String)
+    );
+
+  return tests.filter(t=>{
+
+    if(
+      String(t.exam_id) !==
+      String(currentExam.id)
+    ){
+      return false;
+    }
+
+    if(!ids.has(String(t.folder_id))){
+      return false;
+    }
+
+    // A mock of the other kind never belongs in this list.
+    const k = mockKind(t);
+
+    return !k || !kind || k===kind;
+
+  });
+
+}
+
+function mockDateValue(test){
+
+  const text =
+    String(
+      test?.description ||
+      test?.title ||
+      ""
+    );
+
+  const months = {
+    jan:0,feb:1,mar:2,apr:3,may:4,jun:5,
+    jul:6,aug:7,sep:8,oct:9,nov:10,dec:11
+  };
+
+  let m =
+    text.match(
+      /(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,})\.?,?\s*(20\d{2})?/
+    );
+
+  if(m){
+
+    const mon =
+      months[m[2].slice(0,3).toLowerCase()];
+
+    if(mon!==undefined){
+      return Date.UTC(
+        Number(m[3] || new Date().getFullYear()),
+        mon,
+        Number(m[1])
+      );
+    }
+
+  }
+
+  m = text.match(/(20\d{2})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+
+  if(m){
+    return Date.UTC(
+      Number(m[1]),
+      Number(m[2])-1,
+      Number(m[3])
+    );
+  }
+
+  m = text.match(/(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2})/);
+
+  if(m){
+    return Date.UTC(
+      Number(m[3]),
+      Number(m[2])-1,
+      Number(m[1])
+    );
+  }
+
+  return 0;
+
+}
+
+function mockShiftValue(test){
+
+  const m =
+    String(
+      test?.description ||
+      test?.title ||
+      ""
+    ).match(/shift\s*(\d+)/i);
+
+  return m ? Number(m[1]) : 0;
+
+}
+
+function mockNumberValue(test){
+
+  const m =
+    String(test?.title || "")
+      .match(/(\d+)\s*$/);
+
+  return m ? Number(m[1]) : null;
+
+}
+
+/*
+  Oldest date first, then Shift 1, 2, 3, then Mock 01, 02...
+  Mocks without a date (e.g. older phase mocks) keep their
+  existing order and stay above the dated ones.
+*/
+function sortMocks(list){
+
+  return list
+    .map((test,index)=>({
+      test,
+      index,
+      date:mockDateValue(test),
+      shift:mockShiftValue(test),
+      no:mockNumberValue(test)
+    }))
+    .sort((a,b)=>{
+
+      if(a.date && b.date){
+
+        if(a.date!==b.date){
+          return a.date-b.date;
+        }
+
+        if(a.shift!==b.shift){
+          return a.shift-b.shift;
+        }
+
+        if(
+          a.no!==null &&
+          b.no!==null &&
+          a.no!==b.no
+        ){
+          return a.no-b.no;
+        }
+
+        return a.index-b.index;
+
+      }
+
+      if(a.date && !b.date){
+        return 1;
+      }
+
+      if(!a.date && b.date){
+        return -1;
+      }
+
+      return a.index-b.index;
+
+    })
+    .map(x=>x.test);
+
+}
+
 /* =========================================================
    BRANCHES
 ========================================================= */
@@ -2174,88 +2397,68 @@ function openMockBranch(
    CHILD FOLDERS
 ========================================================= */
 
-function childFolder(
+function childMatches(
   parent,
   type
 ){
 
   if(!parent){
-    return null;
+    return [];
   }
 
-  const matches =
-    examFolders()
-      .filter(f=>{
+  return examFolders()
+    .filter(f=>{
 
-        if(
-          String(f.parent_id) !==
-          String(parent.id)
-        ){
-
-          return false;
-
-        }
-
-        const ft =
-          folderType(f);
-
-        const name =
-          normalize(
-            folderName(f)
-          );
-
-        if(type==="full"){
-
-          return(
-            ft==="full" ||
-            name==="full" ||
-            name==="full mocks"
-          );
-
-        }
-
-        if(type==="sectional"){
-
-          return(
-            ft==="sectional" ||
-            name==="sectional" ||
-            name==="sectional mocks"
-          );
-
-        }
-
+      if(
+        String(f.parent_id) !==
+        String(parent.id)
+      ){
         return false;
+      }
 
-      });
+      const ft = folderType(f);
+      const name = normalize(folderName(f));
 
-  matches.sort((a,b)=>{
+      if(type==="full"){
+        return(
+          ft==="full" ||
+          name==="full" ||
+          name==="full mocks"
+        );
+      }
 
-    const aExact =
-      compact(a.folder_type) ===
-      folderType(a);
+      if(type==="sectional"){
+        return(
+          ft==="sectional" ||
+          name==="sectional" ||
+          name==="sectional mocks"
+        );
+      }
 
-    const bExact =
-      compact(b.folder_type) ===
-      folderType(b);
+      return false;
 
-    if(
-      aExact!==bExact
-    ){
-
-      return aExact
-        ? -1
-        : 1;
-
-    }
-
-    return(
+    })
+    .sort((a,b)=>
       Number(a.sort_order||0) -
       Number(b.sort_order||0)
     );
 
+}
+
+function branchChildren(type){
+
+  const out = [];
+  const seen = new Set();
+
+  branchRoots().forEach(root=>{
+    childMatches(root,type).forEach(f=>{
+      if(seen.has(String(f.id))) return;
+      seen.add(String(f.id));
+      out.push(f);
+    });
   });
 
-  return matches[0] || null;
+  return out;
 
 }
 
@@ -2327,59 +2530,37 @@ function showMockType(type){
 function renderFull(){
 
   const chipBox =
-    document.getElementById(
-      "fullMockFolders"
-    );
+    document.getElementById("fullMockFolders");
 
   const testBox =
-    document.getElementById(
-      "fullMockTests"
-    );
+    document.getElementById("fullMockTests");
 
-  const root =
-    branchRoot();
+  const fulls = branchChildren("full");
 
-  const full =
-    childFolder(
-      root,
-      "full"
-    );
-
-  chipBox.className =
-    "mock-chips";
-
-  testBox.className =
-    "chip-test-area";
+  chipBox.className = "mock-chips";
+  testBox.className = "chip-test-area";
 
   chipBox.innerHTML = "";
-
   testBox.innerHTML = "";
 
-  if(!full){
+  if(!fulls.length){
 
-    chipBox.innerHTML =
-      `
-        <div class="practice-empty">
-          No Full Mock Tests available yet.
-        </div>
-      `;
+    chipBox.innerHTML = `
+      <div class="practice-empty">
+        No Full Mock Tests available yet.
+      </div>
+    `;
 
     return;
 
   }
+
+  const fullIds = fulls.map(f=>String(f.id));
 
   if(currentBranch==="new" || currentBranch==="custom"){
 
-    const list =
-      tests.filter(t=>
-        String(t.exam_id) ===
-        String(currentExam.id) &&
-        String(t.folder_id) ===
-        String(full.id)
-      );
-
     renderTests(
-      list,
+      testsInFolders(fullIds,"full"),
       "fullMockTests"
     );
 
@@ -2387,112 +2568,91 @@ function renderFull(){
 
   }
 
+  // PYQ: one chip per year (same year in duplicate folders is merged).
+  const byYear = new Map();
+
+  examFolders()
+    .filter(f=>fullIds.includes(String(f.parent_id)))
+    .filter(f=>{
+
+      const name = normalize(folderName(f));
+
+      return(
+        folderType(f)==="year" ||
+        /^\d{4}$/.test(name)
+      );
+
+    })
+    .forEach(f=>{
+
+      const key = normalize(folderName(f));
+
+      if(!byYear.has(key)){
+        byYear.set(key,{
+          label:folderName(f),
+          ids:[]
+        });
+      }
+
+      byYear.get(key).ids.push(String(f.id));
+
+    });
+
   const years =
-    examFolders()
-      .filter(
-        f =>
-          String(f.parent_id) ===
-          String(full.id)
-      )
-      .filter(f=>{
-
-        const name =
-          normalize(
-            folderName(f)
-          );
-
-        const type =
-          folderType(f);
-
-        return(
-          type==="year" ||
-          /^\d{4}$/.test(name)
-        );
-
-      })
-      .sort(
-        (a,b)=>
-          Number(folderName(b)) -
-          Number(folderName(a))
+    [...byYear.values()]
+      .sort((a,b)=>
+        Number(b.label) - Number(a.label)
       );
 
   if(!years.length){
 
-    chipBox.innerHTML =
-      `
-        <div class="practice-empty">
-          No PYQ years available yet.
-        </div>
-      `;
+    chipBox.innerHTML = `
+      <div class="practice-empty">
+        No PYQ years available yet.
+      </div>
+    `;
 
     return;
 
   }
 
   chipBox.innerHTML =
-    years.map(
-      (year,index)=>`
+    years.map((year,index)=>`
 
-        <div
-          class="mock-chip ${
-            index===0
-              ? "active"
-              : ""
-          }"
-          onclick="
-            selectFullYear(
-              '${year.id}',
-              this
-            )
-          "
-        >
-          ${escapeHtml(
-            folderName(year)
-          )}
-        </div>
+      <div
+        class="mock-chip ${index===0 ? "active" : ""}"
+        onclick="selectFullYear('${year.ids.join(",")}',this)"
+      >
+        ${escapeHtml(year.label)}
+      </div>
 
-      `
-    ).join("");
+    `).join("");
 
   selectFullYear(
-    years[0].id,
-    chipBox.querySelector(
-      ".mock-chip"
-    )
+    years[0].ids.join(","),
+    chipBox.querySelector(".mock-chip")
   );
 
 }
 
 function selectFullYear(
-  yearId,
+  yearIds,
   chip
 ){
 
   document
-    .querySelectorAll(
-      "#fullMockFolders .mock-chip"
-    )
-    .forEach(
-      c =>
-        c.classList.remove(
-          "active"
-        )
-    );
+    .querySelectorAll("#fullMockFolders .mock-chip")
+    .forEach(c=>c.classList.remove("active"));
 
   if(chip){
     chip.classList.add("active");
   }
 
-  const list =
-    tests.filter(t=>
-      String(t.exam_id) ===
-      String(currentExam.id) &&
-      String(t.folder_id) ===
-      String(yearId)
-    );
-
   renderTests(
-    list,
+    testsInFolders(
+      String(yearIds).split(","),
+      "full"
+    ),
     "fullMockTests"
   );
 
@@ -2571,68 +2731,43 @@ function subjectOrder(name){
 function renderSectional(){
 
   const chipBox =
-    document.getElementById(
-      "sectionSubjectList"
-    );
+    document.getElementById("sectionSubjectList");
 
   const testBox =
-    document.getElementById(
-      "sectionalMockTests"
-    );
+    document.getElementById("sectionalMockTests");
 
-  const root =
-    branchRoot();
-
-  const sectional =
-    childFolder(
-      root,
-      "sectional"
-    );
-
-  chipBox.className =
-    "mock-chips";
-
-  testBox.className =
-    "chip-test-area";
+  chipBox.className = "mock-chips";
+  testBox.className = "chip-test-area";
 
   chipBox.innerHTML = "";
-
   testBox.innerHTML = "";
 
-  if(!sectional){
+  const sectionals = branchChildren("sectional");
 
-    chipBox.innerHTML =
-      `
-        <div class="practice-empty">
-          No sectional subjects available yet.
-        </div>
-      `;
+  const empty = `
+    <div class="practice-empty">
+      No sectional subjects available yet.
+    </div>
+  `;
 
+  if(!sectionals.length){
+    chipBox.innerHTML = empty;
     return;
-
   }
 
-  const list =
+  const sectionalIds = sectionals.map(f=>String(f.id));
+
+  const folderList =
     examFolders()
-      .filter(
-        f =>
-          String(f.parent_id) ===
-          String(sectional.id)
-      )
+      .filter(f=>sectionalIds.includes(String(f.parent_id)))
       .filter(f=>{
 
         const subject =
-          subjects.find(
-            x =>
-              String(x.id) ===
-              String(f.subject_id)
-          );
+          subjects.find(x=>String(x.id)===String(f.subject_id));
 
         const name =
           canonicalSubjectName(
-            folderName(f) ||
-            subject?.name ||
-            ""
+            folderName(f) || subject?.name || ""
           );
 
         return(
@@ -2649,30 +2784,6 @@ function renderSectional(){
       })
       .sort((a,b)=>{
 
-        const sa =
-          subjects.find(
-            x =>
-              String(x.id) ===
-              String(a.subject_id)
-          );
-
-        const sb =
-          subjects.find(
-            x =>
-              String(x.id) ===
-              String(b.subject_id)
-          );
-
-        const na =
-          folderName(a) ||
-          sa?.name ||
-          "";
-
-        const nb =
-          folderName(b) ||
-          sb?.name ||
-          "";
-
         const orderA = Number(a.sort_order ?? 0);
         const orderB = Number(b.sort_order ?? 0);
 
@@ -2680,107 +2791,79 @@ function renderSectional(){
           return orderA - orderB;
         }
 
-        return String(na).localeCompare(String(nb));
+        return String(folderName(a))
+          .localeCompare(String(folderName(b)));
 
       });
 
+  // One chip per subject; duplicate subject folders are merged.
+  const bySubject = new Map();
+
+  folderList.forEach(f=>{
+
+    const subject =
+      subjects.find(x=>String(x.id)===String(f.subject_id));
+
+    const label =
+      canonicalSubjectName(
+        folderName(f) || subject?.name || "Subject"
+      );
+
+    const key = normalize(label);
+
+    if(!bySubject.has(key)){
+      bySubject.set(key,{label,ids:[]});
+    }
+
+    bySubject.get(key).ids.push(String(f.id));
+
+  });
+
+  const list = [...bySubject.values()];
+
   if(!list.length){
-
-    chipBox.innerHTML =
-      `
-        <div class="practice-empty">
-          No sectional subjects available yet.
-        </div>
-      `;
-
+    chipBox.innerHTML = empty;
     return;
-
   }
 
   chipBox.innerHTML =
-    list.map(
-      (folder,index)=>{
+    list.map((entry,index)=>`
 
-        const subject =
-          subjects.find(
-            x =>
-              String(x.id) ===
-              String(folder.subject_id)
-          );
+      <div
+        class="mock-chip ${index===0 ? "active" : ""}"
+        onclick="selectSectionSubject('${entry.ids.join(",")}',this)"
+      >
+        ${getSubjectIcon(entry.label)}
+        ${escapeHtml(entry.label)}
+      </div>
 
-        const rawName =
-          folderName(folder) ||
-          subject?.name ||
-          "Subject";
-
-        const name =
-          canonicalSubjectName(
-            rawName
-          );
-
-        return `
-
-          <div
-            class="mock-chip ${
-              index===0
-                ? "active"
-                : ""
-            }"
-            onclick="
-              selectSectionSubject(
-                '${folder.id}',
-                this
-              )
-            "
-          >
-            ${getSubjectIcon(name)}
-            ${escapeHtml(name)}
-          </div>
-
-        `;
-
-      }
-    ).join("");
+    `).join("");
 
   selectSectionSubject(
-    list[0].id,
-    chipBox.querySelector(
-      ".mock-chip"
-    )
+    list[0].ids.join(","),
+    chipBox.querySelector(".mock-chip")
   );
 
 }
 
 function selectSectionSubject(
-  folderId,
+  folderIds,
   chip
 ){
 
   document
-    .querySelectorAll(
-      "#sectionSubjectList .mock-chip"
-    )
-    .forEach(
-      c =>
-        c.classList.remove(
-          "active"
-        )
-    );
+    .querySelectorAll("#sectionSubjectList .mock-chip")
+    .forEach(c=>c.classList.remove("active"));
 
   if(chip){
     chip.classList.add("active");
   }
 
-  const list =
-    tests.filter(t=>
-      String(t.exam_id) ===
-      String(currentExam.id) &&
-      String(t.folder_id) ===
-      String(folderId)
-    );
-
   renderTests(
-    list,
+    testsInFolders(
+      String(folderIds).split(","),
+      "sectional"
+    ),
     "sectionalMockTests"
   );
 
@@ -3382,6 +3465,8 @@ async function renderTests(
     return;
   }
 
+  list = sortMocks(list);
+
   if(!list.length){
 
     box.innerHTML =
@@ -3425,6 +3510,12 @@ async function renderTests(
               "Mock Test"
             )}
           </div>
+
+          ${
+            String(test.description||"").trim()
+              ? `<div class="test-desc">${escapeHtml(String(test.description).trim())}</div>`
+              : ""
+          }
 
           <div class="test-info">
 
