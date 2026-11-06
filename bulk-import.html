@@ -562,6 +562,14 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
           style="margin-top:12px;"
         ></div>
 
+        <hr style="border:0;border-top:1px solid var(--border);margin:22px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h2 style="margin:0;">🗂 Imported Excel History</h2>
+          <button class="secondary" onclick="loadBulkImportHistory()">↻ Refresh</button>
+        </div>
+        <div class="small-note">Delete removes all questions recorded under that import batch.</div>
+        <div id="bulkImportHistory" style="margin-top:12px;"><div class="empty">Loading import history...</div></div>
+
       </div>
 
     </div>
@@ -1370,6 +1378,40 @@ async function nextFolderOrder(folderId){
   return (data?.length ? Number(data[0].question_order)||0 : 0)+1;
 }
 
+/* BULK IMPORT HISTORY */
+async function loadBulkImportHistory(){
+  const box=document.getElementById("bulkImportHistory");
+  if(!box)return;
+  box.innerHTML='<div class="empty">Loading...</div>';
+  const {data,error}=await db.from("bulk_import_batches").select("id,file_name,question_count,question_ids,created_at").order("created_at",{ascending:false});
+  if(error){box.innerHTML='<div class="import-error">Could not load history: '+escapeHtml(error.message)+'</div>';return;}
+  if(!data?.length){box.innerHTML='<div class="empty">No tracked imports yet. New imports will appear here.</div>';return;}
+  box.innerHTML=data.map(b=>{
+    const count=Array.isArray(b.question_ids)?b.question_ids.length:(Number(b.question_count)||0);
+    return `<div class="question" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="min-width:0;flex:1;"><div style="font-weight:bold;overflow-wrap:anywhere;">📄 ${escapeHtml(b.file_name||"Excel import")}</div>
+      <div class="meta">${count} questions • ${escapeHtml(b.created_at?new Date(b.created_at).toLocaleString():"")}</div></div>
+      <button class="danger" onclick="deleteBulkImportBatch('${b.id}')">🗑 Delete File Questions</button></div>`;
+  }).join("");
+}
+async function deleteBulkImportBatch(batchId){
+  const {data:b,error}=await db.from("bulk_import_batches").select("file_name,question_ids").eq("id",batchId).single();
+  if(error){alert(error.message);return;}
+  const ids=Array.isArray(b.question_ids)?b.question_ids:[];
+  if(!confirm(`Delete "${b.file_name}" and all ${ids.length} questions imported from it? This cannot be undone.`))return;
+  try{
+    for(let i=0;i<ids.length;i+=200){
+      const part=ids.slice(i,i+200);
+      let r=await db.from("question_shift_group_questions").delete().in("question_id",part);if(r.error)throw r.error;
+      r=await db.from("question_options").delete().in("question_id",part);if(r.error)throw r.error;
+      r=await db.from("questions").delete().in("id",part);if(r.error)throw r.error;
+    }
+    const {error:delError}=await db.from("bulk_import_batches").delete().eq("id",batchId);if(delError)throw delError;
+    alert(`Deleted ${ids.length} questions from ${b.file_name}.`);
+    await loadBulkImportHistory();
+  }catch(e){alert("Delete failed: "+e.message+"\\nHistory record retained. Refresh and check before retrying.");await loadBulkImportHistory();}
+}
+
 /* BULK IMPORT DATABASE — optimized batched inserts; UI unchanged */
 
 async function importAllQuestions(){
@@ -1382,6 +1424,17 @@ async function importAllQuestions(){
   button.textContent = "Importing...";
   const resultBox = document.getElementById("bulkImportResult");
   resultBox.innerHTML = `<div class="status">Preparing ${validRows.length} questions...</div>`;
+  const sourceFile=document.getElementById("bulkFile")?.files?.[0]?.name || "Unknown file";
+  let batchId=null;
+  const trackedQuestionIds=[];
+  const {data:batch,error:batchError}=await db.from("bulk_import_batches")
+    .insert({file_name:sourceFile,question_count:0,question_ids:[]}).select("id").single();
+  if(batchError){
+    button.disabled=false;button.textContent="Import All Valid Questions";
+    resultBox.innerHTML=`<div class="status"><div class="import-error">Import history setup failed. Run the SQL setup file first.<br>${escapeHtml(batchError.message)}</div></div>`;
+    return;
+  }
+  batchId=batch.id;
 
   let imported = 0;
   let failed = 0;
@@ -1464,6 +1517,11 @@ async function importAllQuestions(){
         if (optionError) throw optionError;
         const { error: linkError } = await db.from("question_shift_group_questions").insert(linkPayload);
         if (linkError) throw linkError;
+        const newIds=insertedQuestions.map(q=>q.id);
+        const nextIds=[...trackedQuestionIds,...newIds];
+        const {error:trackError}=await db.from("bulk_import_batches").update({question_ids:nextIds,question_count:nextIds.length}).eq("id",batchId);
+        if(trackError)throw trackError;
+        trackedQuestionIds.push(...newIds);
         imported += batch.length;
       } catch (error) {
         // Clean up this batch if a later step fails, preventing orphaned questions.
@@ -1486,8 +1544,13 @@ async function importAllQuestions(){
     console.error(error);
     resultBox.innerHTML = `<div class="status"><div class="import-error">Import failed: ${escapeHtml(error.message || "Unknown error")}</div></div>`;
   } finally {
+    if(batchId){
+      const {error:finishError}=await db.from("bulk_import_batches").update({question_ids:trackedQuestionIds,question_count:trackedQuestionIds.length}).eq("id",batchId);
+      if(finishError)console.error("Import history update failed",finishError);
+    }
     button.disabled = false;
     button.textContent = imported ? "Import Completed" : "Import All Valid Questions";
+    await loadBulkImportHistory();
   }
 }
 
@@ -1660,6 +1723,7 @@ function escapeHtml(value){
   const admin = await checkAdmin();
   if(!admin) return;
   await loadLookups();
+  await loadBulkImportHistory();
 })();
 </script>
 
