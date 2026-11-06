@@ -565,17 +565,17 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
         <hr style="border:0;border-top:1px solid var(--border);margin:22px 0;">
         <div class="card" style="margin:0;padding:16px;">
           <h2 style="margin:0 0 8px;">🗑 Subject-wise Folder Cleanup</h2>
-          <div class="small-note" style="margin-bottom:12px;">Select a subject to preview and remove all its Date/Shift folders together. Questions themselves are kept in the Question Bank, and questions assigned to mocks/results are not deleted.</div>
+          <div class="small-note" style="margin-bottom:12px;">Select a subject, preview its Date/Shift folders, then tick only the folders you want to remove. Unselected folders will remain untouched. Questions themselves are kept in the Question Bank, and questions assigned to mocks/results are not deleted.</div>
           <label for="cleanupSubject">Select Subject</label>
           <select id="cleanupSubject" style="width:100%;margin:6px 0 10px;padding:11px;border-radius:9px;">
             <option value="">Select subject</option>
           </select>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="secondary" onclick="previewSubjectFolderCleanup()">🔎 Preview Folders</button>
-            <button class="danger" id="deleteSubjectFoldersBtn" onclick="deleteSubjectFolders()" disabled>🗑 Delete All Folders</button>
+            <button class="secondary" onclick="previewSubjectFolderCleanup()">🔎 Load Date/Shift Folders</button>
+            <button class="danger" id="deleteSubjectFoldersBtn" onclick="deleteSubjectFolders()" disabled>🗑 Delete Selected Folders</button>
           </div>
           <div id="subjectFolderCleanupPreview" style="margin-top:12px;"></div>
-          <div class="small-note" style="margin-top:10px;color:var(--muted);">Note: Existing database folders do not store whether they were created by Bulk Import or manually. This cleanup therefore includes every Date/Shift folder under the selected subject.</div>
+          <div class="small-note" style="margin-top:10px;color:var(--muted);">Only checked Date/Shift folders will be deleted. You must select them manually after loading the list.</div>
         </div>
 
         <hr style="border:0;border-top:1px solid var(--border);margin:22px 0;">
@@ -1425,18 +1425,36 @@ async function previewSubjectFolderCleanup(){
     const counts={};groups.forEach(g=>counts[String(g.id)]=0);links.forEach(x=>counts[String(x.group_id)]=(counts[String(x.group_id)]||0)+1);
     cleanupFolderCache=groups;
     const subject=subjects.find(x=>String(x.id)===String(subjectId));
-    box.innerHTML=`<div class="status"><b>${escapeHtml(subject?.name||"Selected subject")}</b><br>${groups.length} folders • ${links.length} folder-question links<br><br><div style="max-height:220px;overflow:auto;">${groups.map(g=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);">${escapeHtml(g.exam_date||"No date")} • Shift ${escapeHtml(g.shift_no??"-")} <span style="float:right;">${counts[String(g.id)]||0} questions</span></div>`).join("")}</div></div>`;
-    btn.disabled=false;
+    box.innerHTML=`<div class="status"><b>${escapeHtml(subject?.name||"Selected subject")}</b><br>${groups.length} folders found • ${links.length} folder-question links<br><div style="margin:10px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="cleanupSelectAll" onchange="toggleAllCleanupFolders(this.checked)"> Select all</label><span id="cleanupSelectedCount">0 selected</span></div><div style="max-height:260px;overflow:auto;">${groups.map(g=>`<label style="display:flex;gap:9px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--border);"><input type="checkbox" class="cleanup-folder-check" value="${escapeHtml(g.id)}" onchange="updateCleanupSelectedCount()"><span style="flex:1;">${escapeHtml(g.exam_date||"No date")} • Shift ${escapeHtml(g.shift_no??"-")}</span><span>${counts[String(g.id)]||0} questions</span></label>`).join("")}</div></div>`;
+    btn.disabled=true;
   }catch(e){box.innerHTML='<div class="import-error">Could not load folders: '+escapeHtml(e.message)+'</div>';}
+}
+function toggleAllCleanupFolders(checked){
+  document.querySelectorAll(".cleanup-folder-check").forEach(el=>el.checked=checked);
+  updateCleanupSelectedCount();
+}
+function updateCleanupSelectedCount(){
+  const selected=document.querySelectorAll(".cleanup-folder-check:checked").length;
+  const total=document.querySelectorAll(".cleanup-folder-check").length;
+  const label=document.getElementById("cleanupSelectedCount");
+  const btn=document.getElementById("deleteSubjectFoldersBtn");
+  if(label)label.textContent=`${selected} selected`;
+  if(btn)btn.disabled=selected===0;
+  const all=document.getElementById("cleanupSelectAll");
+  if(all){all.checked=total>0&&selected===total;all.indeterminate=selected>0&&selected<total;}
 }
 async function deleteSubjectFolders(){
   const subjectId=document.getElementById("cleanupSubject")?.value;
   const box=document.getElementById("subjectFolderCleanupPreview");
   const btn=document.getElementById("deleteSubjectFoldersBtn");
-  if(!subjectId||!cleanupFolderCache.length){alert("Preview the folders first.");return;}
+  if(!subjectId||!cleanupFolderCache.length){alert("Load the Date/Shift folders first.");return;}
+  const selectedIds=[...document.querySelectorAll(".cleanup-folder-check:checked")].map(el=>el.value);
+  if(!selectedIds.length){alert("Select at least one folder to delete.");return;}
   const subject=subjects.find(x=>String(x.id)===String(subjectId));
-  const folderIds=cleanupFolderCache.map(g=>g.id);
-  if(!confirm(`Delete all ${folderIds.length} Date/Shift folders under ${subject?.name||"this subject"}? Folder links will be removed. Questions will remain in the Question Bank, and assigned mock questions/results will not be deleted. This cannot be undone.`))return;
+  const selectedFolders=cleanupFolderCache.filter(g=>selectedIds.includes(String(g.id)));
+  const folderIds=selectedFolders.map(g=>g.id);
+  const folderSummary=selectedFolders.map(g=>`${g.exam_date||"No date"} Shift ${g.shift_no??"-"}`).join(", ");
+  if(!confirm(`Delete only these ${folderIds.length} selected folders for ${subject?.name||"this subject"}?\n${folderSummary}\nUnselected folders will remain untouched. Questions will remain in the Question Bank, and assigned mock questions/results will not be deleted. This cannot be undone.`))return;
   btn.disabled=true;box.innerHTML='<div class="empty">Deleting folders...</div>';
   try{
     for(let i=0;i<folderIds.length;i+=200){
@@ -1450,7 +1468,7 @@ async function deleteSubjectFolders(){
       if(error)throw error;
     }
     cleanupFolderCache=[];
-    box.innerHTML=`<div class="import-success">✓ Deleted ${folderIds.length} folders for ${escapeHtml(subject?.name||"selected subject")}. Questions remain safely in the Question Bank.</div>`;
+    box.innerHTML=`<div class="import-success">✓ Deleted ${folderIds.length} selected folders for ${escapeHtml(subject?.name||"selected subject")}. Unselected folders and Question Bank questions remain safely.</div>`;
     btn.disabled=true;
   }catch(e){
     box.innerHTML='<div class="import-error">Delete stopped: '+escapeHtml(e.message)+'. Refresh preview and check remaining folders before retrying.</div>';
