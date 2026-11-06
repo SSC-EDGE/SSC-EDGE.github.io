@@ -563,6 +563,22 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
         ></div>
 
         <hr style="border:0;border-top:1px solid var(--border);margin:22px 0;">
+        <div class="card" style="margin:0;padding:16px;">
+          <h2 style="margin:0 0 8px;">🗑 Subject-wise Folder Cleanup</h2>
+          <div class="small-note" style="margin-bottom:12px;">Select a subject to preview and remove all its Date/Shift folders together. Questions themselves are kept in the Question Bank, and questions assigned to mocks/results are not deleted.</div>
+          <label for="cleanupSubject">Select Subject</label>
+          <select id="cleanupSubject" style="width:100%;margin:6px 0 10px;padding:11px;border-radius:9px;">
+            <option value="">Select subject</option>
+          </select>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="secondary" onclick="previewSubjectFolderCleanup()">🔎 Preview Folders</button>
+            <button class="danger" id="deleteSubjectFoldersBtn" onclick="deleteSubjectFolders()" disabled>🗑 Delete All Folders</button>
+          </div>
+          <div id="subjectFolderCleanupPreview" style="margin-top:12px;"></div>
+          <div class="small-note" style="margin-top:10px;color:var(--muted);">Note: Existing database folders do not store whether they were created by Bulk Import or manually. This cleanup therefore includes every Date/Shift folder under the selected subject.</div>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--border);margin:22px 0;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
           <h2 style="margin:0;">🗂 Imported Excel History</h2>
           <button class="secondary" onclick="loadBulkImportHistory()">↻ Refresh</button>
@@ -1378,6 +1394,70 @@ async function nextFolderOrder(folderId){
   return (data?.length ? Number(data[0].question_order)||0 : 0)+1;
 }
 
+/* SUBJECT-WISE DATE/SHIFT FOLDER CLEANUP */
+let cleanupFolderCache=[];
+function populateCleanupSubjects(){
+  const select=document.getElementById("cleanupSubject");
+  if(!select)return;
+  const current=select.value;
+  select.innerHTML='<option value="">Select subject</option>'+subjects.map(x=>`<option value="${escapeHtml(x.id)}">${escapeHtml(x.name)}</option>`).join("");
+  if(current && subjects.some(x=>String(x.id)===String(current)))select.value=current;
+}
+async function previewSubjectFolderCleanup(){
+  const select=document.getElementById("cleanupSubject");
+  const box=document.getElementById("subjectFolderCleanupPreview");
+  const btn=document.getElementById("deleteSubjectFoldersBtn");
+  const subjectId=select?.value;
+  cleanupFolderCache=[];btn.disabled=true;
+  if(!subjectId){box.innerHTML='<div class="import-error">Please select a subject first.</div>';return;}
+  box.innerHTML='<div class="empty">Loading folders...</div>';
+  try{
+    const {data:groups,error}=await db.from("question_shift_groups").select("id,exam_date,shift_no").eq("subject_id",subjectId).order("exam_date",{ascending:true}).order("shift_no",{ascending:true});
+    if(error)throw error;
+    if(!groups?.length){box.innerHTML='<div class="empty">No Date/Shift folders found for this subject.</div>';return;}
+    const ids=groups.map(g=>g.id);
+    const links=[];
+    for(let i=0;i<ids.length;i+=200){
+      const {data,error}=await db.from("question_shift_group_questions").select("group_id,question_id").in("group_id",ids.slice(i,i+200));
+      if(error)throw error;
+      links.push(...(data||[]));
+    }
+    const counts={};groups.forEach(g=>counts[String(g.id)]=0);links.forEach(x=>counts[String(x.group_id)]=(counts[String(x.group_id)]||0)+1);
+    cleanupFolderCache=groups;
+    const subject=subjects.find(x=>String(x.id)===String(subjectId));
+    box.innerHTML=`<div class="status"><b>${escapeHtml(subject?.name||"Selected subject")}</b><br>${groups.length} folders • ${links.length} folder-question links<br><br><div style="max-height:220px;overflow:auto;">${groups.map(g=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);">${escapeHtml(g.exam_date||"No date")} • Shift ${escapeHtml(g.shift_no??"-")} <span style="float:right;">${counts[String(g.id)]||0} questions</span></div>`).join("")}</div></div>`;
+    btn.disabled=false;
+  }catch(e){box.innerHTML='<div class="import-error">Could not load folders: '+escapeHtml(e.message)+'</div>';}
+}
+async function deleteSubjectFolders(){
+  const subjectId=document.getElementById("cleanupSubject")?.value;
+  const box=document.getElementById("subjectFolderCleanupPreview");
+  const btn=document.getElementById("deleteSubjectFoldersBtn");
+  if(!subjectId||!cleanupFolderCache.length){alert("Preview the folders first.");return;}
+  const subject=subjects.find(x=>String(x.id)===String(subjectId));
+  const folderIds=cleanupFolderCache.map(g=>g.id);
+  if(!confirm(`Delete all ${folderIds.length} Date/Shift folders under ${subject?.name||"this subject"}? Folder links will be removed. Questions will remain in the Question Bank, and assigned mock questions/results will not be deleted. This cannot be undone.`))return;
+  btn.disabled=true;box.innerHTML='<div class="empty">Deleting folders...</div>';
+  try{
+    for(let i=0;i<folderIds.length;i+=200){
+      const part=folderIds.slice(i,i+200);
+      const {error}=await db.from("question_shift_group_questions").delete().in("group_id",part);
+      if(error)throw error;
+    }
+    for(let i=0;i<folderIds.length;i+=200){
+      const part=folderIds.slice(i,i+200);
+      const {error}=await db.from("question_shift_groups").delete().in("id",part);
+      if(error)throw error;
+    }
+    cleanupFolderCache=[];
+    box.innerHTML=`<div class="import-success">✓ Deleted ${folderIds.length} folders for ${escapeHtml(subject?.name||"selected subject")}. Questions remain safely in the Question Bank.</div>`;
+    btn.disabled=true;
+  }catch(e){
+    box.innerHTML='<div class="import-error">Delete stopped: '+escapeHtml(e.message)+'. Refresh preview and check remaining folders before retrying.</div>';
+    btn.disabled=true;
+  }
+}
+
 /* BULK IMPORT HISTORY */
 async function loadBulkImportHistory(){
   const box=document.getElementById("bulkImportHistory");
@@ -1723,6 +1803,7 @@ function escapeHtml(value){
   const admin = await checkAdmin();
   if(!admin) return;
   await loadLookups();
+  populateCleanupSubjects();
   await loadBulkImportHistory();
 })();
 </script>
