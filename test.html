@@ -667,6 +667,37 @@ body{
   overflow-wrap:anywhere;
 }
 
+/* Question and option images: responsive, contained, and mobile-safe */
+.question-content-image{
+  display:block;
+  max-width:100%;
+  width:auto;
+  height:auto;
+  max-height: min(55vh, 520px);
+  object-fit:contain;
+  margin:10px 0;
+  border-radius:8px;
+}
+.option-text .question-content-image{
+  max-height:220px;
+  margin:7px 0;
+}
+.question-text,
+.option-text{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.option{
+  align-items:flex-start;
+}
+.option input{
+  margin-top:3px;
+}
+.question-content-image-wrap{
+  max-width:100%;
+  overflow:hidden;
+}
+
 /* ==================================================
    NAVIGATION
    ================================================== */
@@ -2120,6 +2151,45 @@ function escapeHtml(value){
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+// Safely render question/option content containing <img> markup.
+// Only a small formatting allow-list and safe image URLs are permitted.
+function renderQuestionContent(value){
+  const raw = String(value ?? "");
+  if(!/<\\s*(img|br|p|div|strong|b|em|i|sub|sup)\\b/i.test(raw)){
+    return escapeHtml(raw).replace(/\\r?\\n/g, "<br>");
+  }
+
+  const parsed = new DOMParser().parseFromString(raw, "text/html");
+  const allowedTags = new Set(["IMG","BR","P","DIV","STRONG","B","EM","I","SUB","SUP"]);
+
+  function cleanNode(node){
+    if(node.nodeType === Node.TEXT_NODE) return escapeHtml(node.nodeValue);
+    if(node.nodeType !== Node.ELEMENT_NODE) return "";
+
+    const tag = node.tagName;
+    if(!allowedTags.has(tag)){
+      return Array.from(node.childNodes).map(cleanNode).join("");
+    }
+
+    if(tag === "IMG"){
+      const src = node.getAttribute("src") || node.getAttribute("data-src") || "";
+      try{
+        const url = new URL(src, window.location.href);
+        if(!["http:","https:"].includes(url.protocol)) return "";
+        const alt = escapeHtml(node.getAttribute("alt") || "Question image");
+        return `<img class="question-content-image" src="${escapeHtml(url.href)}" alt="${alt}" loading="lazy" decoding="async">`;
+      }catch(e){
+        return "";
+      }
+    }
+
+    const content = Array.from(node.childNodes).map(cleanNode).join("");
+    return `<${tag.toLowerCase()}>${content}</${tag.toLowerCase()}>`;
+  }
+
+  return Array.from(parsed.body.childNodes).map(cleanNode).join("");
 }
 
 function formatTime(seconds){
@@ -3921,7 +3991,7 @@ function renderCurrentQuestion(){
   questionCard.innerHTML = `
 
     <div class="question-text">
-      ${escapeHtml(questionText)}
+      ${renderQuestionContent(questionText)}
     </div>
 
     <div class="options">
@@ -3954,7 +4024,7 @@ function renderCurrentQuestion(){
               </span>
 
               <span class="option-text">
-                ${escapeHtml(
+                ${renderQuestionContent(
                   getOptionText(
                     option,
                     currentQuestionLanguage
