@@ -693,6 +693,11 @@ body{
 .option input{
   margin-top:3px;
 }
+.image-missing{
+  color:var(--muted);
+  font-size:12px;
+  font-style:italic;
+}
 .question-content-image-wrap{
   max-width:100%;
   overflow:hidden;
@@ -2110,6 +2115,7 @@ let resumeStorageKey = "";
 let currentUser = null;
 
 let sectionTimeData = {};
+let questionTimeData = {};
 
 let sectionStartedTimestamp = null;
 
@@ -2154,11 +2160,42 @@ function escapeHtml(value){
 }
 
 // Safely render question/option content containing <img> markup.
-// Only a small formatting allow-list and safe image URLs are permitted.
+// Supports: <img src="..."> tags, markdown ![alt](url), and bare image URLs
+// (.png/.jpg/.jpeg/.gif/.webp/.svg). Only a small formatting allow-list and
+// safe image URLs (http, https, data:image raster) are permitted.
+const IMAGE_URL_RE = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?\S*)?$/i;
+const SAFE_DATA_IMAGE_RE = /^data:image\/(?:png|jpe?g|gif|webp);base64,[a-z0-9+\/=\s]+$/i;
+
+function isSafeImageSrc(src){
+  src = String(src || "").trim();
+  if(!src) return null;
+  if(SAFE_DATA_IMAGE_RE.test(src)) return src.replace(/\s+/g, "");
+  try{
+    const url = new URL(src, window.location.href);
+    if(!["http:","https:"].includes(url.protocol)) return null;
+    return url.href;
+  }catch(e){
+    return null;
+  }
+}
+
 function renderQuestionContent(value){
-  const raw = String(value ?? "");
-  if(!/<\\s*(img|br|p|div|strong|b|em|i|sub|sup)\\b/i.test(raw)){
-    return escapeHtml(raw).replace(/\\r?\\n/g, "<br>");
+  let raw = String(value ?? "");
+
+  // ![alt](url)  ->  <img>
+  raw = raw.replace(
+    /!\[([^\]]*)\]\(\s*((?:https?:|data:image\/)[^)\s]+)\s*\)/gi,
+    (m, alt, url) => `<img src="${url}" alt="${alt.replace(/"/g, "")}">`
+  );
+
+  // A line that is only an image URL  ->  <img>
+  raw = raw.split(/\r?\n/).map(line => {
+    const t = line.trim();
+    return IMAGE_URL_RE.test(t) ? `<img src="${t}">` : line;
+  }).join("\n");
+
+  if(!/<\s*(img|br|p|div|strong|b|em|i|sub|sup)\b/i.test(raw)){
+    return escapeHtml(raw).replace(/\r?\n/g, "<br>");
   }
 
   const parsed = new DOMParser().parseFromString(raw, "text/html");
@@ -2169,21 +2206,21 @@ function renderQuestionContent(value){
     if(node.nodeType !== Node.ELEMENT_NODE) return "";
 
     const tag = node.tagName;
+    if(tag === "SCRIPT" || tag === "STYLE") return "";
     if(!allowedTags.has(tag)){
       return Array.from(node.childNodes).map(cleanNode).join("");
     }
 
     if(tag === "IMG"){
-      const src = node.getAttribute("src") || node.getAttribute("data-src") || "";
-      try{
-        const url = new URL(src, window.location.href);
-        if(!["http:","https:"].includes(url.protocol)) return "";
-        const alt = escapeHtml(node.getAttribute("alt") || "Question image");
-        return `<img class="question-content-image" src="${escapeHtml(url.href)}" alt="${alt}" loading="lazy" decoding="async">`;
-      }catch(e){
-        return "";
-      }
+      const src = isSafeImageSrc(
+        node.getAttribute("src") || node.getAttribute("data-src")
+      );
+      if(!src) return "";
+      const alt = escapeHtml(node.getAttribute("alt") || "Question image");
+      return `<img class="question-content-image" src="${escapeHtml(src)}" alt="${alt}" loading="lazy" decoding="async" onerror="this.outerHTML='<span class=&quot;image-missing&quot;>[Image not available]</span>'">`;
     }
+
+    if(tag === "BR") return "<br>";
 
     const content = Array.from(node.childNodes).map(cleanNode).join("");
     return `<${tag.toLowerCase()}>${content}</${tag.toLowerCase()}>`;
@@ -2949,9 +2986,7 @@ async function loadAllQuestionsForTest(){
     (fallbackRows || []).forEach(row => {
 
       const section =
-        section.virtual
-          ? null
-          : sectionMap.get(String(row.section_id));
+        sectionMap.get(String(row.section_id));
 
       const targetSection =
         section ||
