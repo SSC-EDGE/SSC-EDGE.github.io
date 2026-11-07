@@ -15,6 +15,7 @@ localStorage.getItem("ssc-edge-theme") || "dark";
 <link rel="stylesheet" href="css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
 <style>
 .page{
@@ -399,6 +400,15 @@ button.import-btn{
   margin-top:5px;
 }
 
+.sheet-img{
+  max-height:80px;
+  max-width:160px;
+  border-radius:6px;
+  vertical-align:middle;
+  margin:3px 4px 3px 0;
+  background:#fff;
+}
+
 .hidden{
   display:none !important;
 }
@@ -537,6 +547,16 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
           class="import-preview"
         ></div>
 
+        <div id="imageInfo" class="small-note" style="margin-top:10px;"></div>
+
+        <div class="checkbox-line" id="updateModeBox">
+          <input type="checkbox" id="updateExistingMode" onchange="updateImportModeUI()">
+          <label for="updateExistingMode" style="margin:0;color:var(--text);">
+            <b>Fix old questions (add images, do not create new ones)</b><br>
+            <span class="small-note">Use this for a sheet that was already imported before. Each row is matched with the question already saved in the same Subject / Date / Shift folder, and only its question/option text is updated with the images. Nothing is duplicated or deleted. Leave this OFF for a brand-new sheet.</span>
+          </label>
+        </div>
+
         <div class="actions">
 
           <button
@@ -615,6 +635,26 @@ let existingImageUrl = "";
 
 let bulkRows = [];
 let bulkValidatedRows = [];
+
+/* IMAGES INSIDE THE EXCEL FILE */
+const IMAGE_BUCKET = "question-images";
+const IMAGE_FOLDER = "import";
+let bulkImages = new Map();       // json row index -> Map(normalized header -> [image names])
+let bulkImageFiles = new Map();   // image name -> {bytes, ext, mime, blobUrl}
+let uploadedImageUrls = new Map();// image name -> public URL
+const IMG_TOKEN_RE = /\[\[IMG:([^\]]+)\]\]/g;
+const IMG_FIELDS = {
+  questionEnglish:["Question English","Question","English Question","question_text"],
+  questionHindi:["Question Hindi","Hindi Question","question_text_hi"],
+  A:["Option A English","A English","Option A","A"],
+  AHi:["Option A Hindi","A Hindi","A Hindi Option"],
+  B:["Option B English","B English","Option B","B"],
+  BHi:["Option B Hindi","B Hindi","B Hindi Option"],
+  C:["Option C English","C English","Option C","C"],
+  CHi:["Option C Hindi","C Hindi","C Hindi Option"],
+  D:["Option D English","D English","Option D","D"],
+  DHi:["Option D Hindi","D Hindi","D Hindi Option"]
+};
 
 const BULK_IMPORT_SUBJECT_NAME = "BULK IMPORT";
 const BULK_IMPORT_CHAPTER_NAME = "Unassigned";
@@ -708,6 +748,11 @@ function clearBulkImport(keepFile = false){
 
   bulkRows = [];
   bulkValidatedRows = [];
+  bulkImageFiles.forEach(f => { try{ URL.revokeObjectURL(f.blobUrl); }catch(e){} });
+  bulkImages = new Map();
+  bulkImageFiles = new Map();
+  const imageInfoEl = document.getElementById("imageInfo");
+  if(imageInfoEl) imageInfoEl.textContent = "";
 
   if(!keepFile){
     document.getElementById(
@@ -930,6 +975,18 @@ async function handleBulkFile(event){
 
     bulkRows = rows;
 
+    if(!file.name.toLowerCase().endsWith(".csv")){
+      try{
+        await loadSheetImages(buffer, firstSheet);
+      }catch(imgError){
+        console.error("Image extraction failed:", imgError);
+        bulkImages = new Map();
+        bulkImageFiles = new Map();
+        const info = document.getElementById("imageInfo");
+        if(info) info.innerHTML = '<span class="import-warning">Could not read pictures from this file: ' + escapeHtml(imgError.message || imgError) + '</span>';
+      }
+    }
+
     await validateBulkRows();
 
   }
@@ -974,7 +1031,7 @@ async function validateBulkRows(){
         "chapter"
       ]);
 
-    const questionEnglish =
+    let questionEnglish =
       getColumn(row,[
         "Question English",
         "Question",
@@ -982,14 +1039,14 @@ async function validateBulkRows(){
         "question_text"
       ]);
 
-    const questionHindi =
+    let questionHindi =
       getColumn(row,[
         "Question Hindi",
         "Hindi Question",
         "question_text_hi"
       ]);
 
-    const A =
+    let A =
       getColumn(row,[
         "Option A English",
         "A English",
@@ -997,14 +1054,14 @@ async function validateBulkRows(){
         "A"
       ]);
 
-    const AHi =
+    let AHi =
       getColumn(row,[
         "Option A Hindi",
         "A Hindi",
         "A Hindi Option"
       ]);
 
-    const B =
+    let B =
       getColumn(row,[
         "Option B English",
         "B English",
@@ -1012,14 +1069,14 @@ async function validateBulkRows(){
         "B"
       ]);
 
-    const BHi =
+    let BHi =
       getColumn(row,[
         "Option B Hindi",
         "B Hindi",
         "B Hindi Option"
       ]);
 
-    const C =
+    let C =
       getColumn(row,[
         "Option C English",
         "C English",
@@ -1027,14 +1084,14 @@ async function validateBulkRows(){
         "C"
       ]);
 
-    const CHi =
+    let CHi =
       getColumn(row,[
         "Option C Hindi",
         "C Hindi",
         "C Hindi Option"
       ]);
 
-    const D =
+    let D =
       getColumn(row,[
         "Option D English",
         "D English",
@@ -1042,7 +1099,7 @@ async function validateBulkRows(){
         "D"
       ]);
 
-    const DHi =
+    let DHi =
       getColumn(row,[
         "Option D Hindi",
         "D Hindi",
@@ -1082,6 +1139,16 @@ async function validateBulkRows(){
         "Solution Video",
         "solution_video_url"
       ]);
+
+    const orig = {questionEnglish,questionHindi,A,AHi,B,BHi,C,CHi,D,DHi};
+    questionEnglish = withImages(questionEnglish,i,IMG_FIELDS.questionEnglish);
+    questionHindi = withImages(questionHindi,i,IMG_FIELDS.questionHindi);
+    A = withImages(A,i,IMG_FIELDS.A); AHi = withImages(AHi,i,IMG_FIELDS.AHi);
+    B = withImages(B,i,IMG_FIELDS.B); BHi = withImages(BHi,i,IMG_FIELDS.BHi);
+    C = withImages(C,i,IMG_FIELDS.C); CHi = withImages(CHi,i,IMG_FIELDS.CHi);
+    D = withImages(D,i,IMG_FIELDS.D); DHi = withImages(DHi,i,IMG_FIELDS.DHi);
+    const imageCount = [questionEnglish,questionHindi,A,AHi,B,BHi,C,CHi,D,DHi]
+      .reduce((n,t) => n + (String(t).match(IMG_TOKEN_RE) || []).length, 0);
 
     const dateValue = getColumn(row,["Date","Exam Date","Shift Date","exam_date"]);
     const shiftValue = getColumn(row,["Shift","Shift No","Shift Number","shift_no"]);
@@ -1166,6 +1233,10 @@ async function validateBulkRows(){
       bonus,
 
       video,
+
+      orig,
+
+      imageCount,
 
       errors
 
@@ -1281,18 +1352,14 @@ function renderBulkPreview(
 
         <div style="margin-top:6px;">
           <b>Question:</b>
-          ${escapeHtml(
-            r.questionEnglish
-          )}
+          ${previewHtml(r.questionEnglish)}
         </div>
 
         ${
           r.questionHindi
           ? `
             <div class="question-hi">
-              ${escapeHtml(
-                r.questionHindi
-              )}
+              ${previewHtml(r.questionHindi)}
             </div>
           `
           : ""
@@ -1308,11 +1375,13 @@ function renderBulkPreview(
             </div>
           `
           : `
+            ${["A","B","C","D"].filter(k => String(r[k]).includes("[[IMG:")).map(k => `<div style="margin-top:4px;"><b>${k}:</b> ${previewHtml(r[k])}</div>`).join("")}
             <div class="small-note">
               Correct:
               ${escapeHtml(
                 r.correct.join(", ")
               )}
+              ${r.imageCount ? ` &nbsp;•&nbsp; 🖼 ${r.imageCount} image(s)` : ""}
             </div>
           `
         }
@@ -1340,13 +1409,26 @@ function renderBulkPreview(
     "hidden"
   );
 
-  if(validCount > 0){
-
-    document.getElementById(
-      "importAllButton"
-    ).textContent =
-      `Import ${validCount} Valid Questions`;
+  const totalImgs = [...bulkImages.values()].reduce((n,m) => n + [...m.values()].reduce((x,a) => x + a.length, 0), 0);
+  const info = document.getElementById("imageInfo");
+  if(info){
+    info.innerHTML = bulkImageFiles.size
+      ? `🖼 <b>${totalImgs}</b> pictures found in the file (<b>${bulkImageFiles.size}</b> unique). They will be uploaded to the "${IMAGE_BUCKET}" storage bucket when you import.`
+      : "";
   }
+
+  updateImportModeUI();
+}
+
+function updateImportModeUI(){
+  const btn = document.getElementById("importAllButton");
+  if(!btn) return;
+  const valid = bulkValidatedRows.filter(r => r.errors.length === 0).length;
+  if(!valid) return;
+  const update = document.getElementById("updateExistingMode")?.checked;
+  btn.textContent = update
+    ? `Add Images To ${valid} Old Questions`
+    : `Import ${valid} Valid Questions`;
 }
 
 /* DATE + SHIFT FOLDER HELPERS */
@@ -1522,6 +1604,29 @@ async function importAllQuestions(){
   button.textContent = "Importing...";
   const resultBox = document.getElementById("bulkImportResult");
   resultBox.innerHTML = `<div class="status">Preparing ${validRows.length} questions...</div>`;
+
+  if(document.getElementById("updateExistingMode")?.checked){
+    try{
+      await updateExistingQuestionsWithImages(validRows, resultBox);
+    }catch(error){
+      console.error(error);
+      resultBox.innerHTML = `<div class="status"><div class="import-error">Update failed: ${escapeHtml(error.message || "Unknown error")}</div></div>`;
+    }finally{
+      button.disabled = false;
+      updateImportModeUI();
+    }
+    return;
+  }
+
+  try{
+    await uploadSheetImages(validRows, resultBox);
+  }catch(error){
+    console.error(error);
+    button.disabled = false;
+    updateImportModeUI();
+    resultBox.innerHTML = `<div class="status"><div class="import-error">${escapeHtml(error.message || "Image upload failed")}</div></div>`;
+    return;
+  }
   const sourceFile=document.getElementById("bulkFile")?.files?.[0]?.name || "Unknown file";
   let batchId=null;
   const trackedQuestionIds=[];
@@ -1579,8 +1684,8 @@ async function importAllQuestions(){
         const questionPayload = batch.map(r => ({
           subject_id: r.subjectId,
           chapter_id: r.chapterId || chapterCache.get(String(r.subjectId)),
-          question_text: r.questionEnglish,
-          question_text_hi: r.questionHindi,
+          question_text: resolveImg(r.questionEnglish),
+          question_text_hi: resolveImg(r.questionHindi),
           explanation: r.explanation,
           correct_options: r.correct,
           is_bonus: r.bonus,
@@ -1600,10 +1705,10 @@ async function importAllQuestions(){
         batch.forEach((r, index) => {
           const questionId = insertedQuestions[index].id;
           optionPayload.push(
-            {question_id:questionId, option_label:"A", option_text:r.A, option_text_hi:r.AHi, is_correct:r.correct.includes("A")},
-            {question_id:questionId, option_label:"B", option_text:r.B, option_text_hi:r.BHi, is_correct:r.correct.includes("B")},
-            {question_id:questionId, option_label:"C", option_text:r.C, option_text_hi:r.CHi, is_correct:r.correct.includes("C")},
-            {question_id:questionId, option_label:"D", option_text:r.D, option_text_hi:r.DHi, is_correct:r.correct.includes("D")}
+            {question_id:questionId, option_label:"A", option_text:resolveImg(r.A), option_text_hi:resolveImg(r.AHi), is_correct:r.correct.includes("A")},
+            {question_id:questionId, option_label:"B", option_text:resolveImg(r.B), option_text_hi:resolveImg(r.BHi), is_correct:r.correct.includes("B")},
+            {question_id:questionId, option_label:"C", option_text:resolveImg(r.C), option_text_hi:resolveImg(r.CHi), is_correct:r.correct.includes("C")},
+            {question_id:questionId, option_label:"D", option_text:resolveImg(r.D), option_text_hi:resolveImg(r.DHi), is_correct:r.correct.includes("D")}
           );
           const folderId = folderCache.get(r._folderKey);
           const nextOrder = Number(orderCache.get(String(folderId))) || 1;
@@ -1650,6 +1755,370 @@ async function importAllQuestions(){
     button.textContent = imported ? "Import Completed" : "Import All Valid Questions";
     await loadBulkImportHistory();
   }
+}
+
+/* ==========================================================
+   PICTURES INSIDE EXCEL (.xlsx)
+   Excel keeps pictures in separate files inside the xlsx zip, so
+   they never appear in the cell text. We read them here, match
+   each picture to its cell, upload it to Supabase Storage and put
+   an <img src="..."> tag into the question / option text.
+   ========================================================== */
+
+const REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const MIME_BY_EXT = {png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg", gif:"image/gif", webp:"image/webp", bmp:"image/bmp"};
+
+function hashBytes(bytes){
+  let h1 = 0x811c9dc5, h2 = 0x9e3779b9;
+  for(let i = 0; i < bytes.length; i++){
+    h1 ^= bytes[i]; h1 = Math.imul(h1, 16777619);
+    h2 = Math.imul(h2 ^ bytes[i], 2246822519); h2 ^= h2 >>> 13;
+  }
+  const hex = n => (n >>> 0).toString(16).padStart(8, "0");
+  return hex(h1) + hex(h2) + (bytes.length >>> 0).toString(16);
+}
+
+function resolveZipPath(base, target){
+  if(target.startsWith("/")) return target.slice(1);
+  const parts = base.split("/"); parts.pop();
+  for(const seg of target.split("/")){
+    if(seg === "..") parts.pop();
+    else if(seg && seg !== ".") parts.push(seg);
+  }
+  return parts.join("/");
+}
+
+async function loadSheetImages(buffer, sheet){
+
+  bulkImages = new Map();
+  bulkImageFiles = new Map();
+
+  if(typeof JSZip === "undefined") return 0;
+
+  const zip = await JSZip.loadAsync(buffer);
+
+  const readXml = async path => {
+    const f = zip.file(path);
+    if(!f) return null;
+    return new DOMParser().parseFromString(await f.async("string"), "application/xml");
+  };
+
+  const readRels = async path => {
+    const dir = path.substring(0, path.lastIndexOf("/"));
+    const name = path.substring(path.lastIndexOf("/") + 1);
+    const doc = await readXml(`${dir}/_rels/${name}.rels`);
+    const map = {};
+    if(doc){
+      for(const r of doc.getElementsByTagName("Relationship")){
+        map[r.getAttribute("Id")] = {target:r.getAttribute("Target") || "", type:r.getAttribute("Type") || ""};
+      }
+    }
+    return map;
+  };
+
+  /* first worksheet path */
+  let sheetPath = "xl/worksheets/sheet1.xml";
+  const wbDoc = await readXml("xl/workbook.xml");
+  const firstSheetEl = wbDoc && wbDoc.getElementsByTagName("sheet")[0];
+  if(firstSheetEl){
+    const rid = firstSheetEl.getAttributeNS(REL_NS, "id") || firstSheetEl.getAttribute("r:id");
+    const wbRels = await readRels("xl/workbook.xml");
+    if(rid && wbRels[rid]) sheetPath = resolveZipPath("xl/workbook.xml", wbRels[rid].target);
+  }
+
+  const sheetRels = await readRels(sheetPath);
+  const drawingPaths = Object.values(sheetRels)
+    .filter(r => /\/drawing$/.test(r.type))
+    .map(r => resolveZipPath(sheetPath, r.target));
+
+  if(!drawingPaths.length) return 0;
+
+  const range = XLSX.utils.decode_range(sheet["!ref"] || "A1");
+  const headerRow = range.s.r;
+  let found = 0;
+
+  for(const drawingPath of drawingPaths){
+
+    const drawing = await readXml(drawingPath);
+    if(!drawing) continue;
+    const drawingRels = await readRels(drawingPath);
+
+    for(const anchor of Array.from(drawing.documentElement.children)){
+
+      if(!/^(oneCellAnchor|twoCellAnchor)$/.test(anchor.localName)) continue;
+
+      const from = anchor.getElementsByTagNameNS("*", "from")[0];
+      const blip = anchor.getElementsByTagNameNS("*", "blip")[0];
+      if(!from || !blip) continue;
+
+      const col = parseInt(from.getElementsByTagNameNS("*", "col")[0]?.textContent, 10);
+      const row = parseInt(from.getElementsByTagNameNS("*", "row")[0]?.textContent, 10);
+      if(!Number.isFinite(col) || !Number.isFinite(row)) continue;
+
+      const jsonIndex = row - headerRow - 1;      // 0-based index inside sheet_to_json rows
+      if(jsonIndex < 0) continue;
+
+      const embed = blip.getAttributeNS(REL_NS, "embed") || blip.getAttribute("r:embed");
+      const rel = drawingRels[embed];
+      if(!rel) continue;
+
+      const mediaPath = resolveZipPath(drawingPath, rel.target);
+      const mediaFile = zip.file(mediaPath);
+      if(!mediaFile) continue;
+
+      const headerCell = sheet[XLSX.utils.encode_cell({r:headerRow, c:col})];
+      const header = normalizeHeader(headerCell ? headerCell.v : "");
+      if(!header) continue;
+
+      const bytes = await mediaFile.async("uint8array");
+      let ext = (mediaPath.split(".").pop() || "png").toLowerCase();
+      if(ext === "jpeg") ext = "jpg";
+      const name = hashBytes(bytes) + "." + ext;
+
+      if(!bulkImageFiles.has(name)){
+        const mime = MIME_BY_EXT[ext] || "image/png";
+        bulkImageFiles.set(name, {
+          bytes, ext, mime,
+          blobUrl: URL.createObjectURL(new Blob([bytes], {type:mime}))
+        });
+      }
+
+      if(!bulkImages.has(jsonIndex)) bulkImages.set(jsonIndex, new Map());
+      const cells = bulkImages.get(jsonIndex);
+      if(!cells.has(header)) cells.set(header, []);
+      cells.get(header).push(name);
+      found++;
+    }
+  }
+
+  return found;
+}
+
+/* Put image tokens after (or instead of) the cell text. */
+function withImages(text, jsonIndex, headerNames){
+
+  const cells = bulkImages.get(jsonIndex);
+  if(!cells) return text;
+
+  const names = [];
+  for(const h of headerNames){
+    const list = cells.get(normalizeHeader(h));
+    if(list) names.push(...list);
+  }
+  if(!names.length) return text;
+
+  const tokens = [...new Set(names)].map(n => `[[IMG:${n}]]`).join("\n");
+  const t = String(text || "").trim();
+
+  /* "Option A" / "विकल्प A" is only a placeholder when the real answer is a picture */
+  if(!t || /^(option|विकल्प)\s*[a-d]$/i.test(t)) return tokens;
+
+  return t + "\n" + tokens;
+}
+
+function previewHtml(text){
+  return escapeHtml(text).replace(IMG_TOKEN_RE, (m, name) => {
+    const f = bulkImageFiles.get(name);
+    return f ? `<br><img class="sheet-img" src="${f.blobUrl}" alt="image">` : "";
+  });
+}
+
+function resolveImg(text){
+  return String(text ?? "").replace(IMG_TOKEN_RE, (m, name) => {
+    const url = uploadedImageUrls.get(name);
+    return url ? `<img src="${url}">` : "";
+  });
+}
+
+async function runPool(tasks, limit){
+  let next = 0;
+  const workers = Array.from({length: Math.min(limit, tasks.length)}, async () => {
+    while(next < tasks.length){
+      const t = tasks[next++];
+      await t();
+    }
+  });
+  await Promise.all(workers);
+}
+
+async function uploadSheetImages(rows, resultBox){
+
+  const needed = new Set();
+  rows.forEach(r => {
+    [r.questionEnglish,r.questionHindi,r.A,r.AHi,r.B,r.BHi,r.C,r.CHi,r.D,r.DHi].forEach(t => {
+      for(const m of String(t).matchAll(IMG_TOKEN_RE)) needed.add(m[1]);
+    });
+  });
+
+  const todo = [...needed].filter(n => !uploadedImageUrls.has(n));
+  if(!todo.length) return;
+
+  let done = 0;
+
+  const tasks = todo.map(name => async () => {
+
+    const file = bulkImageFiles.get(name);
+    if(!file) throw new Error("Image data missing for " + name);
+
+    const path = `${IMAGE_FOLDER}/${name}`;
+    let lastError = null;
+
+    for(let attempt = 0; attempt < 3; attempt++){
+      const { error } = await db.storage.from(IMAGE_BUCKET).upload(
+        path,
+        new Blob([file.bytes], {type:file.mime}),
+        {contentType:file.mime, upsert:false}
+      );
+      const exists = error && (String(error.statusCode) === "409" || /already exists|duplicate/i.test(error.message || ""));
+      if(!error || exists){ lastError = null; break; }
+      lastError = error;
+      await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
+    }
+
+    if(lastError){
+      throw new Error(
+        `Image upload failed: ${lastError.message}. ` +
+        `Check that a PUBLIC storage bucket named "${IMAGE_BUCKET}" exists and that the admin upload policy was added.`
+      );
+    }
+
+    uploadedImageUrls.set(name, db.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl);
+
+    done++;
+    resultBox.innerHTML = `<div class="status">Uploading pictures ${done} of ${todo.length}...</div>`;
+  });
+
+  await runPool(tasks, 4);
+}
+
+/* ==========================================================
+   FIX OLD QUESTIONS: match each sheet row with the question that
+   is already saved in the same Subject / Date / Shift folder and
+   update only the question / option text. Nothing is created or
+   deleted.
+   ========================================================== */
+
+async function updateExistingQuestionsWithImages(validRows, resultBox){
+
+  if(!bulkImageFiles.size){
+    throw new Error("No pictures were found in this file, so there is nothing to add to the old questions.");
+  }
+
+  await uploadSheetImages(validRows.filter(r => r.imageCount > 0), resultBox);
+
+  const norm = v => cleanCell(v);
+
+  const groups = new Map();
+  validRows.forEach(r => {
+    const key = `${r.subjectId}|${r.examDate}|${r.shiftNo}`;
+    if(!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  });
+
+  let updated = 0;
+  let alreadyDone = 0;
+  const problems = [];
+  const updateTasks = [];
+
+  for(const [key, rows] of groups){
+
+    const first = rows[0];
+    resultBox.innerHTML = `<div class="status">Matching old questions for ${escapeHtml(first.subjectName)} • ${escapeHtml(first.examDate)} • Shift ${first.shiftNo}...</div>`;
+
+    const { data:folder, error:folderError } = await db
+      .from("question_shift_groups").select("id")
+      .eq("subject_id", first.subjectId).eq("exam_date", first.examDate).eq("shift_no", first.shiftNo).limit(1);
+    if(folderError) throw folderError;
+
+    if(!folder?.length){
+      rows.filter(r => r.imageCount > 0).forEach(r => problems.push(`Row ${r.rowNumber}: folder ${first.examDate} Shift ${first.shiftNo} not found`));
+      continue;
+    }
+
+    const folderId = folder[0].id;
+
+    const links = [];
+    for(let from = 0; ; from += 1000){
+      const { data, error } = await db.from("question_shift_group_questions")
+        .select("question_id,question_order").eq("group_id", folderId)
+        .order("question_order", {ascending:true}).range(from, from + 999);
+      if(error) throw error;
+      links.push(...(data || []));
+      if(!data || data.length < 1000) break;
+    }
+
+    const ids = links.map(l => l.question_id);
+    const byId = new Map();
+    for(let i = 0; i < ids.length; i += 100){
+      const { data, error } = await db.from("questions")
+        .select("id,question_text,question_text_hi,question_options(id,option_label,option_text,option_text_hi)")
+        .in("id", ids.slice(i, i + 100));
+      if(error) throw error;
+      (data || []).forEach(q => byId.set(String(q.id), q));
+    }
+
+    const candidates = ids.map(id => byId.get(String(id))).filter(Boolean);
+    const used = new Set();
+
+    for(const r of rows){
+
+      const o = r.orig;
+
+      const match = candidates.find(q => {
+        if(used.has(String(q.id))) return false;
+        if(norm(q.question_text) !== o.questionEnglish || norm(q.question_text_hi) !== o.questionHindi) return false;
+        const opts = {};
+        (q.question_options || []).forEach(x => opts[String(x.option_label).toUpperCase()] = x);
+        return ["A","B","C","D"].every(L =>
+          opts[L] && norm(opts[L].option_text) === o[L] && norm(opts[L].option_text_hi) === o[L + "Hi"]
+        );
+      });
+
+      if(!match){
+        if(r.imageCount > 0){
+          const already = candidates.some(q => !used.has(String(q.id)) && /<img\s/i.test((q.question_text || "") + (q.question_options || []).map(x => x.option_text).join("")));
+          problems.push(`Row ${r.rowNumber}: matching old question not found${already ? " (maybe already updated)" : ""}`);
+        }
+        continue;
+      }
+
+      used.add(String(match.id));
+
+      if(r.imageCount === 0) continue;
+
+      const qNew = {question_text:resolveImg(r.questionEnglish), question_text_hi:resolveImg(r.questionHindi)};
+
+      updateTasks.push(async () => {
+        const { error } = await db.from("questions").update(qNew).eq("id", match.id);
+        if(error) throw new Error(`Row ${r.rowNumber}: ${error.message}`);
+        for(const L of ["A","B","C","D"]){
+          const opt = (match.question_options || []).find(x => String(x.option_label).toUpperCase() === L);
+          const t = resolveImg(r[L]), th = resolveImg(r[L + "Hi"]);
+          if(opt && (t !== opt.option_text || th !== opt.option_text_hi)){
+            const { error:oe } = await db.from("question_options").update({option_text:t, option_text_hi:th}).eq("id", opt.id);
+            if(oe) throw new Error(`Row ${r.rowNumber} option ${L}: ${oe.message}`);
+          }
+        }
+        updated++;
+      });
+    }
+  }
+
+  let doneTasks = 0;
+  const wrapped = updateTasks.map(t => async () => {
+    try{ await t(); }
+    catch(e){ problems.push(e.message || String(e)); }
+    doneTasks++;
+    if(doneTasks % 5 === 0 || doneTasks === updateTasks.length){
+      resultBox.innerHTML = `<div class="status">Updating questions ${doneTasks} of ${updateTasks.length}...</div>`;
+    }
+  });
+  await runPool(wrapped, 6);
+
+  resultBox.innerHTML = `<div class="status">
+    <div class="import-success">✓ ${updated} old questions updated with images.</div>
+    ${problems.length ? `<div class="import-error" style="margin-top:8px;">${problems.length} rows not updated:<br>${escapeHtml(problems.slice(0,40).join("\n"))}${problems.length > 40 ? "\n..." : ""}</div>` : `<div class="small-note" style="margin-top:8px;">All rows with pictures were updated.</div>`}
+  </div>`;
 }
 
 /* EXCEL TEMPLATE */
