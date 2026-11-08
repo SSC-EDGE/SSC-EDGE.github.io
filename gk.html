@@ -379,7 +379,7 @@ async function loadPDFs(){
 
             .eq(
                 "name",
-                "General Awareness"
+                "GK"
             )
 
             .single();
@@ -629,7 +629,7 @@ async function loadPDFs(){
 
                                 class="open"
 
-                                href="${openUrl}"
+                                href="pdf-viewer.html?file=${encodeURIComponent(rawUrl)}&title=${encodeURIComponent(rawTitle)}"
 
                                 target="_blank"
 

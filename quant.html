@@ -313,7 +313,7 @@ async function loadPDFs(){
       await supabaseClient
         .from("subjects")
         .select("*")
-        .eq("name", "Quantitative Aptitude")
+        .eq("name", "Quant")
         .maybeSingle();
 
     if(subjectError){
@@ -441,7 +441,7 @@ async function loadPDFs(){
 
           <a
             class="open"
-            href="${escapeAttribute(fileUrl)}"
+            href="pdf-viewer.html?file=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(title)}"
             target="_blank"
             rel="noopener"
           >
