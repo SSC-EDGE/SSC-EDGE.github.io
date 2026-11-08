@@ -313,7 +313,7 @@ async function loadPDFs(){
       await supabaseClient
         .from("subjects")
         .select("*")
-        .eq("name", "Quant")
+        .eq("name", "Quantitative Aptitude")
         .maybeSingle();
 
     if(subjectError){
