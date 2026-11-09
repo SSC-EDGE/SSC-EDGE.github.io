@@ -1,165 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#08050e">
-<title>PDF Viewer - SSC EDGE</title>
-<script>
-document.documentElement.dataset.theme =
-  localStorage.getItem("ssc-edge-theme") || "dark";
-</script>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#08050e"><title>PDF Viewer - SSC EDGE</title>
+<script>document.documentElement.dataset.theme=localStorage.getItem("ssc-edge-theme")||"dark";</script>
 <link rel="stylesheet" href="css/style.css">
 <style>
-:root{--viewer-bg:#08050e;--viewer-card:#171025;--viewer-border:#302044;--viewer-text:#fff;--viewer-muted:#aaa2b9;--viewer-purple:#7c3aed}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg,var(--viewer-bg));color:var(--text,var(--viewer-text));font-family:Arial,sans-serif}
-.viewer-header{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--header,#100b19);border-bottom:1px solid var(--border,var(--viewer-border))}
-.back-btn,.tool-btn{border:1px solid var(--border,var(--viewer-border));background:var(--card,var(--viewer-card));color:var(--text,var(--viewer-text));border-radius:10px;padding:9px 12px;font-weight:700;text-decoration:none;cursor:pointer}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;width:100%}
+body{background:var(--bg,#08050e);color:var(--text,#fff);font-family:Arial,sans-serif;overflow:hidden}
+.viewer-header{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--header,#100b19);border-bottom:1px solid var(--border,#302044)}
+.back-btn,.tool-btn{border:1px solid var(--border,#302044);background:var(--card,#171025);color:var(--text,#fff);border-radius:9px;padding:9px 10px;font-weight:700;cursor:pointer}
 .brand{font-weight:900;white-space:nowrap}.brand span{color:#a66bff}
-.file-title{min-width:0;flex:1;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.download-btn{background:var(--purple,var(--viewer-purple));color:#fff;border:0;border-radius:10px;padding:10px 12px;text-decoration:none;font-size:13px;font-weight:800;white-space:nowrap}
-.toolbar{position:sticky;top:58px;z-index:15;display:flex;align-items:center;justify-content:center;gap:10px;padding:10px;background:var(--card,var(--viewer-card));border-bottom:1px solid var(--border,var(--viewer-border))}
-.toolbar button{min-width:42px}
-#pageInfo{font-size:13px;color:var(--text,var(--viewer-text));min-width:90px;text-align:center}
-#status{padding:24px 14px;text-align:center;color:var(--muted,var(--viewer-muted));font-size:14px}
-#pages{padding:14px 8px 40px;display:flex;justify-content:center}
-.page-wrap{width:100%;max-width:900px;background:#fff;box-shadow:0 3px 18px rgba(0,0,0,.25);min-height:200px}
-canvas{display:block;width:100%;height:auto}
-#error{display:none;margin:18px;padding:16px;border:1px solid #a33;border-radius:12px;color:#ffb4b4;background:rgba(120,0,0,.12);line-height:1.5}
-@media(min-width:700px){#pages{padding:22px}.viewer-header{padding-left:20px;padding-right:20px}}
-</style>
-</head>
+.file-title{min-width:0;flex:1;font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.download-btn{background:var(--purple,#7c3aed);color:#fff;border:0;border-radius:9px;padding:9px 10px;text-decoration:none;font-size:12px;font-weight:800;white-space:nowrap}
+.toolbar{position:relative;z-index:25;display:flex;align-items:center;justify-content:center;gap:10px;padding:8px;background:var(--card,#171025);border-bottom:1px solid var(--border,#302044)}
+#pageInfo{font-size:13px;min-width:90px;text-align:center}
+#viewerScroll{width:100%;height:calc(100dvh - 105px);overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px 0 28px}
+#pages{display:flex;flex-direction:column;align-items:center;gap:12px;width:max-content;min-width:100%;padding:0 8px}
+.page-wrap{background:#fff;box-shadow:0 2px 12px #0004;line-height:0;flex:none;position:relative}
+.page-wrap canvas{display:block}
+#status{padding:22px 14px;text-align:center;color:var(--muted,#aaa2b9);font-size:14px}
+#error{display:none;margin:18px;padding:16px;border:1px solid #a33;border-radius:12px;color:#ffb4b4;background:#78000020;line-height:1.5}
+@media(max-width:420px){.viewer-header{gap:5px;padding:8px}.back-btn{padding:8px}.brand{font-size:12px}.download-btn{padding:8px;font-size:11px}.file-title{font-size:11px}}
+</style></head>
 <body>
 <header class="viewer-header">
-  <button class="back-btn" type="button" onclick="history.back()">← Back</button>
-  <div class="brand">SSC <span>EDGE</span></div>
-  <div class="file-title" id="fileTitle">PDF Viewer</div>
-  <a class="download-btn" id="downloadBtn" href="#" target="_blank" rel="noopener">↓ Download</a>
+<button class="back-btn" onclick="history.back()" type="button">← Back</button>
+<div class="brand">SSC <span>EDGE</span></div><div class="file-title" id="fileTitle">PDF Viewer</div>
+<a class="download-btn" id="downloadBtn" href="#" target="_blank" rel="noopener">↓ Download</a>
 </header>
-
-<div class="toolbar">
-  <button class="tool-btn" id="prevBtn" type="button">‹</button>
-  <span id="pageInfo">Loading…</span>
-  <button class="tool-btn" id="nextBtn" type="button">›</button>
-  <button class="tool-btn" id="zoomOut" type="button">−</button>
-  <button class="tool-btn" id="zoomIn" type="button">+</button>
-</div>
-
-<div id="status">Loading PDF…</div>
-<div id="error"></div>
-<main id="pages"><div class="page-wrap"><canvas id="pdfCanvas"></canvas></div></main>
-
+<div class="toolbar"><span id="pageInfo">Loading…</span><button class="tool-btn" id="zoomOut" type="button">−</button><button class="tool-btn" id="zoomIn" type="button">+</button></div>
+<div id="status">Loading PDF…</div><div id="error"></div>
+<main id="viewerScroll"><div id="pages"></div></main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 (function(){
-  const params = new URLSearchParams(location.search);
-  const pdfUrl = params.get("file");
-  const title = params.get("title") || "PDF Document";
-  const titleEl = document.getElementById("fileTitle");
-  const statusEl = document.getElementById("status");
-  const errorEl = document.getElementById("error");
-  const canvas = document.getElementById("pdfCanvas");
-  const ctx = canvas.getContext("2d");
-
-  titleEl.textContent = title;
-  const downloadBtn = document.getElementById("downloadBtn");
-  if(pdfUrl){
-    downloadBtn.href = pdfUrl + (pdfUrl.includes("?") ? "&download" : "?download");
-  }
-
-  if(!pdfUrl){
-    showError("PDF link is missing. Please return to Study Material and try again.");
-    return;
-  }
-  if(!window.pdfjsLib){
-    showError("PDF viewer library could not load. Check your internet connection and try again.");
-    return;
-  }
-
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-
-  let pdfDoc = null;
-  let pageNum = 1;
-  let zoom = 1;
-
-  function showError(message){
-    statusEl.style.display = "none";
-    errorEl.style.display = "block";
-    errorEl.textContent = message;
-    document.getElementById("pages").style.display = "none";
-  }
-
-  async function renderPage(){
-    if(!pdfDoc) return;
-    statusEl.style.display = "none";
-    const page = await pdfDoc.getPage(pageNum);
-    const availableWidth = Math.min(
-      document.getElementById("pages").clientWidth - 16, 900
-    );
-    const baseViewport = page.getViewport({scale:1});
-    const fitScale = availableWidth / baseViewport.width;
-    const viewport = page.getViewport({scale:fitScale * zoom});
-    const outputScale = window.devicePixelRatio || 1;
-
-    canvas.width = Math.floor(viewport.width * outputScale);
-    canvas.height = Math.floor(viewport.height * outputScale);
-    canvas.style.width = Math.floor(viewport.width) + "px";
-    canvas.style.height = Math.floor(viewport.height) + "px";
-
-    const renderContext = {
-      canvasContext:ctx,
-      viewport:viewport,
-      transform: outputScale !== 1 ? [outputScale,0,0,outputScale,0,0] : null
-    };
-    await page.render(renderContext).promise;
-    document.getElementById("pageInfo").textContent =
-      pageNum + " / " + pdfDoc.numPages;
-    document.getElementById("prevBtn").disabled = pageNum <= 1;
-    document.getElementById("nextBtn").disabled = pageNum >= pdfDoc.numPages;
-  }
-
-  document.getElementById("prevBtn").addEventListener("click", async function(){
-    if(pageNum <= 1) return;
-    pageNum--;
-    await renderPage();
-    window.scrollTo(0,0);
-  });
-  document.getElementById("nextBtn").addEventListener("click", async function(){
-    if(pageNum >= pdfDoc.numPages) return;
-    pageNum++;
-    await renderPage();
-    window.scrollTo(0,0);
-  });
-  document.getElementById("zoomIn").addEventListener("click", renderZoomIn);
-  document.getElementById("zoomOut").addEventListener("click", renderZoomOut);
-
-  async function renderZoomIn(){
-    zoom = Math.min(zoom + 0.2, 2.5);
-    await renderPage();
-  }
-  async function renderZoomOut(){
-    zoom = Math.max(zoom - 0.2, 0.6);
-    await renderPage();
-  }
-
-  window.addEventListener("resize", function(){
-    if(pdfDoc) renderPage().catch(function(){});
-  });
-
-  pdfjsLib.getDocument({url:pdfUrl}).promise.then(function(doc){
-    pdfDoc = doc;
-    renderPage().catch(function(err){
-      showError("Unable to render this PDF: " + (err.message || "Unknown error"));
-    });
-  }).catch(function(err){
-    showError(
-      "Unable to display this PDF inside SSC EDGE. This may be a storage CORS restriction. " +
-      "Use Download to access the file. Details: " + (err.message || "PDF loading failed")
-    );
-  });
+const p=new URLSearchParams(location.search),url=p.get("file"),title=p.get("title")||"PDF Document";
+const status=document.getElementById("status"),errBox=document.getElementById("error"),scroll=document.getElementById("viewerScroll"),pages=document.getElementById("pages");
+document.getElementById("fileTitle").textContent=title;
+function fail(msg){status.style.display="none";errBox.style.display="block";errBox.textContent=msg;scroll.style.display="none";}
+if(!url){fail("PDF link is missing. Return to Study Material and try again.");return;}
+document.getElementById("downloadBtn").href=url+(url.includes("?")?"&download":"?download");
+if(!window.pdfjsLib){fail("PDF viewer library could not load. Check your internet connection and reload.");return;}
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+let doc=null,zoom=1,observer=null,tasks=new Map();
+function scaleFor(page){const base=page.getViewport({scale:1});return Math.max(0.3,(Math.min(window.innerWidth-24,900)/base.width)*zoom);}
+async function render(n){
+if(!doc)return;const wrap=document.getElementById("page-"+n);if(!wrap)return;
+const prior=tasks.get(n);if(prior){try{prior.cancel();}catch(e){}}
+const page=await doc.getPage(n),vp=page.getViewport({scale:scaleFor(page)}),dpr=Math.min(devicePixelRatio||1,2);
+let c=wrap.querySelector("canvas");if(!c){c=document.createElement("canvas");wrap.appendChild(c);}
+c.width=Math.floor(vp.width*dpr);c.height=Math.floor(vp.height*dpr);c.style.width=Math.floor(vp.width)+"px";c.style.height=Math.floor(vp.height)+"px";
+wrap.style.width=Math.floor(vp.width)+"px";wrap.style.height=Math.floor(vp.height)+"px";
+const task=page.render({canvasContext:c.getContext("2d"),viewport:vp,transform:dpr!==1?[dpr,0,0,dpr,0,0]:null});tasks.set(n,task);
+try{await task.promise;}catch(e){if(e?.name!=="RenderingCancelledException")console.warn(e);}
+if(tasks.get(n)===task)tasks.delete(n);
+}
+function observePages(){
+if(observer)observer.disconnect();
+observer=new IntersectionObserver(entries=>entries.forEach(entry=>{
+if(entry.isIntersecting){const n=Number(entry.target.dataset.page);document.getElementById("pageInfo").textContent="Page "+n+" / "+doc.numPages;render(n);}
+}),{root:scroll,rootMargin:"650px 0px",threshold:0.01});
+document.querySelectorAll(".page-wrap").forEach(el=>observer.observe(el));
+}
+function build(){
+pages.innerHTML="";
+for(let n=1;n<=doc.numPages;n++){const el=document.createElement("section");el.className="page-wrap";el.id="page-"+n;el.dataset.page=n;el.style.width="min(92vw,800px)";el.style.height="260px";pages.appendChild(el);}
+observePages();render(1);document.getElementById("pageInfo").textContent="Page 1 / "+doc.numPages;
+}
+async function zoomBy(d){
+zoom=Math.max(.65,Math.min(2.5,zoom+d));
+const visible=[...document.querySelectorAll(".page-wrap")].filter(el=>{const r=el.getBoundingClientRect();return r.bottom>0&&r.top<innerHeight;});
+for(const el of visible)await render(Number(el.dataset.page));
+}
+document.getElementById("zoomIn").onclick=()=>zoomBy(.2);document.getElementById("zoomOut").onclick=()=>zoomBy(-.2);
+let resizeTimer;window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(!doc)return;document.querySelectorAll(".page-wrap").forEach(el=>{const r=el.getBoundingClientRect();if(r.bottom>0&&r.top<innerHeight)render(Number(el.dataset.page));});},200);});
+pdfjsLib.getDocument({url}).promise.then(d=>{doc=d;status.style.display="none";build();}).catch(e=>fail("Unable to display this PDF. Check the Supabase Storage CORS settings and file URL. Details: "+(e.message||"PDF loading failed")));
 })();
-</script>
-</body>
-</html>
+</script></body></html>
