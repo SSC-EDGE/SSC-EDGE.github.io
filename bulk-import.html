@@ -1072,7 +1072,7 @@ async function validateBulkRows(){
     let chapter = null;
     if(subject && chapterName){
       chapter = findChapter(chapterName,subject.id);
-      if(!chapter) errors.push(`Chapter not found for subject: ${chapterName}`);
+      // Missing chapters are created automatically during import.
     }
     if(!subjectName) errors.push("Subject is required");
     else if(!subject) errors.push(`Subject not found: ${subjectName}`);
@@ -1130,6 +1130,7 @@ async function validateBulkRows(){
 
       subjectId: subject?.id || null,
       chapterId: chapter?.id || null,
+      newChapter: !!(subject && chapterName && !chapter),
       examDate,
       dateValue,
       shiftNo,
@@ -1283,6 +1284,12 @@ function renderBulkPreview(
               )}
             </div>
           `
+          : ""
+        }
+
+        ${
+          r.newChapter && !r.errors.length
+          ? `<div class="import-warning">New chapter "${escapeHtml(r.chapterName)}" will be created</div>`
           : ""
         }
 
@@ -1506,6 +1513,25 @@ async function importAllQuestions(){
   const orderCache = new Map();
 
   try {
+    // Create any chapters that do not exist yet (once per subject + name).
+    const newChapterMap = new Map();
+    for (const r of validRows) {
+      if (r.chapterId || !r.chapterName) continue;
+      const key = `${r.subjectId}|${normalizeHeader(r.chapterName)}`;
+      if (!newChapterMap.has(key)) {
+        const existing = findChapter(r.chapterName, r.subjectId);
+        if (existing) { newChapterMap.set(key, existing.id); }
+        else {
+          const { data: created, error: chErr } = await db.from("chapters")
+            .insert({ subject_id: r.subjectId, name: r.chapterName.trim() }).select("id,name,subject_id").single();
+          if (chErr) throw new Error(`Could not create chapter "${r.chapterName}": ${chErr.message}`);
+          chapters.push(created);
+          newChapterMap.set(key, created.id);
+        }
+      }
+      r.chapterId = newChapterMap.get(key);
+    }
+
     // Resolve each date/shift folder only once, rather than once per question.
     for (const r of validRows) {
       if (r.chapterWise) continue;
