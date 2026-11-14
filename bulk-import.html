@@ -15,7 +15,6 @@ localStorage.getItem("ssc-edge-theme") || "dark";
 <link rel="stylesheet" href="css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
 <style>
 .page{
@@ -400,15 +399,6 @@ button.import-btn{
   margin-top:5px;
 }
 
-.sheet-img{
-  max-height:80px;
-  max-width:160px;
-  border-radius:6px;
-  vertical-align:middle;
-  margin:3px 4px 3px 0;
-  background:#fff;
-}
-
 .hidden{
   display:none !important;
 }
@@ -485,16 +475,20 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
           Upload an Excel <b>.xlsx / .xls</b> file or a <b>.csv</b> file.
           Each row becomes one question.<br><br>
 
+          <b>Two ways to import:</b><br>
+          <b>Shift-wise:</b> fill Date and Shift (goes to Subject → Date → Shift folder).<br>
+          <b>Chapter-wise:</b> leave Date and Shift <u>blank</u> and fill <b>Chapter</b> (chapter must already exist). The questions are saved to that Subject → Chapter and also split automatically into mocks of 25 (e.g. 65 questions → Percentage Set 1 = 25, Set 2 = 25, Set 3 = 15) inside <b>Practice Drill → Subject → Chapter</b>.<br><br>
+
           <b>Required columns:</b><br>
 
-          Subject, Date, Shift, Question English, Question Hindi,
+          Subject, Date*, Shift*, Question English, Question Hindi,
           Option A English, Option A Hindi,
           Option B English, Option B Hindi,
           Option C English, Option C Hindi,
           Option D English, Option D Hindi, Correct<br><br>
 
           <b>Optional columns:</b>
-          Chapter, Explanation, Bonus, Video Link.<br><br>
+          Chapter (required for chapter-wise), Explanation, Bonus, Video Link.<br><br>
 
           Each row is saved directly to the matching <b>Subject → Date → Shift</b>
           folder in Date &amp; Shift Question Manager. Subject must already exist.
@@ -547,16 +541,6 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
           class="import-preview"
         ></div>
 
-        <div id="imageInfo" class="small-note" style="margin-top:10px;"></div>
-
-        <div class="checkbox-line" id="updateModeBox">
-          <input type="checkbox" id="updateExistingMode" onchange="updateImportModeUI()">
-          <label for="updateExistingMode" style="margin:0;color:var(--text);">
-            <b>Fix old questions (add images, do not create new ones)</b><br>
-            <span class="small-note">Use this for a sheet that was already imported before. Each row is matched with the question already saved in the same Subject / Date / Shift folder, and only its question/option text is updated with the images. Nothing is duplicated or deleted. Leave this OFF for a brand-new sheet.</span>
-          </label>
-        </div>
-
         <div class="actions">
 
           <button
@@ -581,30 +565,6 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
           id="bulkImportResult"
           style="margin-top:12px;"
         ></div>
-
-        <hr style="border:0;border-top:1px solid var(--border);margin:22px 0;">
-        <div class="card" style="margin:0;padding:16px;">
-          <h2 style="margin:0 0 8px;">🗑 Subject-wise Folder Cleanup</h2>
-          <div class="small-note" style="margin-bottom:12px;">Select a subject, preview its Date/Shift folders, then tick only the folders you want to remove. Unselected folders will remain untouched. Questions themselves are kept in the Question Bank, and questions assigned to mocks/results are not deleted.</div>
-          <label for="cleanupSubject">Select Subject</label>
-          <select id="cleanupSubject" style="width:100%;margin:6px 0 10px;padding:11px;border-radius:9px;">
-            <option value="">Select subject</option>
-          </select>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="secondary" onclick="previewSubjectFolderCleanup()">🔎 Load Date/Shift Folders</button>
-            <button class="danger" id="deleteSubjectFoldersBtn" onclick="deleteSubjectFolders()" disabled>🗑 Delete Selected Folders</button>
-          </div>
-          <div id="subjectFolderCleanupPreview" style="margin-top:12px;"></div>
-          <div class="small-note" style="margin-top:10px;color:var(--muted);">Only checked Date/Shift folders will be deleted. You must select them manually after loading the list.</div>
-        </div>
-
-        <hr style="border:0;border-top:1px solid var(--border);margin:22px 0;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-          <h2 style="margin:0;">🗂 Imported Excel History</h2>
-          <button class="secondary" onclick="loadBulkImportHistory()">↻ Refresh</button>
-        </div>
-        <div class="small-note">Delete removes all questions recorded under that import batch.</div>
-        <div id="bulkImportHistory" style="margin-top:12px;"><div class="empty">Loading import history...</div></div>
 
       </div>
 
@@ -635,26 +595,6 @@ let existingImageUrl = "";
 
 let bulkRows = [];
 let bulkValidatedRows = [];
-
-/* IMAGES INSIDE THE EXCEL FILE */
-const IMAGE_BUCKET = "question-images";
-const IMAGE_FOLDER = "import";
-let bulkImages = new Map();       // json row index -> Map(normalized header -> [image names])
-let bulkImageFiles = new Map();   // image name -> {bytes, ext, mime, blobUrl}
-let uploadedImageUrls = new Map();// image name -> public URL
-const IMG_TOKEN_RE = /\[\[IMG:([^\]]+)\]\]/g;
-const IMG_FIELDS = {
-  questionEnglish:["Question English","Question","English Question","question_text"],
-  questionHindi:["Question Hindi","Hindi Question","question_text_hi"],
-  A:["Option A English","A English","Option A","A"],
-  AHi:["Option A Hindi","A Hindi","A Hindi Option"],
-  B:["Option B English","B English","Option B","B"],
-  BHi:["Option B Hindi","B Hindi","B Hindi Option"],
-  C:["Option C English","C English","Option C","C"],
-  CHi:["Option C Hindi","C Hindi","C Hindi Option"],
-  D:["Option D English","D English","Option D","D"],
-  DHi:["Option D Hindi","D Hindi","D Hindi Option"]
-};
 
 const BULK_IMPORT_SUBJECT_NAME = "BULK IMPORT";
 const BULK_IMPORT_CHAPTER_NAME = "Unassigned";
@@ -748,11 +688,6 @@ function clearBulkImport(keepFile = false){
 
   bulkRows = [];
   bulkValidatedRows = [];
-  bulkImageFiles.forEach(f => { try{ URL.revokeObjectURL(f.blobUrl); }catch(e){} });
-  bulkImages = new Map();
-  bulkImageFiles = new Map();
-  const imageInfoEl = document.getElementById("imageInfo");
-  if(imageInfoEl) imageInfoEl.textContent = "";
 
   if(!keepFile){
     document.getElementById(
@@ -975,18 +910,6 @@ async function handleBulkFile(event){
 
     bulkRows = rows;
 
-    if(!file.name.toLowerCase().endsWith(".csv")){
-      try{
-        await loadSheetImages(buffer, firstSheet);
-      }catch(imgError){
-        console.error("Image extraction failed:", imgError);
-        bulkImages = new Map();
-        bulkImageFiles = new Map();
-        const info = document.getElementById("imageInfo");
-        if(info) info.innerHTML = '<span class="import-warning">Could not read pictures from this file: ' + escapeHtml(imgError.message || imgError) + '</span>';
-      }
-    }
-
     await validateBulkRows();
 
   }
@@ -1031,7 +954,7 @@ async function validateBulkRows(){
         "chapter"
       ]);
 
-    let questionEnglish =
+    const questionEnglish =
       getColumn(row,[
         "Question English",
         "Question",
@@ -1039,14 +962,14 @@ async function validateBulkRows(){
         "question_text"
       ]);
 
-    let questionHindi =
+    const questionHindi =
       getColumn(row,[
         "Question Hindi",
         "Hindi Question",
         "question_text_hi"
       ]);
 
-    let A =
+    const A =
       getColumn(row,[
         "Option A English",
         "A English",
@@ -1054,14 +977,14 @@ async function validateBulkRows(){
         "A"
       ]);
 
-    let AHi =
+    const AHi =
       getColumn(row,[
         "Option A Hindi",
         "A Hindi",
         "A Hindi Option"
       ]);
 
-    let B =
+    const B =
       getColumn(row,[
         "Option B English",
         "B English",
@@ -1069,14 +992,14 @@ async function validateBulkRows(){
         "B"
       ]);
 
-    let BHi =
+    const BHi =
       getColumn(row,[
         "Option B Hindi",
         "B Hindi",
         "B Hindi Option"
       ]);
 
-    let C =
+    const C =
       getColumn(row,[
         "Option C English",
         "C English",
@@ -1084,14 +1007,14 @@ async function validateBulkRows(){
         "C"
       ]);
 
-    let CHi =
+    const CHi =
       getColumn(row,[
         "Option C Hindi",
         "C Hindi",
         "C Hindi Option"
       ]);
 
-    let D =
+    const D =
       getColumn(row,[
         "Option D English",
         "D English",
@@ -1099,7 +1022,7 @@ async function validateBulkRows(){
         "D"
       ]);
 
-    let DHi =
+    const DHi =
       getColumn(row,[
         "Option D Hindi",
         "D Hindi",
@@ -1140,16 +1063,6 @@ async function validateBulkRows(){
         "solution_video_url"
       ]);
 
-    const orig = {questionEnglish,questionHindi,A,AHi,B,BHi,C,CHi,D,DHi};
-    questionEnglish = withImages(questionEnglish,i,IMG_FIELDS.questionEnglish);
-    questionHindi = withImages(questionHindi,i,IMG_FIELDS.questionHindi);
-    A = withImages(A,i,IMG_FIELDS.A); AHi = withImages(AHi,i,IMG_FIELDS.AHi);
-    B = withImages(B,i,IMG_FIELDS.B); BHi = withImages(BHi,i,IMG_FIELDS.BHi);
-    C = withImages(C,i,IMG_FIELDS.C); CHi = withImages(CHi,i,IMG_FIELDS.CHi);
-    D = withImages(D,i,IMG_FIELDS.D); DHi = withImages(DHi,i,IMG_FIELDS.DHi);
-    const imageCount = [questionEnglish,questionHindi,A,AHi,B,BHi,C,CHi,D,DHi]
-      .reduce((n,t) => n + (String(t).match(IMG_TOKEN_RE) || []).length, 0);
-
     const dateValue = getColumn(row,["Date","Exam Date","Shift Date","exam_date"]);
     const shiftValue = getColumn(row,["Shift","Shift No","Shift Number","shift_no"]);
     const examDate = normalizeImportDate(dateValue);
@@ -1163,10 +1076,17 @@ async function validateBulkRows(){
     }
     if(!subjectName) errors.push("Subject is required");
     else if(!subject) errors.push(`Subject not found: ${subjectName}`);
-    if(!dateValue) errors.push("Date is required");
-    else if(!examDate) errors.push(`Invalid Date: ${dateValue}. Use YYYY-MM-DD or DD/MM/YYYY`);
-    if(!shiftValue) errors.push("Shift is required");
-    else if(!shiftNo) errors.push(`Invalid Shift: ${shiftValue}. Use Shift 1, Shift 2 or Shift 3`);
+    // Chapter-wise row: Date + Shift both blank -> Chapter is required.
+    // Shift-wise row: Date + Shift both filled.
+    const chapterWise = !dateValue && !shiftValue;
+    if(chapterWise){
+      if(!chapterName) errors.push("Chapter is required when Date and Shift are blank (chapter-wise question)");
+    }else{
+      if(!dateValue) errors.push("Date is required for shift-wise questions (or leave both Date and Shift blank for chapter-wise)");
+      else if(!examDate) errors.push(`Invalid Date: ${dateValue}. Use YYYY-MM-DD or DD/MM/YYYY`);
+      if(!shiftValue) errors.push("Shift is required for shift-wise questions (or leave both Date and Shift blank for chapter-wise)");
+      else if(!shiftNo) errors.push(`Invalid Shift: ${shiftValue}. Use Shift 1, Shift 2 or Shift 3`);
+    }
 
     if(!questionEnglish){
       errors.push(
@@ -1213,6 +1133,7 @@ async function validateBulkRows(){
       examDate,
       dateValue,
       shiftNo,
+      chapterWise,
 
       questionEnglish,
       questionHindi,
@@ -1233,10 +1154,6 @@ async function validateBulkRows(){
       bonus,
 
       video,
-
-      orig,
-
-      imageCount,
 
       errors
 
@@ -1344,22 +1261,26 @@ function renderBulkPreview(
           <b>Subject:</b>
           ${escapeHtml(r.subjectName)}
           &nbsp; • &nbsp;
-          <b>Date:</b> ${escapeHtml(r.examDate || r.dateValue || "")}
-          &nbsp; • &nbsp;
-          <b>Shift:</b> ${escapeHtml(r.shiftNo || "")}
+          ${r.chapterWise
+            ? `<b>Type:</b> Chapter-wise`
+            : `<b>Date:</b> ${escapeHtml(r.examDate || r.dateValue || "")} &nbsp; • &nbsp; <b>Shift:</b> ${escapeHtml(r.shiftNo || "")}`}
           ${r.chapterName ? `&nbsp; • &nbsp;<b>Chapter:</b> ${escapeHtml(r.chapterName)}` : ""}
         </div>
 
         <div style="margin-top:6px;">
           <b>Question:</b>
-          ${previewHtml(r.questionEnglish)}
+          ${escapeHtml(
+            r.questionEnglish
+          )}
         </div>
 
         ${
           r.questionHindi
           ? `
             <div class="question-hi">
-              ${previewHtml(r.questionHindi)}
+              ${escapeHtml(
+                r.questionHindi
+              )}
             </div>
           `
           : ""
@@ -1375,13 +1296,11 @@ function renderBulkPreview(
             </div>
           `
           : `
-            ${["A","B","C","D"].filter(k => String(r[k]).includes("[[IMG:")).map(k => `<div style="margin-top:4px;"><b>${k}:</b> ${previewHtml(r[k])}</div>`).join("")}
             <div class="small-note">
               Correct:
               ${escapeHtml(
                 r.correct.join(", ")
               )}
-              ${r.imageCount ? ` &nbsp;•&nbsp; 🖼 ${r.imageCount} image(s)` : ""}
             </div>
           `
         }
@@ -1409,26 +1328,13 @@ function renderBulkPreview(
     "hidden"
   );
 
-  const totalImgs = [...bulkImages.values()].reduce((n,m) => n + [...m.values()].reduce((x,a) => x + a.length, 0), 0);
-  const info = document.getElementById("imageInfo");
-  if(info){
-    info.innerHTML = bulkImageFiles.size
-      ? `🖼 <b>${totalImgs}</b> pictures found in the file (<b>${bulkImageFiles.size}</b> unique). They will be uploaded to the "${IMAGE_BUCKET}" storage bucket when you import.`
-      : "";
+  if(validCount > 0){
+
+    document.getElementById(
+      "importAllButton"
+    ).textContent =
+      `Import ${validCount} Valid Questions`;
   }
-
-  updateImportModeUI();
-}
-
-function updateImportModeUI(){
-  const btn = document.getElementById("importAllButton");
-  if(!btn) return;
-  const valid = bulkValidatedRows.filter(r => r.errors.length === 0).length;
-  if(!valid) return;
-  const update = document.getElementById("updateExistingMode")?.checked;
-  btn.textContent = update
-    ? `Add Images To ${valid} Old Questions`
-    : `Import ${valid} Valid Questions`;
 }
 
 /* DATE + SHIFT FOLDER HELPERS */
@@ -1476,120 +1382,106 @@ async function nextFolderOrder(folderId){
   return (data?.length ? Number(data[0].question_order)||0 : 0)+1;
 }
 
-/* SUBJECT-WISE DATE/SHIFT FOLDER CLEANUP */
-let cleanupFolderCache=[];
-function populateCleanupSubjects(){
-  const select=document.getElementById("cleanupSubject");
-  if(!select)return;
-  const current=select.value;
-  select.innerHTML='<option value="">Select subject</option>'+subjects.map(x=>`<option value="${escapeHtml(x.id)}">${escapeHtml(x.name)}</option>`).join("");
-  if(current && subjects.some(x=>String(x.id)===String(current)))select.value=current;
-}
-async function previewSubjectFolderCleanup(){
-  const select=document.getElementById("cleanupSubject");
-  const box=document.getElementById("subjectFolderCleanupPreview");
-  const btn=document.getElementById("deleteSubjectFoldersBtn");
-  const subjectId=select?.value;
-  cleanupFolderCache=[];btn.disabled=true;
-  if(!subjectId){box.innerHTML='<div class="import-error">Please select a subject first.</div>';return;}
-  box.innerHTML='<div class="empty">Loading folders...</div>';
-  try{
-    const {data:groups,error}=await db.from("question_shift_groups").select("id,exam_date,shift_no").eq("subject_id",subjectId).order("exam_date",{ascending:true}).order("shift_no",{ascending:true});
-    if(error)throw error;
-    if(!groups?.length){box.innerHTML='<div class="empty">No Date/Shift folders found for this subject.</div>';return;}
-    const ids=groups.map(g=>g.id);
-    const links=[];
-    for(let i=0;i<ids.length;i+=200){
-      const {data,error}=await db.from("question_shift_group_questions").select("group_id,question_id").in("group_id",ids.slice(i,i+200));
-      if(error)throw error;
-      links.push(...(data||[]));
-    }
-    const counts={};groups.forEach(g=>counts[String(g.id)]=0);links.forEach(x=>counts[String(x.group_id)]=(counts[String(x.group_id)]||0)+1);
-    cleanupFolderCache=groups;
-    const subject=subjects.find(x=>String(x.id)===String(subjectId));
-    box.innerHTML=`<div class="status"><b>${escapeHtml(subject?.name||"Selected subject")}</b><br>${groups.length} folders found • ${links.length} folder-question links<br><div style="margin:10px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="cleanupSelectAll" onchange="toggleAllCleanupFolders(this.checked)"> Select all</label><span id="cleanupSelectedCount">0 selected</span></div><div style="max-height:260px;overflow:auto;">${groups.map(g=>`<label style="display:flex;gap:9px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--border);"><input type="checkbox" class="cleanup-folder-check" value="${escapeHtml(g.id)}" onchange="updateCleanupSelectedCount()"><span style="flex:1;">${escapeHtml(g.exam_date||"No date")} • Shift ${escapeHtml(g.shift_no??"-")}</span><span>${counts[String(g.id)]||0} questions</span></label>`).join("")}</div></div>`;
-    btn.disabled=true;
-  }catch(e){box.innerHTML='<div class="import-error">Could not load folders: '+escapeHtml(e.message)+'</div>';}
-}
-function toggleAllCleanupFolders(checked){
-  document.querySelectorAll(".cleanup-folder-check").forEach(el=>el.checked=checked);
-  updateCleanupSelectedCount();
-}
-function updateCleanupSelectedCount(){
-  const selected=document.querySelectorAll(".cleanup-folder-check:checked").length;
-  const total=document.querySelectorAll(".cleanup-folder-check").length;
-  const label=document.getElementById("cleanupSelectedCount");
-  const btn=document.getElementById("deleteSubjectFoldersBtn");
-  if(label)label.textContent=`${selected} selected`;
-  if(btn)btn.disabled=selected===0;
-  const all=document.getElementById("cleanupSelectAll");
-  if(all){all.checked=total>0&&selected===total;all.indeterminate=selected>0&&selected<total;}
-}
-async function deleteSubjectFolders(){
-  const subjectId=document.getElementById("cleanupSubject")?.value;
-  const box=document.getElementById("subjectFolderCleanupPreview");
-  const btn=document.getElementById("deleteSubjectFoldersBtn");
-  if(!subjectId||!cleanupFolderCache.length){alert("Load the Date/Shift folders first.");return;}
-  const selectedIds=[...document.querySelectorAll(".cleanup-folder-check:checked")].map(el=>el.value);
-  if(!selectedIds.length){alert("Select at least one folder to delete.");return;}
-  const subject=subjects.find(x=>String(x.id)===String(subjectId));
-  const selectedFolders=cleanupFolderCache.filter(g=>selectedIds.includes(String(g.id)));
-  const folderIds=selectedFolders.map(g=>g.id);
-  const folderSummary=selectedFolders.map(g=>`${g.exam_date||"No date"} Shift ${g.shift_no??"-"}`).join(", ");
-  if(!confirm(`Delete only these ${folderIds.length} selected folders for ${subject?.name||"this subject"}?\n${folderSummary}\nUnselected folders will remain untouched. Questions will remain in the Question Bank, and assigned mock questions/results will not be deleted. This cannot be undone.`))return;
-  btn.disabled=true;box.innerHTML='<div class="empty">Deleting folders...</div>';
-  try{
-    for(let i=0;i<folderIds.length;i+=200){
-      const part=folderIds.slice(i,i+200);
-      const {error}=await db.from("question_shift_group_questions").delete().in("group_id",part);
-      if(error)throw error;
-    }
-    for(let i=0;i<folderIds.length;i+=200){
-      const part=folderIds.slice(i,i+200);
-      const {error}=await db.from("question_shift_groups").delete().in("id",part);
-      if(error)throw error;
-    }
-    cleanupFolderCache=[];
-    box.innerHTML=`<div class="import-success">✓ Deleted ${folderIds.length} selected folders for ${escapeHtml(subject?.name||"selected subject")}. Unselected folders and Question Bank questions remain safely.</div>`;
-    btn.disabled=true;
-  }catch(e){
-    box.innerHTML='<div class="import-error">Delete stopped: '+escapeHtml(e.message)+'. Refresh preview and check remaining folders before retrying.</div>';
-    btn.disabled=true;
-  }
+/* CHAPTER-WISE MOCKS (Practice Drill) */
+
+const CHAPTER_SET_SIZE = 25;
+
+async function getChapterWiseRootFolder(subjectId){
+  const {data,error}=await db.from("mock_folders").select("id,name,folder_type,is_active").eq("subject_id",subjectId).is("parent_id",null);
+  if(error)throw error;
+  const list=data||[];
+  const root=list.find(f=>f.is_active!==false && String(f.folder_type||"").toUpperCase().includes("CHAPTER"))
+    || list.find(f=>String(f.folder_type||"").toUpperCase().includes("CHAPTER"));
+  if(root)return root.id;
+  const {data:created,error:e2}=await db.from("mock_folders").insert({subject_id:subjectId,name:"Chapter Wise",display_name:"Chapter Wise",folder_type:"CHAPTER",parent_id:null,is_active:true,sort_order:list.length+1}).select("id").single();
+  if(e2)throw e2;
+  return created.id;
 }
 
-/* BULK IMPORT HISTORY */
-async function loadBulkImportHistory(){
-  const box=document.getElementById("bulkImportHistory");
-  if(!box)return;
-  box.innerHTML='<div class="empty">Loading...</div>';
-  const {data,error}=await db.from("bulk_import_batches").select("id,file_name,question_count,question_ids,created_at").order("created_at",{ascending:false});
-  if(error){box.innerHTML='<div class="import-error">Could not load history: '+escapeHtml(error.message)+'</div>';return;}
-  if(!data?.length){box.innerHTML='<div class="empty">No tracked imports yet. New imports will appear here.</div>';return;}
-  box.innerHTML=data.map(b=>{
-    const count=Array.isArray(b.question_ids)?b.question_ids.length:(Number(b.question_count)||0);
-    return `<div class="question" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-      <div style="min-width:0;flex:1;"><div style="font-weight:bold;overflow-wrap:anywhere;">📄 ${escapeHtml(b.file_name||"Excel import")}</div>
-      <div class="meta">${count} questions • ${escapeHtml(b.created_at?new Date(b.created_at).toLocaleString():"")}</div></div>
-      <button class="danger" onclick="deleteBulkImportBatch('${b.id}')">🗑 Delete File Questions</button></div>`;
-  }).join("");
+async function getChapterFolder(subjectId,rootId,chapterName,warnings){
+  const {data,error}=await db.from("mock_folders").select("id,name,display_name,is_active,sort_order").eq("subject_id",subjectId).eq("parent_id",rootId);
+  if(error)throw error;
+  const target=normalizeHeader(chapterName);
+  const found=(data||[]).find(f=>normalizeHeader(f.display_name||f.name)===target||normalizeHeader(f.name)===target);
+  if(found){
+    if(found.is_active===false)warnings.push(`Chapter folder "${chapterName}" is inactive, so its new mocks will not show in Practice Drill until you activate it.`);
+    return found.id;
+  }
+  const {data:created,error:e2}=await db.from("mock_folders").insert({subject_id:subjectId,name:chapterName,display_name:chapterName,folder_type:"CHAPTER",parent_id:rootId,is_active:true,sort_order:(data||[]).length+1}).select("id").single();
+  if(e2)throw e2;
+  return created.id;
 }
-async function deleteBulkImportBatch(batchId){
-  const {data:b,error}=await db.from("bulk_import_batches").select("file_name,question_ids").eq("id",batchId).single();
-  if(error){alert(error.message);return;}
-  const ids=Array.isArray(b.question_ids)?b.question_ids:[];
-  if(!confirm(`Delete "${b.file_name}" and all ${ids.length} questions imported from it? This cannot be undone.`))return;
-  try{
-    for(let i=0;i<ids.length;i+=200){
-      const part=ids.slice(i,i+200);
-      let r=await db.from("question_shift_group_questions").delete().in("question_id",part);if(r.error)throw r.error;
-      r=await db.from("question_options").delete().in("question_id",part);if(r.error)throw r.error;
-      r=await db.from("questions").delete().in("id",part);if(r.error)throw r.error;
+
+/* Splits each chapter's imported questions into sets of 25 and creates a mock for each. */
+async function createChapterWiseMocks(rows,summary){
+  const done=rows.filter(r=>r.chapterWise && r._qid);
+  if(!done.length)return;
+
+  const {data:examList,error:examError}=await db.from("exams").select("id").order("name").limit(1);
+  if(examError)throw examError;
+  if(!examList?.length)throw new Error("No exam found in the exams table, so chapter mocks could not be created.");
+  const examId=examList[0].id;
+
+  const groups=new Map();
+  done.forEach(r=>{
+    const key=`${r.subjectId}|${r.chapterId}`;
+    if(!groups.has(key))groups.set(key,{subjectId:r.subjectId,chapterName:(chapters.find(c=>String(c.id)===String(r.chapterId))?.name)||r.chapterName,rows:[]});
+    groups.get(key).rows.push(r);
+  });
+
+  const rootCache=new Map();
+  for(const g of groups.values()){
+    try{
+      if(!rootCache.has(String(g.subjectId)))rootCache.set(String(g.subjectId),await getChapterWiseRootFolder(g.subjectId));
+      const folderId=await getChapterFolder(g.subjectId,rootCache.get(String(g.subjectId)),g.chapterName,summary.warnings);
+
+      const {data:existing,error:exError}=await db.from("mock_tests").select("id,sort_order").eq("folder_id",folderId);
+      if(exError)throw exError;
+      let setNo=(existing?.length||0)+1;
+      let sortOrder=Math.max(0,...(existing||[]).map(m=>Number(m.sort_order)||0))+1;
+
+      g.rows.sort((a,b)=>a.rowNumber-b.rowNumber);
+      for(let i=0;i<g.rows.length;i+=CHAPTER_SET_SIZE){
+        const chunk=g.rows.slice(i,i+CHAPTER_SET_SIZE);
+        const title=`${g.chapterName} Set ${setNo}`;
+        const duration=Math.max(1,Math.round(chunk.length*0.6));
+        let mockId=null;
+        try{
+          const {data:mock,error:mErr}=await db.from("mock_tests").insert({
+            exam_id:examId,folder_id:folderId,title,description:"Chapter-wise practice mock",
+            duration_minutes:duration,total_questions:chunk.length,
+            marks_per_question:2,negative_marks_per_question:0.5,unattempted_marks_per_question:0,
+            is_active:true,test_type:"FULL",sort_order:sortOrder
+          }).select("id").single();
+          if(mErr)throw mErr;
+          mockId=mock.id;
+
+          const {data:sec,error:sErr}=await db.from("mock_test_sections").insert({
+            mock_test_id:mockId,subject_id:g.subjectId,section_name:"Chapter Questions",
+            duration_minutes:duration,question_count:chunk.length,section_order:1
+          }).select("id").single();
+          if(sErr)throw sErr;
+
+          const {error:qErr}=await db.from("mock_test_questions").insert(
+            chunk.map((r,idx)=>({mock_test_id:mockId,question_id:r._qid,section_id:sec.id,question_order:idx+1}))
+          );
+          if(qErr)throw qErr;
+
+          summary.mocks.push(`${title} (${chunk.length} questions)`);
+          setNo++;sortOrder++;
+        }catch(err){
+          if(mockId){
+            await db.from("mock_test_questions").delete().eq("mock_test_id",mockId);
+            await db.from("mock_test_sections").delete().eq("mock_test_id",mockId);
+            await db.from("mock_tests").delete().eq("id",mockId);
+          }
+          summary.failures.push(`${title}: ${err.message||"Unknown error"} (its questions were imported but are not in a mock)`);
+        }
+      }
+    }catch(err){
+      summary.failures.push(`${g.chapterName}: ${err.message||"Unknown error"}`);
     }
-    const {error:delError}=await db.from("bulk_import_batches").delete().eq("id",batchId);if(delError)throw delError;
-    alert(`Deleted ${ids.length} questions from ${b.file_name}.`);
-    await loadBulkImportHistory();
-  }catch(e){alert("Delete failed: "+e.message+"\\nHistory record retained. Refresh and check before retrying.");await loadBulkImportHistory();}
+  }
 }
 
 /* BULK IMPORT DATABASE — optimized batched inserts; UI unchanged */
@@ -1605,40 +1497,6 @@ async function importAllQuestions(){
   const resultBox = document.getElementById("bulkImportResult");
   resultBox.innerHTML = `<div class="status">Preparing ${validRows.length} questions...</div>`;
 
-  if(document.getElementById("updateExistingMode")?.checked){
-    try{
-      await updateExistingQuestionsWithImages(validRows, resultBox);
-    }catch(error){
-      console.error(error);
-      resultBox.innerHTML = `<div class="status"><div class="import-error">Update failed: ${escapeHtml(error.message || "Unknown error")}</div></div>`;
-    }finally{
-      button.disabled = false;
-      updateImportModeUI();
-    }
-    return;
-  }
-
-  try{
-    await uploadSheetImages(validRows, resultBox);
-  }catch(error){
-    console.error(error);
-    button.disabled = false;
-    updateImportModeUI();
-    resultBox.innerHTML = `<div class="status"><div class="import-error">${escapeHtml(error.message || "Image upload failed")}</div></div>`;
-    return;
-  }
-  const sourceFile=document.getElementById("bulkFile")?.files?.[0]?.name || "Unknown file";
-  let batchId=null;
-  const trackedQuestionIds=[];
-  const {data:batch,error:batchError}=await db.from("bulk_import_batches")
-    .insert({file_name:sourceFile,question_count:0,question_ids:[]}).select("id").single();
-  if(batchError){
-    button.disabled=false;button.textContent="Import All Valid Questions";
-    resultBox.innerHTML=`<div class="status"><div class="import-error">Import history setup failed. Run the SQL setup file first.<br>${escapeHtml(batchError.message)}</div></div>`;
-    return;
-  }
-  batchId=batch.id;
-
   let imported = 0;
   let failed = 0;
   const failures = [];
@@ -1650,6 +1508,7 @@ async function importAllQuestions(){
   try {
     // Resolve each date/shift folder only once, rather than once per question.
     for (const r of validRows) {
+      if (r.chapterWise) continue;
       const key = `${r.subjectId}|${r.examDate}|${r.shiftNo}`;
       if (!folderCache.has(key)) {
         folderCache.set(key, getOrCreateShiftFolder(r.subjectId, r.examDate, r.shiftNo));
@@ -1668,6 +1527,7 @@ async function importAllQuestions(){
 
     // Read each folder's starting order once.
     for (const r of validRows) {
+      if (r.chapterWise) continue;
       const folderId = folderCache.get(r._folderKey);
       if (!orderCache.has(String(folderId))) {
         orderCache.set(String(folderId), nextFolderOrder(folderId));
@@ -1684,8 +1544,8 @@ async function importAllQuestions(){
         const questionPayload = batch.map(r => ({
           subject_id: r.subjectId,
           chapter_id: r.chapterId || chapterCache.get(String(r.subjectId)),
-          question_text: resolveImg(r.questionEnglish),
-          question_text_hi: resolveImg(r.questionHindi),
+          question_text: r.questionEnglish,
+          question_text_hi: r.questionHindi,
           explanation: r.explanation,
           correct_options: r.correct,
           is_bonus: r.bonus,
@@ -1705,11 +1565,12 @@ async function importAllQuestions(){
         batch.forEach((r, index) => {
           const questionId = insertedQuestions[index].id;
           optionPayload.push(
-            {question_id:questionId, option_label:"A", option_text:resolveImg(r.A), option_text_hi:resolveImg(r.AHi), is_correct:r.correct.includes("A")},
-            {question_id:questionId, option_label:"B", option_text:resolveImg(r.B), option_text_hi:resolveImg(r.BHi), is_correct:r.correct.includes("B")},
-            {question_id:questionId, option_label:"C", option_text:resolveImg(r.C), option_text_hi:resolveImg(r.CHi), is_correct:r.correct.includes("C")},
-            {question_id:questionId, option_label:"D", option_text:resolveImg(r.D), option_text_hi:resolveImg(r.DHi), is_correct:r.correct.includes("D")}
+            {question_id:questionId, option_label:"A", option_text:r.A, option_text_hi:r.AHi, is_correct:r.correct.includes("A")},
+            {question_id:questionId, option_label:"B", option_text:r.B, option_text_hi:r.BHi, is_correct:r.correct.includes("B")},
+            {question_id:questionId, option_label:"C", option_text:r.C, option_text_hi:r.CHi, is_correct:r.correct.includes("C")},
+            {question_id:questionId, option_label:"D", option_text:r.D, option_text_hi:r.DHi, is_correct:r.correct.includes("D")}
           );
+          if (r.chapterWise) return; // chapter-wise: no date/shift folder link
           const folderId = folderCache.get(r._folderKey);
           const nextOrder = Number(orderCache.get(String(folderId))) || 1;
           linkPayload.push({group_id:folderId, question_id:questionId, question_order:nextOrder});
@@ -1718,13 +1579,11 @@ async function importAllQuestions(){
 
         const { error: optionError } = await db.from("question_options").insert(optionPayload);
         if (optionError) throw optionError;
-        const { error: linkError } = await db.from("question_shift_group_questions").insert(linkPayload);
-        if (linkError) throw linkError;
-        const newIds=insertedQuestions.map(q=>q.id);
-        const nextIds=[...trackedQuestionIds,...newIds];
-        const {error:trackError}=await db.from("bulk_import_batches").update({question_ids:nextIds,question_count:nextIds.length}).eq("id",batchId);
-        if(trackError)throw trackError;
-        trackedQuestionIds.push(...newIds);
+        if (linkPayload.length) {
+          const { error: linkError } = await db.from("question_shift_group_questions").insert(linkPayload);
+          if (linkError) throw linkError;
+        }
+        batch.forEach((r, index) => { r._qid = insertedQuestions[index].id; });
         imported += batch.length;
       } catch (error) {
         // Clean up this batch if a later step fails, preventing orphaned questions.
@@ -1739,386 +1598,26 @@ async function importAllQuestions(){
       }
     }
 
+    const mockSummary = {mocks:[],failures:[],warnings:[]};
+    if (validRows.some(r => r.chapterWise)) {
+      resultBox.innerHTML = `<div class="status">Creating chapter-wise mocks...</div>`;
+      try { await createChapterWiseMocks(validRows, mockSummary); }
+      catch (err) { mockSummary.failures.push(err.message || "Unknown error"); }
+    }
+    const mockHtml = (mockSummary.mocks.length ? `<div class="import-success" style="margin-top:8px;">✓ ${mockSummary.mocks.length} chapter-wise mocks created:<br><span style="font-weight:normal;color:var(--text)">${escapeHtml(mockSummary.mocks.join("\n"))}</span></div>` : "")
+      + (mockSummary.warnings.length ? `<div class="import-warning" style="margin-top:8px;">${escapeHtml([...new Set(mockSummary.warnings)].join("\n"))}</div>` : "")
+      + (mockSummary.failures.length ? `<div class="import-error" style="margin-top:8px;">${escapeHtml(mockSummary.failures.join("\n"))}</div>` : "");
     resultBox.innerHTML = `<div class="status">
-      <div class="import-success">✓ ${imported} questions imported successfully.</div>
+      <div class="import-success">✓ ${imported} questions imported successfully.</div>${mockHtml}
       ${failed ? `<div class="import-error" style="margin-top:8px;">${failed} questions failed.<br>${escapeHtml(failures.join("\n"))}</div>` : `<div class="small-note" style="margin-top:8px;">All valid questions were imported.</div>`}
     </div>`;
   } catch(error) {
     console.error(error);
     resultBox.innerHTML = `<div class="status"><div class="import-error">Import failed: ${escapeHtml(error.message || "Unknown error")}</div></div>`;
   } finally {
-    if(batchId){
-      const {error:finishError}=await db.from("bulk_import_batches").update({question_ids:trackedQuestionIds,question_count:trackedQuestionIds.length}).eq("id",batchId);
-      if(finishError)console.error("Import history update failed",finishError);
-    }
     button.disabled = false;
     button.textContent = imported ? "Import Completed" : "Import All Valid Questions";
-    await loadBulkImportHistory();
   }
-}
-
-/* ==========================================================
-   PICTURES INSIDE EXCEL (.xlsx)
-   Excel keeps pictures in separate files inside the xlsx zip, so
-   they never appear in the cell text. We read them here, match
-   each picture to its cell, upload it to Supabase Storage and put
-   an <img src="..."> tag into the question / option text.
-   ========================================================== */
-
-const REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-const MIME_BY_EXT = {png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg", gif:"image/gif", webp:"image/webp", bmp:"image/bmp"};
-
-function hashBytes(bytes){
-  let h1 = 0x811c9dc5, h2 = 0x9e3779b9;
-  for(let i = 0; i < bytes.length; i++){
-    h1 ^= bytes[i]; h1 = Math.imul(h1, 16777619);
-    h2 = Math.imul(h2 ^ bytes[i], 2246822519); h2 ^= h2 >>> 13;
-  }
-  const hex = n => (n >>> 0).toString(16).padStart(8, "0");
-  return hex(h1) + hex(h2) + (bytes.length >>> 0).toString(16);
-}
-
-function resolveZipPath(base, target){
-  if(target.startsWith("/")) return target.slice(1);
-  const parts = base.split("/"); parts.pop();
-  for(const seg of target.split("/")){
-    if(seg === "..") parts.pop();
-    else if(seg && seg !== ".") parts.push(seg);
-  }
-  return parts.join("/");
-}
-
-async function loadSheetImages(buffer, sheet){
-
-  bulkImages = new Map();
-  bulkImageFiles = new Map();
-
-  if(typeof JSZip === "undefined") return 0;
-
-  const zip = await JSZip.loadAsync(buffer);
-
-  const readXml = async path => {
-    const f = zip.file(path);
-    if(!f) return null;
-    return new DOMParser().parseFromString(await f.async("string"), "application/xml");
-  };
-
-  const readRels = async path => {
-    const dir = path.substring(0, path.lastIndexOf("/"));
-    const name = path.substring(path.lastIndexOf("/") + 1);
-    const doc = await readXml(`${dir}/_rels/${name}.rels`);
-    const map = {};
-    if(doc){
-      for(const r of doc.getElementsByTagName("Relationship")){
-        map[r.getAttribute("Id")] = {target:r.getAttribute("Target") || "", type:r.getAttribute("Type") || ""};
-      }
-    }
-    return map;
-  };
-
-  /* first worksheet path */
-  let sheetPath = "xl/worksheets/sheet1.xml";
-  const wbDoc = await readXml("xl/workbook.xml");
-  const firstSheetEl = wbDoc && wbDoc.getElementsByTagName("sheet")[0];
-  if(firstSheetEl){
-    const rid = firstSheetEl.getAttributeNS(REL_NS, "id") || firstSheetEl.getAttribute("r:id");
-    const wbRels = await readRels("xl/workbook.xml");
-    if(rid && wbRels[rid]) sheetPath = resolveZipPath("xl/workbook.xml", wbRels[rid].target);
-  }
-
-  const sheetRels = await readRels(sheetPath);
-  const drawingPaths = Object.values(sheetRels)
-    .filter(r => /\/drawing$/.test(r.type))
-    .map(r => resolveZipPath(sheetPath, r.target));
-
-  if(!drawingPaths.length) return 0;
-
-  const range = XLSX.utils.decode_range(sheet["!ref"] || "A1");
-  const headerRow = range.s.r;
-  let found = 0;
-
-  for(const drawingPath of drawingPaths){
-
-    const drawing = await readXml(drawingPath);
-    if(!drawing) continue;
-    const drawingRels = await readRels(drawingPath);
-
-    for(const anchor of Array.from(drawing.documentElement.children)){
-
-      if(!/^(oneCellAnchor|twoCellAnchor)$/.test(anchor.localName)) continue;
-
-      const from = anchor.getElementsByTagNameNS("*", "from")[0];
-      const blip = anchor.getElementsByTagNameNS("*", "blip")[0];
-      if(!from || !blip) continue;
-
-      const col = parseInt(from.getElementsByTagNameNS("*", "col")[0]?.textContent, 10);
-      const row = parseInt(from.getElementsByTagNameNS("*", "row")[0]?.textContent, 10);
-      if(!Number.isFinite(col) || !Number.isFinite(row)) continue;
-
-      const jsonIndex = row - headerRow - 1;      // 0-based index inside sheet_to_json rows
-      if(jsonIndex < 0) continue;
-
-      const embed = blip.getAttributeNS(REL_NS, "embed") || blip.getAttribute("r:embed");
-      const rel = drawingRels[embed];
-      if(!rel) continue;
-
-      const mediaPath = resolveZipPath(drawingPath, rel.target);
-      const mediaFile = zip.file(mediaPath);
-      if(!mediaFile) continue;
-
-      const headerCell = sheet[XLSX.utils.encode_cell({r:headerRow, c:col})];
-      const header = normalizeHeader(headerCell ? headerCell.v : "");
-      if(!header) continue;
-
-      const bytes = await mediaFile.async("uint8array");
-      let ext = (mediaPath.split(".").pop() || "png").toLowerCase();
-      if(ext === "jpeg") ext = "jpg";
-      const name = hashBytes(bytes) + "." + ext;
-
-      if(!bulkImageFiles.has(name)){
-        const mime = MIME_BY_EXT[ext] || "image/png";
-        bulkImageFiles.set(name, {
-          bytes, ext, mime,
-          blobUrl: URL.createObjectURL(new Blob([bytes], {type:mime}))
-        });
-      }
-
-      if(!bulkImages.has(jsonIndex)) bulkImages.set(jsonIndex, new Map());
-      const cells = bulkImages.get(jsonIndex);
-      if(!cells.has(header)) cells.set(header, []);
-      cells.get(header).push(name);
-      found++;
-    }
-  }
-
-  return found;
-}
-
-/* Put image tokens after (or instead of) the cell text. */
-function withImages(text, jsonIndex, headerNames){
-
-  const cells = bulkImages.get(jsonIndex);
-  if(!cells) return text;
-
-  const names = [];
-  for(const h of headerNames){
-    const list = cells.get(normalizeHeader(h));
-    if(list) names.push(...list);
-  }
-  if(!names.length) return text;
-
-  const tokens = [...new Set(names)].map(n => `[[IMG:${n}]]`).join("\n");
-  const t = String(text || "").trim();
-
-  /* "Option A" / "विकल्प A" is only a placeholder when the real answer is a picture */
-  if(!t || /^(option|विकल्प)\s*[a-d]$/i.test(t)) return tokens;
-
-  return t + "\n" + tokens;
-}
-
-function previewHtml(text){
-  return escapeHtml(text).replace(IMG_TOKEN_RE, (m, name) => {
-    const f = bulkImageFiles.get(name);
-    return f ? `<br><img class="sheet-img" src="${f.blobUrl}" alt="image">` : "";
-  });
-}
-
-function resolveImg(text){
-  return String(text ?? "").replace(IMG_TOKEN_RE, (m, name) => {
-    const url = uploadedImageUrls.get(name);
-    return url ? `<img src="${url}">` : "";
-  });
-}
-
-async function runPool(tasks, limit){
-  let next = 0;
-  const workers = Array.from({length: Math.min(limit, tasks.length)}, async () => {
-    while(next < tasks.length){
-      const t = tasks[next++];
-      await t();
-    }
-  });
-  await Promise.all(workers);
-}
-
-async function uploadSheetImages(rows, resultBox){
-
-  const needed = new Set();
-  rows.forEach(r => {
-    [r.questionEnglish,r.questionHindi,r.A,r.AHi,r.B,r.BHi,r.C,r.CHi,r.D,r.DHi].forEach(t => {
-      for(const m of String(t).matchAll(IMG_TOKEN_RE)) needed.add(m[1]);
-    });
-  });
-
-  const todo = [...needed].filter(n => !uploadedImageUrls.has(n));
-  if(!todo.length) return;
-
-  let done = 0;
-
-  const tasks = todo.map(name => async () => {
-
-    const file = bulkImageFiles.get(name);
-    if(!file) throw new Error("Image data missing for " + name);
-
-    const path = `${IMAGE_FOLDER}/${name}`;
-    let lastError = null;
-
-    for(let attempt = 0; attempt < 3; attempt++){
-      const { error } = await db.storage.from(IMAGE_BUCKET).upload(
-        path,
-        new Blob([file.bytes], {type:file.mime}),
-        {contentType:file.mime, upsert:false}
-      );
-      const exists = error && (String(error.statusCode) === "409" || /already exists|duplicate/i.test(error.message || ""));
-      if(!error || exists){ lastError = null; break; }
-      lastError = error;
-      await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
-    }
-
-    if(lastError){
-      throw new Error(
-        `Image upload failed: ${lastError.message}. ` +
-        `Check that a PUBLIC storage bucket named "${IMAGE_BUCKET}" exists and that the admin upload policy was added.`
-      );
-    }
-
-    uploadedImageUrls.set(name, db.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl);
-
-    done++;
-    resultBox.innerHTML = `<div class="status">Uploading pictures ${done} of ${todo.length}...</div>`;
-  });
-
-  await runPool(tasks, 4);
-}
-
-/* ==========================================================
-   FIX OLD QUESTIONS: match each sheet row with the question that
-   is already saved in the same Subject / Date / Shift folder and
-   update only the question / option text. Nothing is created or
-   deleted.
-   ========================================================== */
-
-async function updateExistingQuestionsWithImages(validRows, resultBox){
-
-  if(!bulkImageFiles.size){
-    throw new Error("No pictures were found in this file, so there is nothing to add to the old questions.");
-  }
-
-  await uploadSheetImages(validRows.filter(r => r.imageCount > 0), resultBox);
-
-  const norm = v => cleanCell(v);
-
-  const groups = new Map();
-  validRows.forEach(r => {
-    const key = `${r.subjectId}|${r.examDate}|${r.shiftNo}`;
-    if(!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(r);
-  });
-
-  let updated = 0;
-  let alreadyDone = 0;
-  const problems = [];
-  const updateTasks = [];
-
-  for(const [key, rows] of groups){
-
-    const first = rows[0];
-    resultBox.innerHTML = `<div class="status">Matching old questions for ${escapeHtml(first.subjectName)} • ${escapeHtml(first.examDate)} • Shift ${first.shiftNo}...</div>`;
-
-    const { data:folder, error:folderError } = await db
-      .from("question_shift_groups").select("id")
-      .eq("subject_id", first.subjectId).eq("exam_date", first.examDate).eq("shift_no", first.shiftNo).limit(1);
-    if(folderError) throw folderError;
-
-    if(!folder?.length){
-      rows.filter(r => r.imageCount > 0).forEach(r => problems.push(`Row ${r.rowNumber}: folder ${first.examDate} Shift ${first.shiftNo} not found`));
-      continue;
-    }
-
-    const folderId = folder[0].id;
-
-    const links = [];
-    for(let from = 0; ; from += 1000){
-      const { data, error } = await db.from("question_shift_group_questions")
-        .select("question_id,question_order").eq("group_id", folderId)
-        .order("question_order", {ascending:true}).range(from, from + 999);
-      if(error) throw error;
-      links.push(...(data || []));
-      if(!data || data.length < 1000) break;
-    }
-
-    const ids = links.map(l => l.question_id);
-    const byId = new Map();
-    for(let i = 0; i < ids.length; i += 100){
-      const { data, error } = await db.from("questions")
-        .select("id,question_text,question_text_hi,question_options(id,option_label,option_text,option_text_hi)")
-        .in("id", ids.slice(i, i + 100));
-      if(error) throw error;
-      (data || []).forEach(q => byId.set(String(q.id), q));
-    }
-
-    const candidates = ids.map(id => byId.get(String(id))).filter(Boolean);
-    const used = new Set();
-
-    for(const r of rows){
-
-      const o = r.orig;
-
-      const match = candidates.find(q => {
-        if(used.has(String(q.id))) return false;
-        if(norm(q.question_text) !== o.questionEnglish || norm(q.question_text_hi) !== o.questionHindi) return false;
-        const opts = {};
-        (q.question_options || []).forEach(x => opts[String(x.option_label).toUpperCase()] = x);
-        return ["A","B","C","D"].every(L =>
-          opts[L] && norm(opts[L].option_text) === o[L] && norm(opts[L].option_text_hi) === o[L + "Hi"]
-        );
-      });
-
-      if(!match){
-        if(r.imageCount > 0){
-          const already = candidates.some(q => !used.has(String(q.id)) && /<img\s/i.test((q.question_text || "") + (q.question_options || []).map(x => x.option_text).join("")));
-          problems.push(`Row ${r.rowNumber}: matching old question not found${already ? " (maybe already updated)" : ""}`);
-        }
-        continue;
-      }
-
-      used.add(String(match.id));
-
-      if(r.imageCount === 0) continue;
-
-      const qNew = {question_text:resolveImg(r.questionEnglish), question_text_hi:resolveImg(r.questionHindi)};
-
-      updateTasks.push(async () => {
-        const { error } = await db.from("questions").update(qNew).eq("id", match.id);
-        if(error) throw new Error(`Row ${r.rowNumber}: ${error.message}`);
-        for(const L of ["A","B","C","D"]){
-          const opt = (match.question_options || []).find(x => String(x.option_label).toUpperCase() === L);
-          const t = resolveImg(r[L]), th = resolveImg(r[L + "Hi"]);
-          if(opt && (t !== opt.option_text || th !== opt.option_text_hi)){
-            const { error:oe } = await db.from("question_options").update({option_text:t, option_text_hi:th}).eq("id", opt.id);
-            if(oe) throw new Error(`Row ${r.rowNumber} option ${L}: ${oe.message}`);
-          }
-        }
-        updated++;
-      });
-    }
-  }
-
-  let doneTasks = 0;
-  const wrapped = updateTasks.map(t => async () => {
-    try{ await t(); }
-    catch(e){ problems.push(e.message || String(e)); }
-    doneTasks++;
-    if(doneTasks % 5 === 0 || doneTasks === updateTasks.length){
-      resultBox.innerHTML = `<div class="status">Updating questions ${doneTasks} of ${updateTasks.length}...</div>`;
-    }
-  });
-  await runPool(wrapped, 6);
-
-  resultBox.innerHTML = `<div class="status">
-    <div class="import-success">✓ ${updated} old questions updated with images.</div>
-    ${problems.length ? `<div class="import-error" style="margin-top:8px;">${problems.length} rows not updated:<br>${escapeHtml(problems.slice(0,40).join("\n"))}${problems.length > 40 ? "\n..." : ""}</div>` : `<div class="small-note" style="margin-top:8px;">All rows with pictures were updated.</div>`}
-  </div>`;
 }
 
 /* EXCEL TEMPLATE */
@@ -2290,8 +1789,6 @@ function escapeHtml(value){
   const admin = await checkAdmin();
   if(!admin) return;
   await loadLookups();
-  populateCleanupSubjects();
-  await loadBulkImportHistory();
 })();
 </script>
 
