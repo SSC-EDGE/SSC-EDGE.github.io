@@ -1393,19 +1393,32 @@ async function nextFolderOrder(folderId){
 
 const CHAPTER_SET_SIZE = 25;
 
-async function getChapterWiseRootFolder(subjectId){
+async function getDrillExamId(subjectId){
+  const {data:exams,error}=await db.from("exams").select("id,name,mock_type,stage").order("name");
+  if(error)throw error;
+  const list=exams||[];
+  const c=v=>String(v||"").toLowerCase().replace(/[\s_-]+/g,"");
+  const drill=list.find(e=>c(e.name).includes("practicedrill")||c(e.mock_type)==="practicedrill"||c(e.stage).includes("practicedrill"));
+  if(drill)return drill.id;
+  const {data:f}=await db.from("mock_folders").select("exam_id").eq("subject_id",subjectId).not("exam_id","is",null).limit(1);
+  if(f?.length)return f[0].exam_id;
+  if(!list.length)throw new Error("No exam found in the exams table.");
+  return list[0].id;
+}
+
+async function getChapterWiseRootFolder(subjectId,examId){
   const {data,error}=await db.from("mock_folders").select("id,name,folder_type,is_active").eq("subject_id",subjectId).is("parent_id",null);
   if(error)throw error;
   const list=data||[];
   const root=list.find(f=>f.is_active!==false && String(f.folder_type||"").toUpperCase().includes("CHAPTER"))
     || list.find(f=>String(f.folder_type||"").toUpperCase().includes("CHAPTER"));
   if(root)return root.id;
-  const {data:created,error:e2}=await db.from("mock_folders").insert({subject_id:subjectId,name:"Chapter Wise",display_name:"Chapter Wise",folder_type:"CHAPTER",parent_id:null,is_active:true,sort_order:list.length+1}).select("id").single();
+  const {data:created,error:e2}=await db.from("mock_folders").insert({exam_id:examId,subject_id:subjectId,name:"Chapter Wise",display_name:"Chapter Wise",folder_type:"CHAPTER",parent_id:null,is_active:true,sort_order:list.length+1}).select("id").single();
   if(e2)throw e2;
   return created.id;
 }
 
-async function getChapterFolder(subjectId,rootId,chapterName,warnings){
+async function getChapterFolder(subjectId,rootId,chapterName,warnings,examId){
   const {data,error}=await db.from("mock_folders").select("id,name,display_name,is_active,sort_order").eq("subject_id",subjectId).eq("parent_id",rootId);
   if(error)throw error;
   const target=normalizeHeader(chapterName);
@@ -1414,7 +1427,7 @@ async function getChapterFolder(subjectId,rootId,chapterName,warnings){
     if(found.is_active===false)warnings.push(`Chapter folder "${chapterName}" is inactive, so its new mocks will not show in Practice Drill until you activate it.`);
     return found.id;
   }
-  const {data:created,error:e2}=await db.from("mock_folders").insert({subject_id:subjectId,name:chapterName,display_name:chapterName,folder_type:"CHAPTER",parent_id:rootId,is_active:true,sort_order:(data||[]).length+1}).select("id").single();
+  const {data:created,error:e2}=await db.from("mock_folders").insert({exam_id:examId,subject_id:subjectId,name:chapterName,display_name:chapterName,folder_type:"CHAPTER",parent_id:rootId,is_active:true,sort_order:(data||[]).length+1}).select("id").single();
   if(e2)throw e2;
   return created.id;
 }
@@ -1423,11 +1436,6 @@ async function getChapterFolder(subjectId,rootId,chapterName,warnings){
 async function createChapterWiseMocks(rows,summary){
   const done=rows.filter(r=>r.chapterWise && r._qid);
   if(!done.length)return;
-
-  const {data:examList,error:examError}=await db.from("exams").select("id").order("name").limit(1);
-  if(examError)throw examError;
-  if(!examList?.length)throw new Error("No exam found in the exams table, so chapter mocks could not be created.");
-  const examId=examList[0].id;
 
   const groups=new Map();
   done.forEach(r=>{
@@ -1439,8 +1447,9 @@ async function createChapterWiseMocks(rows,summary){
   const rootCache=new Map();
   for(const g of groups.values()){
     try{
-      if(!rootCache.has(String(g.subjectId)))rootCache.set(String(g.subjectId),await getChapterWiseRootFolder(g.subjectId));
-      const folderId=await getChapterFolder(g.subjectId,rootCache.get(String(g.subjectId)),g.chapterName,summary.warnings);
+      const examId=await getDrillExamId(g.subjectId);
+      if(!rootCache.has(String(g.subjectId)))rootCache.set(String(g.subjectId),await getChapterWiseRootFolder(g.subjectId,examId));
+      const folderId=await getChapterFolder(g.subjectId,rootCache.get(String(g.subjectId)),g.chapterName,summary.warnings,examId);
 
       const {data:existing,error:exError}=await db.from("mock_tests").select("id,sort_order").eq("folder_id",folderId);
       if(exError)throw exError;

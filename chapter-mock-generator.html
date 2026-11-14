@@ -154,21 +154,33 @@ function renderTable(){
 function toggleAll(on){stats.forEach(s=>{s.checked=on&&s.freeIds.length>0});renderTable()}
 
 /* Practice Drill structure (same as Chapter-wise Mock Manager) */
-async function getRoot(sid){
+async function getDrillExamId(sid){
+  const {data:exams,error}=await db.from("exams").select("id,name,mock_type,stage").order("name");
+  if(error)throw error;
+  const list=exams||[];
+  const c=v=>String(v||"").toLowerCase().replace(/[\s_-]+/g,"");
+  const drill=list.find(e=>c(e.name).includes("practicedrill")||c(e.mock_type)==="practicedrill"||c(e.stage).includes("practicedrill"));
+  if(drill)return drill.id;
+  const {data:f}=await db.from("mock_folders").select("exam_id").eq("subject_id",sid).not("exam_id","is",null).limit(1);
+  if(f?.length)return f[0].exam_id;
+  if(!list.length)throw new Error("No exam found in the exams table.");
+  return list[0].id;
+}
+async function getRoot(sid,examId){
   const {data,error}=await db.from("mock_folders").select("id,folder_type,is_active").eq("subject_id",sid).is("parent_id",null);
   if(error)throw error;
   const list=data||[];
   const root=list.find(f=>f.is_active!==false&&String(f.folder_type||"").toUpperCase().includes("CHAPTER"));
   if(root)return root.id;
-  const {data:c,error:e2}=await db.from("mock_folders").insert({subject_id:sid,name:"Chapter Wise",display_name:"Chapter Wise",folder_type:"CHAPTER",parent_id:null,is_active:true,sort_order:list.length+1}).select("id").single();
+  const {data:c,error:e2}=await db.from("mock_folders").insert({exam_id:examId,subject_id:sid,name:"Chapter Wise",display_name:"Chapter Wise",folder_type:"CHAPTER",parent_id:null,is_active:true,sort_order:list.length+1}).select("id").single();
   if(e2)throw e2;return c.id;
 }
-async function getChapterFolder(sid,rootId,name){
+async function getChapterFolder(sid,rootId,name,examId){
   const {data,error}=await db.from("mock_folders").select("id,name,display_name,is_active").eq("subject_id",sid).eq("parent_id",rootId);
   if(error)throw error;
   const f=(data||[]).find(x=>norm(x.display_name||x.name)===norm(name));
   if(f){if(f.is_active===false){await db.from("mock_folders").update({is_active:true}).eq("id",f.id)}return f.id}
-  const {data:c,error:e2}=await db.from("mock_folders").insert({subject_id:sid,name,display_name:name,folder_type:"CHAPTER",parent_id:rootId,is_active:true,sort_order:(data||[]).length+1}).select("id").single();
+  const {data:c,error:e2}=await db.from("mock_folders").insert({exam_id:examId,subject_id:sid,name,display_name:name,folder_type:"CHAPTER",parent_id:rootId,is_active:true,sort_order:(data||[]).length+1}).select("id").single();
   if(e2)throw e2;return c.id;
 }
 
@@ -182,17 +194,14 @@ async function generate(){
   const btn=$("go");btn.disabled=true;
   const lines=[];let created=0;
   try{
-    const {data:ex,error:exErr}=await db.from("exams").select("id").order("name").limit(1);
-    if(exErr)throw exErr;
-    if(!ex?.length)throw new Error("No exam found in the exams table.");
-    const examId=ex[0].id;
+    const examId=await getDrillExamId(sid);
     const perQ=Math.max(0.1,parseFloat($("minPerQ").value)||0.6);
-    const root=await getRoot(sid);
+    const root=await getRoot(sid,examId);
 
     for(const s of picked){
       say(`Creating mocks for ${esc(s.ch.name)}…\n${lines.join("\n")}`);
       try{
-        const folderId=await getChapterFolder(sid,root,s.ch.name);
+        const folderId=await getChapterFolder(sid,root,s.ch.name,examId);
         const {data:old,error:oErr}=await db.from("mock_tests").select("id,sort_order").eq("folder_id",folderId);
         if(oErr)throw oErr;
         let setNo=(old?.length||0)+1;
