@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script>document.documentElement.dataset.theme=localStorage.getItem("ssc-edge-theme")||"dark";</script>
+<title>Chapter Mock Generator · SSC EDGE</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--b:#08050e;--c:#171025;--c2:#251344;--bd:#302044;--t:#fff;--m:#aaa2b9;--p:#7c3aed;--p2:#a66bff;--ok:#22c55e;--err:#ef4444;--warn:#f59e0b}
+:root[data-theme=light]{--b:#f6f3fb;--c:#fff;--c2:#f1eafa;--bd:#ddd1ef;--t:#211832;--m:#756985;--p:#6d35d4;--p2:#8149e8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--b);color:var(--t);font:14px Arial,sans-serif}
+header{position:sticky;top:0;background:var(--c);border-bottom:1px solid var(--bd);padding:12px 15px;display:flex;gap:10px;align-items:center;z-index:5}
+header a{color:var(--t);text-decoration:none}
+.brand{font-weight:800;font-size:17px}.brand span{color:var(--p2)}
+.sub{margin-left:auto;color:var(--m);font-size:12px}
+main{max-width:900px;margin:auto;padding:14px}
+.panel{background:var(--c);border:1px solid var(--bd);border-radius:13px;padding:14px;margin-bottom:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:11px;color:var(--m);font-weight:bold}
+.field input,.field select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--c2);color:var(--t)}
+.btn{border:0;border-radius:8px;padding:10px 14px;font-weight:bold;font-size:12px;cursor:pointer;background:var(--p);color:#fff}
+.btn.secondary{background:var(--c2);border:1px solid var(--bd);color:var(--t)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.muted{color:var(--m);font-size:12px;line-height:1.5}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+th,td{padding:9px 6px;border-bottom:1px solid var(--bd);text-align:left}
+th{color:var(--m);font-size:11px}
+td.n,th.n{text-align:right}
+.msg{margin-top:12px;padding:10px;border-radius:8px;background:var(--c2);white-space:pre-wrap;line-height:1.6;font-size:13px}
+.ok{color:var(--ok)}.err{color:var(--err)}.warn{color:var(--warn)}
+input[type=checkbox]{accent-color:var(--p);width:17px;height:17px}
+</style>
+</head>
+<body>
+<header><a href="questions.html">‹</a><div class="brand">SSC <span>EDGE</span></div><div class="sub">Chapter Mock Generator</div></header>
+<main>
+
+<div id="gate" class="panel">Checking admin access...</div>
+
+<div id="app" style="display:none">
+<section class="panel">
+  <h2 style="margin:0 0 6px">Chapter-wise mocks from existing questions</h2>
+  <p class="muted">Pick a subject and chapters. For each chapter, its questions (that are not already in a mock of that chapter's Practice Drill folder) are split into sets of 25 and shown in <b>Practice Drill → Subject → Chapter</b>. Nothing is imported again, so no duplicate questions are created.</p>
+  <div class="grid">
+    <div class="field"><label>Subject</label><select id="subject" onchange="loadSubject()"><option value="">Select Subject</option></select></div>
+    <div class="field"><label>Questions per set</label><input id="setSize" type="number" min="1" value="25" oninput="renderTable()"></div>
+    <div class="field"><label>Minutes per question (duration)</label><input id="minPerQ" type="number" min="0.1" step="0.1" value="0.6"></div>
+  </div>
+</section>
+
+<section class="panel" id="chapPanel" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <h3 style="margin:0">Chapters</h3>
+    <label class="muted"><input type="checkbox" id="all" onchange="toggleAll(this.checked)"> Select all with new questions</label>
+  </div>
+  <table>
+    <thead><tr><th></th><th>Chapter</th><th class="n">Questions</th><th class="n">Already in mocks</th><th class="n">New sets</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="actions"><button class="btn" id="go" onclick="generate()">Create Chapter Mocks</button></div>
+  <div id="msg" class="msg" style="display:none"></div>
+</section>
+</div>
+
+</main>
+
+<script>
+const db=supabase.createClient("https://dvvyoygahzzbnpqrfhen.supabase.co","sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s");
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm=s=>String(s||"").trim().toLowerCase().replace(/\s+/g," ");
+
+let subjects=[],chapters=[],stats=new Map(); // chapterId -> {freeIds:[],total,assigned}
+
+function say(html,show=true){const m=$("msg");m.style.display=show?"block":"none";m.innerHTML=html}
+
+async function fetchAll(build){
+  const out=[],size=1000;
+  for(let from=0;;from+=size){
+    const {data,error}=await build().range(from,from+size-1);
+    if(error)throw error;
+    out.push(...(data||[]));
+    if(!data||data.length<size)break;
+  }
+  return out;
+}
+
+async function checkAdmin(){
+  const {data:{user}}=await db.auth.getUser();
+  if(!user){$("gate").textContent="Admin access required.";return false}
+  const {data,error}=await db.from("admin_users").select("user_id").eq("user_id",user.id).maybeSingle();
+  if(error||!data){$("gate").textContent=error?"Unable to verify admin access.":"Access denied. Admin account required.";return false}
+  $("gate").style.display="none";$("app").style.display="block";return true;
+}
+
+async function init(){
+  if(!await checkAdmin())return;
+  try{
+    subjects=(await fetchAll(()=>db.from("subjects").select("id,name").order("id"))).filter(s=>norm(s.name)!=="bulk import");
+    subjects.sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+    $("subject").innerHTML='<option value="">Select Subject</option>'+subjects.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+  }catch(e){alert("Could not load subjects: "+e.message)}
+}
+
+/* Existing chapter-wise folder + assigned questions for each chapter of the subject */
+async function loadSubject(keepMsg){
+  const sid=$("subject").value;
+  $("chapPanel").style.display=sid?"block":"none";
+  stats.clear();if(!keepMsg)say("",false);
+  if(!sid){return}
+  $("rows").innerHTML='<tr><td colspan="5" class="muted">Loading…</td></tr>';
+  try{
+    chapters=await fetchAll(()=>db.from("chapters").select("id,name").eq("subject_id",sid).order("id"));
+    const qs=await fetchAll(()=>db.from("questions").select("id,chapter_id").eq("subject_id",sid).order("id"));
+    const folders=await fetchAll(()=>db.from("mock_folders").select("id,name,display_name,parent_id").eq("subject_id",sid).order("id"));
+    const folderMocks=folders.length?await fetchAll(()=>db.from("mock_tests").select("id,folder_id").in("folder_id",folders.map(f=>f.id)).order("id")):[];
+    // questions already assigned, per mock
+    const mockIds=folderMocks.map(m=>m.id);
+    let assignedRows=[];
+    for(let i=0;i<mockIds.length;i+=100){
+      const part=await fetchAll(()=>db.from("mock_test_questions").select("mock_test_id,question_id").in("mock_test_id",mockIds.slice(i,i+100)).order("id"));
+      assignedRows=assignedRows.concat(part);
+    }
+    const mockFolder=new Map(folderMocks.map(m=>[String(m.id),String(m.folder_id)]));
+    const assignedByFolder=new Map();
+    assignedRows.forEach(r=>{const f=mockFolder.get(String(r.mock_test_id));if(!f)return;if(!assignedByFolder.has(f))assignedByFolder.set(f,new Set());assignedByFolder.get(f).add(String(r.question_id))});
+
+    chapters.forEach(ch=>{
+      const ids=qs.filter(q=>String(q.chapter_id)===String(ch.id)).map(q=>q.id);
+      const folder=folders.find(f=>f.parent_id&&norm(f.display_name||f.name)===norm(ch.name));
+      const assigned=folder?(assignedByFolder.get(String(folder.id))||new Set()):new Set();
+      const free=ids.filter(id=>!assigned.has(String(id)));
+      stats.set(String(ch.id),{ch,total:ids.length,assigned:ids.length-free.length,freeIds:free,checked:false});
+    });
+    renderTable();
+  }catch(e){$("rows").innerHTML="";say(`<span class="err">Could not load data: ${esc(e.message)}</span>`)}
+}
+
+function size(){return Math.max(1,parseInt($("setSize").value)||25)}
+
+function renderTable(){
+  const list=[...stats.values()].filter(s=>s.total>0).sort((a,b)=>a.ch.name.localeCompare(b.ch.name));
+  $("rows").innerHTML=list.map(s=>{
+    const sets=Math.ceil(s.freeIds.length/size());
+    return `<tr><td><input type="checkbox" ${s.checked?"checked":""} ${sets?"":"disabled"} onchange="stats.get('${esc(s.ch.id)}').checked=this.checked"></td>
+      <td>${esc(s.ch.name)}</td><td class="n">${s.total}</td><td class="n">${s.assigned}</td><td class="n">${sets||"–"}</td></tr>`;
+  }).join("")||'<tr><td colspan="5" class="muted">No chapters with questions for this subject.</td></tr>';
+}
+
+function toggleAll(on){stats.forEach(s=>{s.checked=on&&s.freeIds.length>0});renderTable()}
+
+/* Practice Drill structure (same as Chapter-wise Mock Manager) */
+async function getRoot(sid){
+  const {data,error}=await db.from("mock_folders").select("id,folder_type,is_active").eq("subject_id",sid).is("parent_id",null);
+  if(error)throw error;
+  const list=data||[];
+  const root=list.find(f=>f.is_active!==false&&String(f.folder_type||"").toUpperCase().includes("CHAPTER"));
+  if(root)return root.id;
+  const {data:c,error:e2}=await db.from("mock_folders").insert({subject_id:sid,name:"Chapter Wise",display_name:"Chapter Wise",folder_type:"CHAPTER",parent_id:null,is_active:true,sort_order:list.length+1}).select("id").single();
+  if(e2)throw e2;return c.id;
+}
+async function getChapterFolder(sid,rootId,name){
+  const {data,error}=await db.from("mock_folders").select("id,name,display_name,is_active").eq("subject_id",sid).eq("parent_id",rootId);
+  if(error)throw error;
+  const f=(data||[]).find(x=>norm(x.display_name||x.name)===norm(name));
+  if(f){if(f.is_active===false){await db.from("mock_folders").update({is_active:true}).eq("id",f.id)}return f.id}
+  const {data:c,error:e2}=await db.from("mock_folders").insert({subject_id:sid,name,display_name:name,folder_type:"CHAPTER",parent_id:rootId,is_active:true,sort_order:(data||[]).length+1}).select("id").single();
+  if(e2)throw e2;return c.id;
+}
+
+async function generate(){
+  const sid=$("subject").value;
+  const picked=[...stats.values()].filter(s=>s.checked&&s.freeIds.length);
+  if(!sid||!picked.length){alert("Select at least one chapter with new questions.");return}
+  const total=picked.reduce((a,s)=>a+Math.ceil(s.freeIds.length/size()),0);
+  if(!confirm(`Create ${total} mock(s) for ${picked.length} chapter(s)?`))return;
+
+  const btn=$("go");btn.disabled=true;
+  const lines=[];let created=0;
+  try{
+    const {data:ex,error:exErr}=await db.from("exams").select("id").order("name").limit(1);
+    if(exErr)throw exErr;
+    if(!ex?.length)throw new Error("No exam found in the exams table.");
+    const examId=ex[0].id;
+    const perQ=Math.max(0.1,parseFloat($("minPerQ").value)||0.6);
+    const root=await getRoot(sid);
+
+    for(const s of picked){
+      say(`Creating mocks for ${esc(s.ch.name)}…\n${lines.join("\n")}`);
+      try{
+        const folderId=await getChapterFolder(sid,root,s.ch.name);
+        const {data:old,error:oErr}=await db.from("mock_tests").select("id,sort_order").eq("folder_id",folderId);
+        if(oErr)throw oErr;
+        let setNo=(old?.length||0)+1;
+        let sort=Math.max(0,...(old||[]).map(m=>Number(m.sort_order)||0))+1;
+        const ids=[...s.freeIds].sort((a,b)=>a-b);
+        for(let i=0;i<ids.length;i+=size()){
+          const chunk=ids.slice(i,i+size());
+          const title=`${s.ch.name} Set ${setNo}`;
+          const dur=Math.max(1,Math.round(chunk.length*perQ));
+          let mockId=null;
+          try{
+            const {data:m,error:mErr}=await db.from("mock_tests").insert({exam_id:examId,folder_id:folderId,title,description:"Chapter-wise practice mock",duration_minutes:dur,total_questions:chunk.length,marks_per_question:2,negative_marks_per_question:0.5,unattempted_marks_per_question:0,is_active:true,test_type:"FULL",sort_order:sort}).select("id").single();
+            if(mErr)throw mErr;mockId=m.id;
+            const {data:sec,error:sErr}=await db.from("mock_test_sections").insert({mock_test_id:mockId,subject_id:sid,section_name:"Chapter Questions",duration_minutes:dur,question_count:chunk.length,section_order:1}).select("id").single();
+            if(sErr)throw sErr;
+            const {error:qErr}=await db.from("mock_test_questions").insert(chunk.map((qid,k)=>({mock_test_id:mockId,question_id:qid,section_id:sec.id,question_order:k+1})));
+            if(qErr)throw qErr;
+            lines.push(`✓ ${title} (${chunk.length} questions)`);created++;setNo++;sort++;
+          }catch(err){
+            if(mockId){
+              await db.from("mock_test_questions").delete().eq("mock_test_id",mockId);
+              await db.from("mock_test_sections").delete().eq("mock_test_id",mockId);
+              await db.from("mock_tests").delete().eq("id",mockId);
+            }
+            lines.push(`✕ ${title}: ${err.message}`);
+          }
+        }
+      }catch(err){lines.push(`✕ ${s.ch.name}: ${err.message}`)}
+    }
+    say(`<b class="ok">${created} mock(s) created.</b>\n${esc(lines.join("\n"))}`);
+  }catch(err){
+    say(`<span class="err">Failed: ${esc(err.message)}</span>\n${esc(lines.join("\n"))}`);
+  }finally{
+    btn.disabled=false;
+    await loadSubject(true);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
