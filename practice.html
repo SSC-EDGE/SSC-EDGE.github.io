@@ -809,11 +809,6 @@ body{
       ></div>
 
       <div
-        id="fullMockShifts"
-        class="mock-chips"
-      ></div>
-
-      <div
         id="fullMockTests"
         class="chip-test-area"
       ></div>
@@ -1088,13 +1083,6 @@ function folderType(f){
     value==="fullyear"
   ){
     return "year";
-  }
-
-  if(
-    value==="shift" ||
-    value==="shifts"
-  ){
-    return "shift";
   }
 
   if(
@@ -1768,10 +1756,154 @@ function getExamTier(exam){
 }
 
 /* =========================================================
+   CLEAN SHAREABLE PRACTICE URLS
+   Example:
+   /practice/mock-test/ssc/cgl-tier-2/pyq-mocks
+========================================================= */
+
+function practiceBasePath(){
+  const path = location.pathname;
+  const match = path.match(/^(.*\/practice)(?:\.html)?(?:\/.*)?$/i);
+  return match ? match[1] : path.replace(/\/+$/,"");
+}
+
+function practiceExamSlug(exam){
+  let name = getExamMainName(exam).toLowerCase();
+  name = name.replace(/^ssc\s+/,"").replace(/^rrb\s+/,"");
+  name = name.replace(/\s+(tier\s*[- ]?\s*\d+|mains|prelims?|preliminary)$/i,"");
+  return name.replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+}
+
+function practiceTierCode(exam){
+  const tier = getExamTier(exam).toLowerCase();
+  if(/tier\s*-?\s*2|mains/.test(tier)) return "2";
+  if(/tier\s*-?\s*1|pre/.test(tier)) return "1";
+  return "";
+}
+
+function practiceBranchSlug(branch){
+  if(branch === "pyq") return "pyq-mocks";
+  if(branch === "new") return "new-mocks";
+  return practiceFolderSlug(folderName(currentFolder) || "practice-tests");
+}
+
+function practiceFolderSlug(value){
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g," and ")
+    .replace(/[^a-z0-9]+/g,"-")
+    .replace(/^-|-$/g,"");
+}
+
+function setPracticeURL(level, extra={}){
+  const parts = ["mock-test"];
+
+  if(level !== "home"){
+    parts.push((currentGateway || "SSC").toLowerCase());
+  }
+
+  if((level === "exam" || level === "branch") && currentExam){
+    let examPart = practiceExamSlug(currentExam);
+    const tier = practiceTierCode(currentExam);
+    if(tier) examPart += "-tier-" + tier;
+    parts.push(examPart);
+  }
+
+  if(level === "branch"){
+    const branch = extra.type || currentBranch;
+    parts.push(practiceBranchSlug(branch));
+  }
+
+  const base = practiceBasePath();
+  const next = level === "home"
+    ? base
+    : base + "/" + parts.join("/");
+
+  history.pushState({sscEdgePractice:true},"",next);
+}
+
+function updatePracticeURLFromCurrent(){
+  if(!currentExam){
+    setPracticeURL(currentGateway ? "list" : "home");
+  }else if(currentBranch){
+    setPracticeURL("branch");
+  }else{
+    setPracticeURL("exam");
+  }
+}
+
+async function restorePracticeURL(){
+  const base = practiceBasePath().replace(/\/+$/,"");
+  let path = location.pathname;
+
+  if(path.toLowerCase().endsWith(".html")){
+    path = path.slice(0,-5);
+  }
+
+  let relative = path.startsWith(base)
+    ? path.slice(base.length)
+    : "";
+
+  const parts = relative.split("/").filter(Boolean);
+
+  if(!parts.length) return false;
+  if(parts[0].toLowerCase() !== "mock-test") return false;
+
+  const category = (parts[1] || "ssc").toUpperCase();
+  currentGateway = category === "RRB" ? "RRB" : "SSC";
+
+  const loaded = await (examsLoadPromise || (examsLoadPromise = loadExams()));
+  if(!loaded) return true;
+
+  if(currentGateway === "RRB") await openRRB(true);
+  else await openSSC(true);
+
+  if(parts.length < 3) return true;
+
+  let examPart = parts[2].toLowerCase();
+  let tier = "";
+  const tierMatch = examPart.match(/-tier-([12])$/);
+  if(tierMatch){
+    tier = tierMatch[1];
+    examPart = examPart.replace(/-tier-[12]$/,"");
+  }
+
+  const match = exams.find(e =>
+    getExamGroup(e) === currentGateway &&
+    practiceExamSlug(e) === examPart &&
+    (!tier || practiceTierCode(e) === tier)
+  );
+  if(!match) return true;
+
+  await openExam(match.id,true);
+
+  if(parts.length >= 4){
+    const branchSlug = parts[3].toLowerCase();
+    let branch = "custom";
+    let root = null;
+
+    if(branchSlug === "pyq-mocks"){
+      branch = "pyq";
+      root = getRoots().find(f=>folderType(f)==="pyq");
+    }else if(branchSlug === "new-mocks"){
+      branch = "new";
+      root = getRoots().find(f=>folderType(f)==="new");
+    }else{
+      root = getRoots().find(f=>practiceFolderSlug(folderName(f))===branchSlug);
+    }
+
+    await openMockBranch(root?.id || "",branch,true);
+  }
+
+  return true;
+}
+
+/* =========================================================
    SSC / RRB
 ========================================================= */
 
-async function openSSC(){
+async function openSSC(skipHistory=false){
 
   currentGateway =
     "SSC";
@@ -1791,10 +1923,11 @@ async function openSSC(){
   if(loaded){
     renderExams("SSC");
   }
+  if(!skipHistory) setPracticeURL("list");
 
 }
 
-async function openRRB(){
+async function openRRB(skipHistory=false){
 
   currentGateway =
     "RRB";
@@ -1814,6 +1947,7 @@ async function openRRB(){
   if(loaded){
     renderExams("RRB");
   }
+  if(!skipHistory) setPracticeURL("list");
 
 }
 
@@ -1890,7 +2024,7 @@ function renderExams(board){
    OPEN EXAM
 ========================================================= */
 
-async function openExam(id){
+async function openExam(id,skipHistory=false){
 
   currentExam =
     exams.find(
@@ -1954,10 +2088,6 @@ async function openExam(id){
     .innerHTML = "";
 
   document
-    .getElementById("fullMockShifts")
-    .innerHTML = "";
-
-  document
     .getElementById("fullMockTests")
     .innerHTML = "";
 
@@ -1977,6 +2107,7 @@ async function openExam(id){
   if(loaded){
     renderBranches();
   }
+  if(!skipHistory) setPracticeURL("exam");
 
 }
 
@@ -2012,6 +2143,8 @@ function backToExamList(){
   */
 
   hideAll();
+
+  setPracticeURL("list");
 
   if(
     currentGateway==="RRB"
@@ -2373,7 +2506,8 @@ function renderBranches(){
 
 function openMockBranch(
   id,
-  branch
+  branch,
+  skipHistory=false
 ){
 
   currentBranch =
@@ -2406,6 +2540,7 @@ function openMockBranch(
           : "NEW MOCKS";
 
   showMockType("full");
+  if(!skipHistory) setPracticeURL("branch",{type:branch});
 
 }
 
@@ -2520,10 +2655,6 @@ function showMockType(type){
     .classList.add("hidden");
 
   document
-    .getElementById("fullMockShifts")
-    .innerHTML = "";
-
-  document
     .getElementById("fullMockTests")
     .innerHTML = "";
 
@@ -2561,7 +2692,6 @@ function renderFull(){
   testBox.className = "chip-test-area";
 
   chipBox.innerHTML = "";
-  document.getElementById("fullMockShifts").innerHTML = "";
   testBox.innerHTML = "";
 
   if(!fulls.length){
@@ -2669,152 +2799,11 @@ function selectFullYear(
     chip.classList.add("active");
   }
 
-  const ids =
-    String(yearIds).split(",").filter(Boolean);
-
-  const yearFolders =
-    examFolders().filter(f=>ids.includes(String(f.id)));
-
-  // Prefer real Shift folders when the admin has created them.
-  const shiftFolders = [];
-
-  yearFolders.forEach(yearFolder=>{
-    examFolders()
-      .filter(f=>String(f.parent_id)===String(yearFolder.id))
-      .filter(f=>{
-        const name = normalize(folderName(f));
-        return folderType(f)==="shift" || /^shift\s*\d+/i.test(name);
-      })
-      .forEach(f=>shiftFolders.push(f));
-  });
-
-  const uniqueShiftFolders = [
-    ...new Map(shiftFolders.map(f=>[String(f.id),f])).values()
-  ];
-
-  const shiftBox =
-    document.getElementById("fullMockShifts");
-
-  const testBox =
-    document.getElementById("fullMockTests");
-
-  shiftBox.innerHTML = "";
-  testBox.innerHTML = "";
-
-  if(uniqueShiftFolders.length){
-
-    uniqueShiftFolders.sort((a,b)=>{
-      const an = Number((folderName(a).match(/\d+/)||[])[0] || 0);
-      const bn = Number((folderName(b).match(/\d+/)||[])[0] || 0);
-      return an-bn || Number(a.sort_order||0)-Number(b.sort_order||0);
-    });
-
-    shiftBox.className = "mock-chips";
-    shiftBox.innerHTML = uniqueShiftFolders.map((folder,index)=>`
-      <div
-        class="mock-chip ${index===0 ? "active" : ""}"
-        onclick="selectFullShift('${folder.id}',this)"
-      >${escapeHtml(folderName(folder) || "Shift")}</div>
-    `).join("");
-
-    selectFullShift(
-      uniqueShiftFolders[0].id,
-      shiftBox.querySelector(".mock-chip")
-    );
-    return;
-  }
-
-  // Older imports may store Shift in the test title/description
-  // instead of creating a Shift folder. Group those tests here.
-  const yearTests =
-    testsInFolders(ids,"full");
-
-  const byShift = new Map();
-
-  yearTests.forEach(test=>{
-    const source = `${test.title||""} ${test.description||""}`;
-    const match = source.match(/\bshift\s*[-:]?\s*(\d+)\b/i);
-    const key = match ? `Shift ${match[1]}` : "Other Tests";
-
-    if(!byShift.has(key)){
-      byShift.set(key,[]);
-    }
-    byShift.get(key).push(test);
-  });
-
-  const shifts = [...byShift.entries()].sort((a,b)=>{
-    if(a[0]==="Other Tests") return 1;
-    if(b[0]==="Other Tests") return -1;
-    return Number(a[0].match(/\d+/)?.[0]||0) -
-           Number(b[0].match(/\d+/)?.[0]||0);
-  });
-
-  if(!shifts.length){
-    shiftBox.className = "mock-chips";
-    shiftBox.innerHTML = "";
-    testBox.className = "chip-test-area";
-    testBox.innerHTML = `
-      <div class="practice-empty">No tests available for this year.</div>
-    `;
-    return;
-  }
-
-  shiftBox.className = "mock-chips";
-  shiftBox.innerHTML = shifts.map(([label],index)=>`
-    <div
-      class="mock-chip ${index===0 ? "active" : ""}"
-      onclick="selectFullShiftFromData('${escapeHtml(label)}',this)"
-    >${escapeHtml(label)}</div>
-  `).join("");
-
-  // Keep the grouped test data available for the shift selection handler.
-  window.__sscEdgeYearShiftTests = Object.fromEntries(shifts);
-
-  selectFullShiftFromData(
-    shifts[0][0],
-    shiftBox.querySelector(".mock-chip")
-  );
-
-}
-
-function selectFullShift(
-  folderId,
-  chip
-){
-
-  document
-    .querySelectorAll("#fullMockShifts .mock-chip")
-    .forEach(c=>c.classList.remove("active"));
-
-  if(chip){
-    chip.classList.add("active");
-  }
-
   renderTests(
-    testsInFolders([String(folderId)],"full"),
-    "fullMockTests"
-  );
-
-}
-
-function selectFullShiftFromData(
-  label,
-  chip
-){
-
-  document
-    .querySelectorAll("#fullMockShifts .mock-chip")
-    .forEach(c=>c.classList.remove("active"));
-
-  if(chip){
-    chip.classList.add("active");
-  }
-
-  const list =
-    window.__sscEdgeYearShiftTests?.[label] || [];
-
-  renderTests(
-    list,
+    testsInFolders(
+      String(yearIds).split(","),
+      "full"
+    ),
     "fullMockTests"
   );
 
@@ -3903,6 +3892,7 @@ function updateTestCardStatus(test){
 function backToMockBranches(){
 
   currentFolder = null;
+  setPracticeURL("exam");
 
   currentSubject = null;
 
@@ -4361,12 +4351,6 @@ window.backToMockCategories =
 window.selectFullYear =
   selectFullYear;
 
-window.selectFullShift =
-  selectFullShift;
-
-window.selectFullShiftFromData =
-  selectFullShiftFromData;
-
 window.selectSectionSubject =
   selectSectionSubject;
 
@@ -4410,6 +4394,11 @@ async function startPracticePage(){
     practice.html#ssc
   */
 
+  if(location.pathname.toLowerCase().includes("/mock-test")){
+    const restored = await restorePracticeURL();
+    if(restored) return;
+  }
+
   const hash =
     String(
       location.hash || ""
@@ -4425,6 +4414,23 @@ async function startPracticePage(){
   }
 
 }
+
+/* =========================================================
+   BROWSER BACK / FORWARD
+========================================================= */
+window.addEventListener("popstate", async ()=>{
+  if(location.pathname.toLowerCase().includes("/mock-test")){
+    await restorePracticeURL();
+    return;
+  }
+  currentExam = null;
+  currentBranch = "";
+  currentMockType = "";
+  currentFolder = null;
+  currentSubject = null;
+  hideAll();
+  showMain();
+});
 
 /* =========================================================
    START PAGE
