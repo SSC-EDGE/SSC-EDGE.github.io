@@ -24,7 +24,8 @@ label{display:block;color:var(--muted);font-size:12px;font-weight:800;margin:12p
 .empty{text-align:center;padding:20px;color:var(--muted);border:1px dashed var(--border);border-radius:10px;font-size:13px}
 .hidden{display:none!important}
 @media(max-width:520px){main{padding:18px 11px}.form-grid{grid-template-columns:1fr}.item{align-items:flex-start}.actions{justify-content:flex-end}}
-</style></head>
+</style><script src="admin-nav.js"></script>
+</head>
 <body>
 <header><div class="row"><button class="back" id="backHome">‹</button><div><div class="brand">SSC <span>EDGE</span></div><div class="muted">Typing Management</div></div></div><button class="secondary" id="refresh">↻ Refresh</button></header>
 <main>
@@ -58,7 +59,7 @@ const SUPABASE_KEY="sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
 let exams=[],selectedExam=null,formType="",editingId=null;
-$("backHome").onclick=()=>location.href="practice.html";
+$("backHome").onclick=()=>location.href="admin.html";
 $("refresh").onclick=loadExams;
 $("addExam").onclick=()=>showForm("exam");
 $("addMock").onclick=()=>showForm("mock");

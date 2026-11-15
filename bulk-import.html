@@ -478,7 +478,8 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
 
           <b>Two ways to import:</b><br>
           <b>Shift-wise:</b> fill Date and Shift (goes to Subject → Date → Shift folder).<br>
-          <b>Chapter-wise:</b> leave Date and Shift <u>blank</u> and fill <b>Chapter</b> (chapter must already exist). The questions are saved to that Subject → Chapter and also split automatically into mocks of 25 (e.g. 65 questions → Percentage Set 1 = 25, Set 2 = 25, Set 3 = 15) inside <b>Practice Drill → Subject → Chapter</b>.<br><br>
+          <b>Both:</b> fill Date, Shift <u>and</u> Chapter — the question goes to its shift folder <u>and</u> into chapter mocks.<br>
+          <b>Chapter-wise:</b> fill <b>Chapter</b> (Date/Shift can be blank) (chapter must already exist). The questions are saved to that Subject → Chapter and also split automatically into mocks of 25 (e.g. 65 questions → Percentage Set 1 = 25, Set 2 = 25, Set 3 = 15) inside <b>Practice Drill → Subject → Chapter</b>.<br><br>
 
           <b>Required columns:</b><br>
 
@@ -529,6 +530,10 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
           accept=".xlsx,.xls,.csv"
           onchange="handleBulkFile(event)"
         >
+
+        <label>Also add shift-wise questions to existing mocks of this exam (optional)</label>
+        <select id="assignExam"><option value="">— Don't add to mocks —</option></select>
+        <div class="small-note">If you pick an exam (e.g. SSC CPO), every question that has a Date + Shift is added to that exam's mock with the same date and shift, in the section of the same subject. Mocks are matched by the date and shift written in the mock title/description (e.g. "15 Nov 2026 – Shift 1").</div>
 
         <div id="bulkFileName" class="file-name"></div>
 
@@ -588,6 +593,7 @@ const db = supabase.createClient(
 );
 
 let subjects = [];
+let examList = [];
 let chapters = [];
 let questions = [];
 
@@ -676,7 +682,8 @@ async function fetchAll(table){
 
 async function loadLookups(){
   try{
-    [subjects,chapters]=await Promise.all([fetchAll("subjects"),fetchAll("chapters")]);
+    [subjects,chapters,examList]=await Promise.all([fetchAll("subjects"),fetchAll("chapters"),fetchAll("exams")]);
+    document.getElementById("assignExam").innerHTML='<option value="">— Don\'t add to mocks —</option>'+examList.filter(e=>!/practice\s*drill/i.test(e.name||"")).map(e=>`<option value="${escapeHtml(e.id)}">${escapeHtml((e.name||e.title||"Exam")+(e.stage?" · "+e.stage:""))}</option>`).join("");
   }catch(error){
     console.error(error);
     alert("Could not load subjects/chapters:\n"+error.message);
@@ -1079,13 +1086,16 @@ async function validateBulkRows(){
     else if(!subject) errors.push(`Subject not found: ${subjectName}`);
     // Chapter-wise row: Date + Shift both blank -> Chapter is required.
     // Shift-wise row: Date + Shift both filled.
-    const chapterWise = !dateValue && !shiftValue;
-    if(chapterWise){
-      if(!chapterName) errors.push("Chapter is required when Date and Shift are blank (chapter-wise question)");
-    }else{
-      if(!dateValue) errors.push("Date is required for shift-wise questions (or leave both Date and Shift blank for chapter-wise)");
+    // A row can be shift-wise (Date + Shift), chapter-wise (Chapter), or BOTH.
+    const shiftWise = !!(dateValue || shiftValue);
+    const chapterWise = !!chapterName;
+    if(!shiftWise && !chapterWise){
+      errors.push("Fill Date + Shift (shift-wise), or Chapter (chapter-wise), or all three");
+    }
+    if(shiftWise){
+      if(!dateValue) errors.push("Date is required when Shift is filled");
       else if(!examDate) errors.push(`Invalid Date: ${dateValue}. Use YYYY-MM-DD or DD/MM/YYYY`);
-      if(!shiftValue) errors.push("Shift is required for shift-wise questions (or leave both Date and Shift blank for chapter-wise)");
+      if(!shiftValue) errors.push("Shift is required when Date is filled");
       else if(!shiftNo) errors.push(`Invalid Shift: ${shiftValue}. Use Shift 1, Shift 2 or Shift 3`);
     }
 
@@ -1136,6 +1146,7 @@ async function validateBulkRows(){
       dateValue,
       shiftNo,
       chapterWise,
+      shiftWise,
 
       questionEnglish,
       questionHindi,
@@ -1263,9 +1274,10 @@ function renderBulkPreview(
           <b>Subject:</b>
           ${escapeHtml(r.subjectName)}
           &nbsp; • &nbsp;
-          ${r.chapterWise
-            ? `<b>Type:</b> Chapter-wise`
-            : `<b>Date:</b> ${escapeHtml(r.examDate || r.dateValue || "")} &nbsp; • &nbsp; <b>Shift:</b> ${escapeHtml(r.shiftNo || "")}`}
+          ${r.shiftWise
+            ? `<b>Date:</b> ${escapeHtml(r.examDate || r.dateValue || "")} &nbsp; • &nbsp; <b>Shift:</b> ${escapeHtml(r.shiftNo || "")}`
+            : `<b>Type:</b> Chapter-wise`}
+          ${r.shiftWise && r.chapterWise ? "&nbsp; • &nbsp;<b>+ Chapter mocks</b>" : ""}
           ${r.chapterName ? `&nbsp; • &nbsp;<b>Chapter:</b> ${escapeHtml(r.chapterName)}` : ""}
         </div>
 
@@ -1388,6 +1400,85 @@ async function nextFolderOrder(folderId){
   const {data,error}=await db.from("question_shift_group_questions").select("question_order").eq("group_id",folderId).order("question_order",{ascending:false}).limit(1);
   if(error)throw error;
   return (data?.length ? Number(data[0].question_order)||0 : 0)+1;
+}
+
+
+/* ADD IMPORTED QUESTIONS TO EXISTING MOCKS (matched by Date + Shift) */
+async function pageAll(build){
+  const out=[];
+  for(let from=0;;from+=1000){
+    const {data,error}=await build().range(from,from+999);
+    if(error)throw error;
+    out.push(...(data||[]));
+    if(!data||data.length<1000)break;
+  }
+  return out;
+}
+function mockDateShiftKey(m){
+  const text=String(m.description||"")+" "+String(m.title||"");
+  const months={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  const d=text.match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,})\.?,?\s*(20\d{2})/);
+  const s=text.match(/shift\s*[-:]?\s*(\d)/i);
+  if(!d||!s)return null;
+  const mo=months[d[2].slice(0,3).toLowerCase()];
+  if(!mo)return null;
+  return `${d[3]}-${String(mo).padStart(2,"0")}-${String(d[1]).padStart(2,"0")}|${s[1]}`;
+}
+async function assignToExistingMocks(rows,summary,examId){
+  const rs=rows.filter(r=>r.shiftWise&&r._qid).sort((a,b)=>a.rowNumber-b.rowNumber);
+  if(!rs.length||!examId)return;
+  const mocks=await pageAll(()=>db.from("mock_tests").select("id,title,description,subject_id,test_type").eq("exam_id",examId).order("id"));
+  const byKey=new Map();
+  mocks.forEach(m=>{const k=mockDateShiftKey(m);if(!k)return;if(!byKey.has(k))byKey.set(k,[]);byKey.get(k).push(m)});
+
+  const wanted=new Set(rs.map(r=>`${r.examDate}|${r.shiftNo}`));
+  const matched=[];
+  wanted.forEach(k=>(byKey.get(k)||[]).forEach(m=>matched.push(m)));
+  const noMock=[...wanted].filter(k=>!byKey.has(k));
+  noMock.forEach(k=>summary.warnings.push(`No mock found in this exam for ${k.replace("|"," · Shift ")} — questions were imported but not added to a mock.`));
+  if(!matched.length)return;
+
+  const ids=matched.map(m=>m.id);
+  let sections=[],existing=[];
+  for(let i=0;i<ids.length;i+=100){
+    const part=ids.slice(i,i+100);
+    sections=sections.concat(await pageAll(()=>db.from("mock_test_sections").select("id,mock_test_id,subject_id,section_name").in("mock_test_id",part).order("id")));
+    existing=existing.concat(await pageAll(()=>db.from("mock_test_questions").select("mock_test_id,question_id,section_id,question_order").in("mock_test_id",part).order("id")));
+  }
+  const have=new Set(existing.map(e=>`${e.mock_test_id}|${e.question_id}`));
+  const secCount=new Map();
+  existing.forEach(e=>secCount.set(String(e.section_id),(secCount.get(String(e.section_id))||0)+1));
+  const mockTotal=new Map();
+  existing.forEach(e=>mockTotal.set(String(e.mock_test_id),(mockTotal.get(String(e.mock_test_id))||0)+1));
+
+  const inserts=[],added=new Map(),touchedSec=new Set(),touchedMock=new Set();
+  for(const r of rs){
+    const ms=byKey.get(`${r.examDate}|${r.shiftNo}`)||[];
+    for(const m of ms){
+      const secs=sections.filter(s=>String(s.mock_test_id)===String(m.id));
+      let sec=secs.find(s=>String(s.subject_id)===String(r.subjectId));
+      if(!sec&&String(m.subject_id)===String(r.subjectId)&&secs.length===1)sec=secs[0];
+      if(!sec)continue;
+      const dupKey=`${m.id}|${r._qid}`;
+      if(have.has(dupKey))continue;
+      have.add(dupKey);
+      const order=(secCount.get(String(sec.id))||0)+1;
+      secCount.set(String(sec.id),order);
+      mockTotal.set(String(m.id),(mockTotal.get(String(m.id))||0)+1);
+      inserts.push({mock_test_id:m.id,question_id:r._qid,section_id:sec.id,question_order:order});
+      touchedSec.add(String(sec.id));touchedMock.add(String(m.id));
+      const label=`${m.description||m.title} — ${sec.section_name||"Section"}`;
+      added.set(label,(added.get(label)||0)+1);
+    }
+  }
+  for(let i=0;i<inserts.length;i+=200){
+    const {error}=await db.from("mock_test_questions").insert(inserts.slice(i,i+200));
+    if(error)throw error;
+  }
+  for(const sid of touchedSec)await db.from("mock_test_sections").update({question_count:secCount.get(sid)}).eq("id",sid);
+  for(const mid of touchedMock)await db.from("mock_tests").update({total_questions:mockTotal.get(mid)}).eq("id",mid);
+  added.forEach((n,label)=>summary.assigned.push(`${label}: +${n} questions`));
+  rs.length&&!inserts.length&&summary.warnings.push("Matching mocks were found, but they have no section for these subjects (or the questions were already in them).");
 }
 
 /* CHAPTER-WISE MOCKS (Practice Drill) */
@@ -1544,7 +1635,7 @@ async function importAllQuestions(){
 
     // Resolve each date/shift folder only once, rather than once per question.
     for (const r of validRows) {
-      if (r.chapterWise) continue;
+      if (!r.shiftWise) continue;
       const key = `${r.subjectId}|${r.examDate}|${r.shiftNo}`;
       if (!folderCache.has(key)) {
         folderCache.set(key, getOrCreateShiftFolder(r.subjectId, r.examDate, r.shiftNo));
@@ -1563,7 +1654,7 @@ async function importAllQuestions(){
 
     // Read each folder's starting order once.
     for (const r of validRows) {
-      if (r.chapterWise) continue;
+      if (!r.shiftWise) continue;
       const folderId = folderCache.get(r._folderKey);
       if (!orderCache.has(String(folderId))) {
         orderCache.set(String(folderId), nextFolderOrder(folderId));
@@ -1606,7 +1697,7 @@ async function importAllQuestions(){
             {question_id:questionId, option_label:"C", option_text:r.C, option_text_hi:r.CHi, is_correct:r.correct.includes("C")},
             {question_id:questionId, option_label:"D", option_text:r.D, option_text_hi:r.DHi, is_correct:r.correct.includes("D")}
           );
-          if (r.chapterWise) return; // chapter-wise: no date/shift folder link
+          if (!r.shiftWise) return; // chapter-only row: no date/shift folder link
           const folderId = folderCache.get(r._folderKey);
           const nextOrder = Number(orderCache.get(String(folderId))) || 1;
           linkPayload.push({group_id:folderId, question_id:questionId, question_order:nextOrder});
@@ -1634,13 +1725,20 @@ async function importAllQuestions(){
       }
     }
 
-    const mockSummary = {mocks:[],failures:[],warnings:[]};
+    const mockSummary = {mocks:[],failures:[],warnings:[],assigned:[]};
+    const assignExamId = document.getElementById("assignExam").value;
+    if (assignExamId && validRows.some(r => r.shiftWise)) {
+      resultBox.innerHTML = `<div class="status">Adding questions to existing mocks...</div>`;
+      try { await assignToExistingMocks(validRows, mockSummary, assignExamId); }
+      catch (err) { mockSummary.failures.push("Adding to mocks: " + (err.message || "Unknown error")); }
+    }
     if (validRows.some(r => r.chapterWise)) {
       resultBox.innerHTML = `<div class="status">Creating chapter-wise mocks...</div>`;
       try { await createChapterWiseMocks(validRows, mockSummary); }
       catch (err) { mockSummary.failures.push(err.message || "Unknown error"); }
     }
-    const mockHtml = (mockSummary.mocks.length ? `<div class="import-success" style="margin-top:8px;">✓ ${mockSummary.mocks.length} chapter-wise mocks created:<br><span style="font-weight:normal;color:var(--text)">${escapeHtml(mockSummary.mocks.join("\n"))}</span></div>` : "")
+    const mockHtml = (mockSummary.assigned.length ? `<div class="import-success" style="margin-top:8px;">✓ Added to existing mocks:<br><span style="font-weight:normal;color:var(--text)">${escapeHtml(mockSummary.assigned.join("\n"))}</span></div>` : "")
+      + (mockSummary.mocks.length ? `<div class="import-success" style="margin-top:8px;">✓ ${mockSummary.mocks.length} chapter-wise mocks created:<br><span style="font-weight:normal;color:var(--text)">${escapeHtml(mockSummary.mocks.join("\n"))}</span></div>` : "")
       + (mockSummary.warnings.length ? `<div class="import-warning" style="margin-top:8px;">${escapeHtml([...new Set(mockSummary.warnings)].join("\n"))}</div>` : "")
       + (mockSummary.failures.length ? `<div class="import-error" style="margin-top:8px;">${escapeHtml(mockSummary.failures.join("\n"))}</div>` : "");
     resultBox.innerHTML = `<div class="status">
