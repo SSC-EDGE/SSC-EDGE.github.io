@@ -809,6 +809,11 @@ body{
       ></div>
 
       <div
+        id="fullMockShifts"
+        class="mock-chips"
+      ></div>
+
+      <div
         id="fullMockTests"
         class="chip-test-area"
       ></div>
@@ -1083,6 +1088,13 @@ function folderType(f){
     value==="fullyear"
   ){
     return "year";
+  }
+
+  if(
+    value==="shift" ||
+    value==="shifts"
+  ){
+    return "shift";
   }
 
   if(
@@ -1755,23 +1767,6 @@ function getExamTier(exam){
 
 }
 
-/*
-  Keep Tier 1 and Tier 2 as separate exam cards.
-  If subtitle/description/stage is empty, use the tier
-  detected from the exam name so the two cards remain clear.
-*/
-function getExamDisplaySubtitle(exam){
-
-  return String(
-    exam?.subtitle ||
-    exam?.description ||
-    exam?.stage ||
-    getExamTier(exam) ||
-    ""
-  ).trim();
-
-}
-
 /* =========================================================
    SSC / RRB
 ========================================================= */
@@ -1855,7 +1850,12 @@ function renderExams(board){
         getExamMainName(e);
 
       const subtitle =
-        getExamDisplaySubtitle(e);
+        String(
+          e?.subtitle ??
+          e?.description ??
+          e?.stage ??
+          ""
+        ).trim();
 
       return `
 
@@ -1925,7 +1925,12 @@ async function openExam(id){
   document
     .getElementById("examSubtitle")
     .textContent =
-      getExamDisplaySubtitle(currentExam);
+      String(
+        currentExam?.subtitle ||
+        currentExam?.description ||
+        currentExam?.stage ||
+        ""
+      ).trim();
 
   currentBranch = "";
   currentMockType = "";
@@ -1946,6 +1951,10 @@ async function openExam(id){
 
   document
     .getElementById("fullMockFolders")
+    .innerHTML = "";
+
+  document
+    .getElementById("fullMockShifts")
     .innerHTML = "";
 
   document
@@ -2511,6 +2520,10 @@ function showMockType(type){
     .classList.add("hidden");
 
   document
+    .getElementById("fullMockShifts")
+    .innerHTML = "";
+
+  document
     .getElementById("fullMockTests")
     .innerHTML = "";
 
@@ -2548,6 +2561,7 @@ function renderFull(){
   testBox.className = "chip-test-area";
 
   chipBox.innerHTML = "";
+  document.getElementById("fullMockShifts").innerHTML = "";
   testBox.innerHTML = "";
 
   if(!fulls.length){
@@ -2655,11 +2669,152 @@ function selectFullYear(
     chip.classList.add("active");
   }
 
+  const ids =
+    String(yearIds).split(",").filter(Boolean);
+
+  const yearFolders =
+    examFolders().filter(f=>ids.includes(String(f.id)));
+
+  // Prefer real Shift folders when the admin has created them.
+  const shiftFolders = [];
+
+  yearFolders.forEach(yearFolder=>{
+    examFolders()
+      .filter(f=>String(f.parent_id)===String(yearFolder.id))
+      .filter(f=>{
+        const name = normalize(folderName(f));
+        return folderType(f)==="shift" || /^shift\s*\d+/i.test(name);
+      })
+      .forEach(f=>shiftFolders.push(f));
+  });
+
+  const uniqueShiftFolders = [
+    ...new Map(shiftFolders.map(f=>[String(f.id),f])).values()
+  ];
+
+  const shiftBox =
+    document.getElementById("fullMockShifts");
+
+  const testBox =
+    document.getElementById("fullMockTests");
+
+  shiftBox.innerHTML = "";
+  testBox.innerHTML = "";
+
+  if(uniqueShiftFolders.length){
+
+    uniqueShiftFolders.sort((a,b)=>{
+      const an = Number((folderName(a).match(/\d+/)||[])[0] || 0);
+      const bn = Number((folderName(b).match(/\d+/)||[])[0] || 0);
+      return an-bn || Number(a.sort_order||0)-Number(b.sort_order||0);
+    });
+
+    shiftBox.className = "mock-chips";
+    shiftBox.innerHTML = uniqueShiftFolders.map((folder,index)=>`
+      <div
+        class="mock-chip ${index===0 ? "active" : ""}"
+        onclick="selectFullShift('${folder.id}',this)"
+      >${escapeHtml(folderName(folder) || "Shift")}</div>
+    `).join("");
+
+    selectFullShift(
+      uniqueShiftFolders[0].id,
+      shiftBox.querySelector(".mock-chip")
+    );
+    return;
+  }
+
+  // Older imports may store Shift in the test title/description
+  // instead of creating a Shift folder. Group those tests here.
+  const yearTests =
+    testsInFolders(ids,"full");
+
+  const byShift = new Map();
+
+  yearTests.forEach(test=>{
+    const source = `${test.title||""} ${test.description||""}`;
+    const match = source.match(/\bshift\s*[-:]?\s*(\d+)\b/i);
+    const key = match ? `Shift ${match[1]}` : "Other Tests";
+
+    if(!byShift.has(key)){
+      byShift.set(key,[]);
+    }
+    byShift.get(key).push(test);
+  });
+
+  const shifts = [...byShift.entries()].sort((a,b)=>{
+    if(a[0]==="Other Tests") return 1;
+    if(b[0]==="Other Tests") return -1;
+    return Number(a[0].match(/\d+/)?.[0]||0) -
+           Number(b[0].match(/\d+/)?.[0]||0);
+  });
+
+  if(!shifts.length){
+    shiftBox.className = "mock-chips";
+    shiftBox.innerHTML = "";
+    testBox.className = "chip-test-area";
+    testBox.innerHTML = `
+      <div class="practice-empty">No tests available for this year.</div>
+    `;
+    return;
+  }
+
+  shiftBox.className = "mock-chips";
+  shiftBox.innerHTML = shifts.map(([label],index)=>`
+    <div
+      class="mock-chip ${index===0 ? "active" : ""}"
+      onclick="selectFullShiftFromData('${escapeHtml(label)}',this)"
+    >${escapeHtml(label)}</div>
+  `).join("");
+
+  // Keep the grouped test data available for the shift selection handler.
+  window.__sscEdgeYearShiftTests = Object.fromEntries(shifts);
+
+  selectFullShiftFromData(
+    shifts[0][0],
+    shiftBox.querySelector(".mock-chip")
+  );
+
+}
+
+function selectFullShift(
+  folderId,
+  chip
+){
+
+  document
+    .querySelectorAll("#fullMockShifts .mock-chip")
+    .forEach(c=>c.classList.remove("active"));
+
+  if(chip){
+    chip.classList.add("active");
+  }
+
   renderTests(
-    testsInFolders(
-      String(yearIds).split(","),
-      "full"
-    ),
+    testsInFolders([String(folderId)],"full"),
+    "fullMockTests"
+  );
+
+}
+
+function selectFullShiftFromData(
+  label,
+  chip
+){
+
+  document
+    .querySelectorAll("#fullMockShifts .mock-chip")
+    .forEach(c=>c.classList.remove("active"));
+
+  if(chip){
+    chip.classList.add("active");
+  }
+
+  const list =
+    window.__sscEdgeYearShiftTests?.[label] || [];
+
+  renderTests(
+    list,
     "fullMockTests"
   );
 
@@ -4205,6 +4360,12 @@ window.backToMockCategories =
 
 window.selectFullYear =
   selectFullYear;
+
+window.selectFullShift =
+  selectFullShift;
+
+window.selectFullShiftFromData =
+  selectFullShiftFromData;
 
 window.selectSectionSubject =
   selectSectionSubject;
