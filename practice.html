@@ -1755,6 +1755,23 @@ function getExamTier(exam){
 
 }
 
+/*
+  Keep Tier 1 and Tier 2 as separate exam cards.
+  If subtitle/description/stage is empty, use the tier
+  detected from the exam name so the two cards remain clear.
+*/
+function getExamDisplaySubtitle(exam){
+
+  return String(
+    exam?.subtitle ||
+    exam?.description ||
+    exam?.stage ||
+    getExamTier(exam) ||
+    ""
+  ).trim();
+
+}
+
 /* =========================================================
    SSC / RRB
 ========================================================= */
@@ -1838,12 +1855,7 @@ function renderExams(board){
         getExamMainName(e);
 
       const subtitle =
-        String(
-          e?.subtitle ??
-          e?.description ??
-          e?.stage ??
-          ""
-        ).trim();
+        getExamDisplaySubtitle(e);
 
       return `
 
@@ -1913,12 +1925,7 @@ async function openExam(id){
   document
     .getElementById("examSubtitle")
     .textContent =
-      String(
-        currentExam?.subtitle ||
-        currentExam?.description ||
-        currentExam?.stage ||
-        ""
-      ).trim();
+      getExamDisplaySubtitle(currentExam);
 
   currentBranch = "";
   currentMockType = "";
