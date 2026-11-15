@@ -1207,6 +1207,18 @@ body{
   color:#fff;
 }
 
+.guest-save-box{
+  margin-top:16px;
+  padding:12px;
+  border:1px solid var(--purple);
+  border-radius:11px;
+  background:rgba(139,92,246,.12);
+  color:var(--text);
+  font-size:12px;
+  line-height:1.55;
+  text-align:left;
+}
+
 .result-back{
   margin-top:0;
   border:1px solid var(--border);
@@ -5185,11 +5197,55 @@ function calculateMaximumMarks(){
    SAVE TEST ATTEMPT
    ================================================== */
 
+const GUEST_ATTEMPTS_KEY = "ssc-edge-guest-attempts";
+
+function storeGuestAttempt(payload, resultData){
+
+  try{
+
+    const list = JSON.parse(
+      localStorage.getItem(GUEST_ATTEMPTS_KEY) || "[]"
+    );
+
+    const clean = { ...payload };
+    delete clean.user_id;
+
+    list.push({
+      payload: clean,
+      answerRows: (resultData.answerRows || []).map(row => ({
+        question_id: row.question_id,
+        selected_option_id: row.selected_option_id,
+        status: row.status,
+        time_spent_seconds: row.time_spent_seconds
+      })),
+      savedAt: Date.now()
+    });
+
+    localStorage.setItem(
+      GUEST_ATTEMPTS_KEY,
+      JSON.stringify(list.slice(-20))
+    );
+
+  }catch(e){
+    console.warn("Could not keep guest attempt on this device:", e);
+  }
+
+}
+
+function goCreateAccount(){
+  window.location.href = "index.html?signup=1";
+}
+
+function goLogin(){
+  window.location.href = "index.html";
+}
+
 async function saveTestAttempt(resultData){
 
-  if(!currentUser){
-    throw new Error("You must be logged in to submit this test.");
-  }
+  /*
+    Guests are allowed to attempt tests. Their attempt is kept on
+    this device and saved to their account after they sign up / log in.
+  */
 
   /*
     IMPORTANT:
@@ -5228,7 +5284,7 @@ async function saveTestAttempt(resultData){
   const attemptPayload = {
 
     user_id:
-      currentUser.id,
+      currentUser?.id || null,
 
     mock_test_id:
       testId,
@@ -5282,6 +5338,14 @@ async function saveTestAttempt(resultData){
       }))
 
   };
+
+  if(!currentUser){
+    storeGuestAttempt(attemptPayload, resultData);
+    return {
+      attempt:{ id:null },
+      attemptNumber
+    };
+  }
 
   /*
     Insert the main attempt using ONLY real columns.
@@ -5536,6 +5600,8 @@ function renderResultScreen(resultData){
     };
   });
 
+  const isGuest = !currentUser;
+
   result.innerHTML = `
     <div class="result-card">
 
@@ -5586,10 +5652,27 @@ function renderResultScreen(resultData){
         Test completed successfully.
       </div>
 
+      ${isGuest ? `
+      <div class="guest-save-box">
+        <b>Save your performance</b><br>
+        You are using SSC EDGE as a guest. Create a free account to save this
+        attempt, track your progress and see your analysis.
+      </div>
+      ` : ""}
+
       <div class="result-actions">
+        ${isGuest ? `
+        <button type="button" class="result-action primary" onclick="goCreateAccount()">
+          Create Account to Save Performance
+        </button>
+        <button type="button" class="result-action" onclick="goLogin()">
+          Already have an account? Login
+        </button>
+        ` : `
         <button type="button" class="result-action primary" onclick="openAnalysisPage()">
           View Analysis
         </button>
+        `}
         <button type="button" class="result-action" onclick="openSolutionsPage()">
           View Solutions
         </button>

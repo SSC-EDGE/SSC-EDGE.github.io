@@ -375,6 +375,87 @@ async function saveUser(user){
   localStorage.removeItem(
     "ssc-edge-guest"
   );
+
+  await syncGuestAttempts(user);
+}
+
+
+/* =========================================
+   SAVE ATTEMPTS MADE AS A GUEST
+========================================= */
+
+let guestSyncRunning = false;
+
+async function syncGuestAttempts(user){
+
+  if(guestSyncRunning || !user) return;
+
+  const KEY = "ssc-edge-guest-attempts";
+  let list = [];
+
+  try{
+    list = JSON.parse(localStorage.getItem(KEY) || "[]");
+  }catch(e){}
+
+  if(!Array.isArray(list) || !list.length) return;
+
+  guestSyncRunning = true;
+  localStorage.removeItem(KEY);
+
+  const failed = [];
+
+  for(const item of list){
+
+    try{
+
+      const payload = { ...item.payload, user_id:user.id };
+
+      const { error } =
+        await supabaseClient.from("test_attempts").insert(payload);
+
+      if(error) throw error;
+
+      if(item.answerRows?.length){
+
+        const { data } =
+          await supabaseClient
+            .from("test_attempts")
+            .select("id")
+            .eq("user_id",user.id)
+            .eq("mock_test_id",payload.mock_test_id)
+            .not("completed_at","is",null)
+            .order("completed_at",{ascending:false})
+            .limit(1);
+
+        const attemptId = data?.[0]?.id;
+
+        if(attemptId){
+          await supabaseClient.from("user_answers").insert(
+            item.answerRows.map(row => ({
+              attempt_id:attemptId,
+              question_id:row.question_id,
+              selected_option_id:row.selected_option_id,
+              is_correct:row.status === "correct" || row.status === "bonus",
+              time_spent_seconds:Math.max(0,Math.floor(Number(row.time_spent_seconds || 0)))
+            }))
+          );
+        }
+
+      }
+
+    }catch(e){
+      console.warn("Could not save guest attempt:", e);
+      failed.push(item);
+    }
+
+  }
+
+  if(failed.length){
+    localStorage.setItem(KEY, JSON.stringify(failed));
+  }
+
+  guestSyncRunning = false;
+
 }
 
 
@@ -748,6 +829,10 @@ supabaseClient.auth.onAuthStateChange(
 ========================================= */
 
 handleGoogleReturn();
+
+if(new URLSearchParams(window.location.search).get("signup") === "1"){
+  showSignup();
+}
 
 </script>
   <script>
