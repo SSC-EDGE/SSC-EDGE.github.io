@@ -610,12 +610,13 @@ button{
   }
 }
 </style>
+<script src="admin-nav.js"></script>
 </head>
 
 <body>
 
 <header class="am-header">
-  <button class="am-back" onclick="location.href='admin-practice.html'">‹</button>
+  <button class="am-back" onclick="location.href='admin.html'">‹</button>
   <div class="am-brand">SSC <span>EDGE</span></div>
   <div class="am-subtitle">Mock Question Manager</div>
 </header>
@@ -1343,6 +1344,9 @@ async function loadAssignedQuestions(){
   }
 
   const questionMap = new Map((data || []).map(q => [String(q.id),q]));
+  const optRes = await db.from("question_options").select("*").in("question_id",ids).order("option_label");
+  window.__optMap = {};
+  (optRes.data || []).forEach(o => { (window.__optMap[o.question_id] = window.__optMap[o.question_id] || []).push(o); });
 
   assignedQuestions = mappings
     .map(mapping => ({
@@ -1379,15 +1383,12 @@ async function loadAssignedQuestions(){
         </div>
 
         <div class="am-question-options">
-          <div>A. ${escapeHTML(q.option_a || "")}</div>
-          <div>B. ${escapeHTML(q.option_b || "")}</div>
-          <div>C. ${escapeHTML(q.option_c || "")}</div>
-          <div>D. ${escapeHTML(q.option_d || "")}</div>
+          ${(window.__optMap[q.id] || []).map(o => `<div>${escapeHTML(o.option_label)}. ${escapeHTML(o.option_text || "")}${o.is_correct ? " ✓" : ""}</div>`).join("")}
         </div>
 
         <div class="am-question-bottom">
           <span class="am-small">
-            Correct: ${escapeHTML(q.correct_option || "-")}
+            Correct: ${escapeHTML((Array.isArray(q.correct_options) ? q.correct_options.join(", ") : "") || "-")}
           </span>
 
           <select class="am-move-select"
@@ -1736,12 +1737,9 @@ async function saveCreatedQuestion(){
       subject_id:subjectId,
       chapter_id:chapterId || null,
       question_text:questionText,
-      option_a:optionA,
-      option_b:optionB,
-      option_c:optionC,
-      option_d:optionD,
-      correct_option:correctOption,
-      explanation:explanation || null
+      correct_options:[correctOption],
+      explanation:explanation || null,
+      mock_test_id:null
     })
     .select()
     .single();
@@ -1749,6 +1747,16 @@ async function saveCreatedQuestion(){
   if(error){
     toast(error.message);
     console.error(error);
+    return;
+  }
+
+  const optRows = [["A",optionA],["B",optionB],["C",optionC],["D",optionD]].map(([l,t]) => ({
+    question_id:data.id,option_label:l,option_text:t,is_correct:l === correctOption
+  }));
+  const {error:optErr} = await db.from("question_options").insert(optRows);
+  if(optErr){
+    await db.from("questions").delete().eq("id",data.id);
+    toast(optErr.message);
     return;
   }
 

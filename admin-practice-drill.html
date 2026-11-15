@@ -353,6 +353,7 @@ button{
   }
 }
 </style>
+<script src="admin-nav.js"></script>
 </head>
 
 <body>
@@ -1909,7 +1910,7 @@ function testForm(t = {}){
           id="tNeg"
           type="number"
           step="0.01"
-          value="${t.negative_marks ?? 0}"
+          value="${t.negative_marks_per_question ?? t.negative_marks ?? 0}"
         >
       </div>
 
@@ -1976,7 +1977,7 @@ async function saveTest(){
     description:
       $("tDesc").value.trim() || null,
 
-    test_type:"SUBJECT_WISE",
+    test_type:"FULL",
 
     duration_minutes:
       Number($("tDuration").value) || 15,
@@ -1987,7 +1988,7 @@ async function saveTest(){
     marks_per_question:
       Number($("tMarks").value) || 1,
 
-    negative_marks:
+    negative_marks_per_question:
       Number($("tNeg").value) || 0,
 
     is_active:

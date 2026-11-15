@@ -435,6 +435,7 @@ body.tool-create #bulkCard,body.tool-create #filterCard,body.tool-create #bulkAc
 body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
 .tool-top{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.tool-top a{padding:9px 12px;border:1px solid var(--border,#302044);border-radius:9px;text-decoration:none;color:inherit;background:var(--card,#171025);font-size:13px}
 </style>
+<script src="admin-nav.js"></script>
 </head>
 
 <body class="tool-create">
@@ -1103,15 +1104,21 @@ function updateFilterChapter(){
 
 async function loadQuestions(){
 
-  const { data,error } =
-    await db
+  let data = [], error = null;
+  for(let from = 0;; from += 1000){
+    const r = await db
       .from("questions")
       .select(`
         *,
         subjects(name),
         chapters(name)
       `)
-      .order("id",{ascending:false});
+      .order("id",{ascending:false})
+      .range(from,from + 999);
+    if(r.error){ error = r.error; break; }
+    data.push(...(r.data || []));
+    if(!r.data || r.data.length < 1000) break;
+  }
 
   if(error){
 
@@ -1197,8 +1204,10 @@ async function renderQuestions(){
     return;
   }
 
+  const limit = window.__qLimit || 100;
+  const shown = filtered.slice(0,limit);
   const ids =
-    filtered.map(q => q.id);
+    shown.map(q => q.id);
 
   const { data:options,error } =
     await db
@@ -1243,7 +1252,7 @@ async function renderQuestions(){
 
   list.innerHTML = "";
 
-  filtered.forEach((q,index) => {
+  shown.forEach((q,index) => {
 
     const opts =
       optionMap[q.id] || [];
@@ -1427,6 +1436,10 @@ async function renderQuestions(){
 
   });
 
+  if(filtered.length > shown.length){
+    list.innerHTML += `<div class="card empty">Showing ${shown.length} of ${filtered.length} questions.<br><br><button onclick="window.__qLimit=(window.__qLimit||100)+100;renderQuestions()">Show 100 more</button></div>`;
+  }
+
   updateQuestionSelectionUI(filtered.map(q => String(q.id)));
 }
 
@@ -1511,11 +1524,7 @@ async function deleteSelectedQuestions(){
 
   try{
     // Delete options explicitly first so this works even when FK cascade is not configured.
-    const { error: optionsError } = await db
-      .from("question_options")
-      .delete()
-      .in("question_id", ids);
-    if(optionsError) throw optionsError;
+    await removeQuestionLinks(ids);
 
     const { error: questionsError } = await db
       .from("questions")
@@ -1528,7 +1537,7 @@ async function deleteSelectedQuestions(){
     await loadQuestions();
   }catch(error){
     console.error(error);
-    alert("Could not delete selected questions:\\n" + (error.message || "Unknown error"));
+    alert("Could not delete selected questions:\n" + (error.message || "Unknown error"));
   }
 }
 
@@ -2028,6 +2037,17 @@ async function editQuestion(id){
 
 /* DELETE */
 
+async function removeQuestionLinks(ids){
+  ids = [].concat(ids);
+  for(let i = 0; i < ids.length; i += 100){
+    const part = ids.slice(i,i + 100);
+    for(const t of ["mock_test_questions","question_shift_group_questions","question_options"]){
+      const r = await db.from(t).delete().in("question_id",part);
+      if(r.error) throw r.error;
+    }
+  }
+}
+
 async function deleteQuestion(id){
 
   if(!confirm(
@@ -2036,11 +2056,12 @@ async function deleteQuestion(id){
     return;
   }
 
-  const { error } =
-    await db
-      .from("questions")
-      .delete()
-      .eq("id",id);
+  let error = null;
+  try{
+    await removeQuestionLinks(id);
+    const r = await db.from("questions").delete().eq("id",id);
+    error = r.error;
+  }catch(e){ error = e; }
 
   if(error){
 
