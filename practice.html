@@ -1762,9 +1762,17 @@ function getExamTier(exam){
 ========================================================= */
 
 function practiceBasePath(){
-  const path = location.pathname;
-  const match = path.match(/^(.*\/practice)(?:\.html)?(?:\/.*)?$/i);
-  return match ? match[1] : path.replace(/\/+$/,"");
+  const segments = location.pathname.split("/").filter(Boolean);
+  const index = segments.findIndex(part =>
+    /^practice(?:\.html)?$/i.test(part)
+  );
+
+  if(index >= 0){
+    return "/" + segments.slice(0,index+1).join("/")
+      .replace(/\.html$/i,"");
+  }
+
+  return location.pathname.replace(/\/+$/,"").replace(/\/[^/]*$/,"");
 }
 
 function practiceExamSlug(exam){
@@ -1815,12 +1823,14 @@ function setPracticeURL(level, extra={}){
     parts.push(practiceBranchSlug(branch));
   }
 
-  const base = practiceBasePath();
+  const base = practiceBasePath().replace(/\/+$/,"");
   const next = level === "home"
     ? base
     : base + "/" + parts.join("/");
 
-  history.pushState({sscEdgePractice:true},"",next);
+  if(location.pathname !== next){
+    history.pushState({sscEdgePractice:true},"",next);
+  }
 }
 
 function updatePracticeURLFromCurrent(){
@@ -1834,26 +1844,27 @@ function updatePracticeURLFromCurrent(){
 }
 
 async function restorePracticeURL(){
-  const base = practiceBasePath().replace(/\/+$/,"");
-  let path = location.pathname;
+  // Find the mock-test segment directly. This also works when
+  // Cloudflare serves practice.html for a nested clean URL.
+  let pathParts = location.pathname
+    .replace(/\.html(?=\/|$)/i,"")
+    .split("/")
+    .filter(Boolean);
 
-  if(path.toLowerCase().endsWith(".html")){
-    path = path.slice(0,-5);
-  }
+  const routeIndex = pathParts.findIndex(
+    part => part.toLowerCase() === "mock-test"
+  );
 
-  let relative = path.startsWith(base)
-    ? path.slice(base.length)
-    : "";
+  if(routeIndex < 0) return false;
 
-  const parts = relative.split("/").filter(Boolean);
-
-  if(!parts.length) return false;
-  if(parts[0].toLowerCase() !== "mock-test") return false;
-
+  const parts = pathParts.slice(routeIndex);
   const category = (parts[1] || "ssc").toUpperCase();
   currentGateway = category === "RRB" ? "RRB" : "SSC";
 
-  const loaded = await (examsLoadPromise || (examsLoadPromise = loadExams()));
+  const loaded = await (
+    examsLoadPromise ||
+    (examsLoadPromise = loadExams())
+  );
   if(!loaded) return true;
 
   if(currentGateway === "RRB") await openRRB(true);
@@ -1864,6 +1875,7 @@ async function restorePracticeURL(){
   let examPart = parts[2].toLowerCase();
   let tier = "";
   const tierMatch = examPart.match(/-tier-([12])$/);
+
   if(tierMatch){
     tier = tierMatch[1];
     examPart = examPart.replace(/-tier-[12]$/,"");
@@ -1874,6 +1886,7 @@ async function restorePracticeURL(){
     practiceExamSlug(e) === examPart &&
     (!tier || practiceTierCode(e) === tier)
   );
+
   if(!match) return true;
 
   await openExam(match.id,true);
@@ -1890,7 +1903,9 @@ async function restorePracticeURL(){
       branch = "new";
       root = getRoots().find(f=>folderType(f)==="new");
     }else{
-      root = getRoots().find(f=>practiceFolderSlug(folderName(f))===branchSlug);
+      root = getRoots().find(
+        f => practiceFolderSlug(folderName(f)) === branchSlug
+      );
     }
 
     await openMockBranch(root?.id || "",branch,true);
@@ -4394,7 +4409,7 @@ async function startPracticePage(){
     practice.html#ssc
   */
 
-  if(location.pathname.toLowerCase().includes("/mock-test")){
+  if(location.pathname.toLowerCase().split("/").includes("mock-test")){
     const restored = await restorePracticeURL();
     if(restored) return;
   }
@@ -4419,7 +4434,7 @@ async function startPracticePage(){
    BROWSER BACK / FORWARD
 ========================================================= */
 window.addEventListener("popstate", async ()=>{
-  if(location.pathname.toLowerCase().includes("/mock-test")){
+  if(location.pathname.toLowerCase().split("/").includes("mock-test")){
     await restorePracticeURL();
     return;
   }
