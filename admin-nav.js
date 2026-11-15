@@ -21,6 +21,8 @@ var TOOLS=[
   ["mock-manager.html","📋","Mock Manager","List of all mocks, jump to edit"],
   ["admin-mock.html","🧩","Mock Questions","Assign questions to mock sections"],
   ["question-shift-manager.html","🕐","Date & Shift Folders","Subject → Date → Shift question folders"]]},
+ {g:"Typing",i:"⌨️",items:[
+  ["admin-typing.html","⌨️","Typing Tests","Typing exams, mocks and passages"]]},
  {g:"Practice Drill",i:"🎯",items:[
   ["admin-practice-drill.html","📁","Drill Folders & Tests","Folders and tests in Practice Drill"],
   ["chapter-mock-generator.html","⚡","Chapter Mock Generator","Auto-make sets of 25 from chapter questions"],
