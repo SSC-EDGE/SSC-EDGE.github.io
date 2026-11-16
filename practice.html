@@ -4243,7 +4243,7 @@ async function startPracticePage(){
     practice.html#ssc
   */
 
-  if(await restoreRoute())return;
+  try{ if(await restoreRoute())return; }catch(e){ console.error('Route restore failed',e); }
 
   const hash =
     String(
@@ -4344,7 +4344,7 @@ async function restoreRoute(){
   if(branchS==="new-mocks"){root=roots.find(r=>folderType(r)==="new")||null;branch="new"}
   else if(branchS==="pyq-mocks"){root=roots.find(r=>folderType(r)==="pyq")||null;branch="pyq"}
   else{root=roots.find(r=>folderType(r)!=="new"&&folderType(r)!=="pyq"&&slugify(folderName(r))===branchS)||null;branch="custom"}
-  if(root)openMockBranch(root.id,branch);
+  openMockBranch(root?root.id:"",branch);
   return true;
 }
 
