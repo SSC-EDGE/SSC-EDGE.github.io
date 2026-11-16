@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Typing Analysis | SSC EDGE</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#08050e;color:#fff;font-family:Arial,sans-serif}
+.wrap{max-width:850px;margin:auto;padding:24px 16px 50px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;background:#100b19;border-bottom:1px solid #302044}
+.brand{font-weight:900;font-size:19px}.brand span{color:#a66bff}.btn{border:0;border-radius:9px;background:#7c3aed;color:#fff;padding:11px 16px;font-weight:800;text-decoration:none;cursor:pointer}
+h1{font-size:27px;margin:24px 0 7px}.muted{color:#aaa2b9}.panel{margin-top:22px;padding:22px;border:1px solid #302044;border-radius:16px;background:linear-gradient(145deg,#171025,#251344)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.stat{padding:17px;background:#100b19;border:1px solid #302044;border-radius:12px;color:#aaa2b9;font-size:13px}.stat b{display:block;color:#fff;font-size:25px;margin-bottom:6px}
+.error{padding:18px;background:#251344;border-radius:12px;color:#ffd7d7}
+@media(min-width:800px){.wrap{padding-top:42px}.panel{padding:30px}.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:420px){.top{padding:13px}.btn{padding:9px 11px;font-size:12px}.wrap{padding:18px 12px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="brand">SSC <span>EDGE</span></div><a class="btn" href="https://ssc-edge.pages.dev" target="_blank" rel="noopener">Visit Website ↗</a></header>
+<main class="wrap">
+<h1>Typing Test Analysis</h1>
+<p class="muted" id="mockTitle">Your latest typing performance</p>
+<section class="panel" id="analysis"><p class="muted">Loading your result...</p></section>
+<p style="margin-top:20px"><a class="btn" href="typing.html">Back to Typing Mocks</a></p>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://dvvyoygahzzbnpqrfhen.supabase.co";
+const SUPABASE_KEY="sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const params=new URLSearchParams(location.search);
+const attemptId=params.get("attempt_id"),mockId=params.get("mock_id");
+const candidateId=localStorage.getItem("ssc_edge_typing_candidate_id");
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+async function load(){
+ let query=db.from("typing_attempts").select("*,typing_mocks(name,typing_exams(name))");
+ if(attemptId) query=query.eq("id",attemptId);
+ else if(candidateId&&mockId) query=query.eq("candidate_id",candidateId).eq("mock_id",mockId).order("created_at",{ascending:false}).limit(1);
+ else {document.getElementById("analysis").innerHTML='<div class="error">Result not found. Please return to the typing mock list.</div>';return;}
+ const {data,error}=await query;
+ const a=Array.isArray(data)?data[0]:data;
+ if(error||!a){document.getElementById("analysis").innerHTML='<div class="error">Unable to load this result. Please try again from the mock list.</div>';console.error(error);return;}
+ document.getElementById("mockTitle").textContent=(a.typing_mocks?.typing_exams?.name||"Typing Test")+" · "+(a.typing_mocks?.name||"Mock");
+ const date=a.created_at?new Date(a.created_at).toLocaleString():"—";
+ document.getElementById("analysis").innerHTML=`<div class="grid">
+ <div class="stat"><b>${Number(a.gross_wpm||0).toFixed(1)}</b>Gross WPM</div>
+ <div class="stat"><b>${Number(a.accuracy||0).toFixed(1)}%</b>Accuracy</div>
+ <div class="stat"><b>${Number(a.correct_chars||0)}</b>Correct characters</div>
+ <div class="stat"><b>${Number(a.incorrect_chars||0)}</b>Incorrect characters</div>
+ <div class="stat"><b>${Number(a.typed_chars||0)}</b>Typed characters</div>
+ <div class="stat"><b>${Math.floor(Number(a.duration_seconds||0)/60)}:${String(Number(a.duration_seconds||0)%60).padStart(2,"0")}</b>Time used</div>
+ </div><p class="muted" style="margin:20px 0 0">Attempt date: ${esc(date)}</p>`;
+}
+load();
+</script>
+</body>
+</html>

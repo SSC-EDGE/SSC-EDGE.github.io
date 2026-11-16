@@ -15,8 +15,8 @@ html,body{margin:0;min-height:100%;background:var(--paper);font-family:Georgia,"
 .mock-name{max-width:18%;color:#e4d9f7}
 .timer{font:700 17px Georgia,serif;white-space:nowrap;margin-left:auto;flex:0 0 auto;text-align:right;padding-left:8px}
 .page{padding:5px 8px 24px;max-width:1600px;margin:auto}
-.passage{height:36vh;min-height:180px;max-height:360px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#fff;border:2px solid #777;box-shadow:0 1px 3px #aaa;padding:10px 12px;font-size:20px;line-height:1.42;white-space:normal;overflow-wrap:anywhere}
-#typingInput{display:block;width:100%;height:19vh;min-height:115px;max-height:220px;margin-top:7px;padding:9px 12px;resize:none;border:2px solid #777;box-shadow:0 1px 3px #aaa;background:var(--green);color:#111;font:20px/1.42 Georgia,"Times New Roman",serif;outline:none;border-radius:0}
+.passage{height:36vh;min-height:180px;max-height:360px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;background:#fff;border:2px solid #777;box-shadow:0 1px 3px #aaa;padding:10px 12px;font-size:20px;line-height:1.42;white-space:normal;overflow-wrap:anywhere}
+#typingInput{display:block;width:100%;height:19vh;min-height:115px;max-height:220px;margin-top:7px;padding:9px 12px;resize:none;overflow-y:auto;overflow-x:hidden;border:2px solid #777;box-shadow:0 1px 3px #aaa;background:var(--green);color:#111;font:20px/1.42 Georgia,"Times New Roman",serif;outline:none;border-radius:0}
 #typingInput::placeholder{color:#666;opacity:1}
 .submit-wrap{text-align:center;padding:10px}.submit{background:#e3e3e3;border:1px solid #555;border-radius:9px;padding:11px 28px;font:700 16px Arial,sans-serif;color:#111;box-shadow:0 1px 1px #aaa}
 .result{max-width:600px;margin:20px auto;background:#fff;border:1px solid #aaa;padding:22px;text-align:center;font-family:Arial,sans-serif}.result h2{margin:0 0 15px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#f1f1f1;padding:13px;border-radius:7px}.stat b{display:block;font-size:23px;margin-bottom:4px}.hidden{display:none!important}
@@ -39,7 +39,6 @@ html,body{margin:0;min-height:100%;background:var(--paper);font-family:Georgia,"
  <textarea id="typingInput" placeholder="Start typing here...." autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
  <div class="submit-wrap"><button class="submit" id="submit">Submit Test</button></div>
 </main>
-<section id="result" class="result hidden"></section>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL="https://dvvyoygahzzbnpqrfhen.supabase.co";
@@ -80,16 +79,9 @@ async function finishTest(auto){
  if(finished)return;finished=true;if(timerHandle)clearInterval(timerHandle);$("typingInput").disabled=true;$("submit").disabled=true;
  const m=getMetrics(),elapsed=Math.max(1,(Number(mock.duration_minutes)*60)-secondsLeft);
  const attempt={candidate_id:candidateId,mock_id:mock.id,exam_id:mock.exam_id,typed_text:m.typed,correct_chars:m.correct,incorrect_chars:m.wrong,typed_chars:m.typedCount,accuracy:Number(m.accuracy.toFixed(2)),gross_wpm:Number(m.wpm.toFixed(2)),duration_seconds:elapsed,auto_submitted:auto};
- const {error}=await db.from("typing_attempts").insert(attempt);
- $("testPage").classList.add("hidden");$("result").classList.remove("hidden");
- $("result").innerHTML=`<h2>Typing Test Result</h2><p>${auto?"Time is over.":"Test submitted successfully."}</p>${error?'<p style="color:#b00020">Result could not be saved. Please inform support.</p>':''}<div class="stats">
- <div class="stat"><b>${m.wpm.toFixed(1)}</b>Gross WPM</div>
- <div class="stat"><b>${m.accuracy.toFixed(1)}%</b>Accuracy</div>
- <div class="stat"><b>${m.correct}</b>Correct characters</div>
- <div class="stat"><b>${m.wrong}</b>Incorrect characters</div>
- <div class="stat"><b>${m.typedCount}</b>Typed characters</div>
- <div class="stat"><b>${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,"0")}</b>Time used</div>
- </div><p style="margin-top:18px"><button class="submit" onclick="location.href='typing.html'">Back to Typing</button></p>`;
+ const {data:savedAttempt,error}=await db.from("typing_attempts").insert(attempt).select("id").single();
+ if(error){alert("Result could not be saved. Please inform support.");console.error(error);location.href="typing.html";return;}
+ location.href="typinganalysis.html?attempt_id="+encodeURIComponent(savedAttempt.id)+"&mock_id="+encodeURIComponent(mock.id);
 }
 $("increase").addEventListener("click",()=>{fontSize=Math.min(34,fontSize+2);$("passage").style.fontSize=fontSize+"px";$("typingInput").style.fontSize=fontSize+"px";});
 $("decrease").addEventListener("click",()=>{fontSize=Math.max(12,fontSize-2);$("passage").style.fontSize=fontSize+"px";$("typingInput").style.fontSize=fontSize+"px";});

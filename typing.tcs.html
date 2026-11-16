@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>TCS Typing Test | SSC EDGE</title>
+<style>
+*{box-sizing:border-box}
+:root{--blue:#355f8e;--paper:#f0f0f0;--ink:#111;--green:#c8ff9a}
+html,body{margin:0;min-height:100%;background:var(--paper);font-family:Georgia,"Times New Roman",serif;color:var(--ink)}
+.topbar{height:52px;background:var(--blue);color:#fff;display:flex;align-items:center;gap:11px;padding:0 10px;position:sticky;top:0;z-index:5;font-family:Arial,sans-serif;min-width:0}
+.tool{height:30px;min-width:34px;border:1px solid #bbb;border-radius:5px;background:#fff;color:#111;font-size:21px;font-weight:700;line-height:1;padding:0 7px;flex:0 0 auto}
+.brand{font:700 17px Arial,sans-serif;white-space:nowrap;margin-left:2px;flex:0 0 auto;letter-spacing:.25px}.brand span{color:#c6a0ff}
+.exam-name,.mock-name{font:700 17px Arial,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px;border-left:1px solid #ffffff66;max-width:20%;min-width:0;letter-spacing:.15px}
+.mock-name{max-width:18%;color:#e4d9f7}
+.timer{font:700 17px Georgia,serif;white-space:nowrap;margin-left:auto;flex:0 0 auto;text-align:right;padding-left:8px}
+.page{padding:5px 8px 24px;max-width:1600px;margin:auto}
+.passage{height:36vh;min-height:180px;max-height:360px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;background:#fff;border:2px solid #777;box-shadow:0 1px 3px #aaa;padding:10px 12px;font-size:20px;line-height:1.42;white-space:normal;overflow-wrap:anywhere}
+#typingInput{display:block;width:100%;height:19vh;min-height:115px;max-height:220px;margin-top:7px;padding:9px 12px;resize:none;overflow-y:auto;overflow-x:hidden;border:2px solid #777;box-shadow:0 1px 3px #aaa;background:var(--green);color:#111;font:20px/1.42 Georgia,"Times New Roman",serif;outline:none;border-radius:0}
+#typingInput::placeholder{color:#666;opacity:1}
+.submit-wrap{text-align:center;padding:10px}.submit{background:#e3e3e3;border:1px solid #555;border-radius:9px;padding:11px 28px;font:700 16px Arial,sans-serif;color:#111;box-shadow:0 1px 1px #aaa}
+.result{max-width:600px;margin:20px auto;background:#fff;border:1px solid #aaa;padding:22px;text-align:center;font-family:Arial,sans-serif}.result h2{margin:0 0 15px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#f1f1f1;padding:13px;border-radius:7px}.stat b{display:block;font-size:23px;margin-bottom:4px}.hidden{display:none!important}
+@media(min-width:900px){.page{padding:8px 16px 35px}#typingInput{height:21vh;font-size:22px}}
+@media(max-width:600px){.topbar{gap:8px;padding:0 7px;height:50px}.tool{min-width:27px;height:27px;padding:0 4px;font-size:18px}.brand{font-size:14px;margin-left:0;letter-spacing:0}.exam-name,.mock-name{font-size:14px;padding:0 6px;max-width:18%;letter-spacing:0}.mock-name{max-width:17%}.timer{font-size:14px;margin-left:auto;padding-left:4px}.passage{height:36vh;min-height:180px;max-height:360px;font-size:16px;line-height:1.4;padding:10px;overflow-y:auto;overflow-x:hidden}.page{padding:5px 7px}.submit{padding:9px 22px}}
+@media(max-width:360px){.topbar{gap:5px}.brand,.exam-name,.mock-name,.timer{font-size:13px}.exam-name,.mock-name{padding:0 4px}}
+
+.topbar #timer{display:none}.exam-strip,.keyboard-strip{height:32px;background:#4b91d8;color:#fff;font:700 13px Arial,sans-serif;padding:8px 15px}
+.section-strip{height:47px;background:#fff;border-bottom:1px solid #c9c9c9;display:flex;align-items:center;justify-content:space-between;padding:0 15px;font:700 14px Arial,sans-serif}
+.section-strip span{background:#4b91d8;color:#fff;padding:5px 13px;clip-path:polygon(0 0,100% 0,92% 100%,0 100%)}
+.section-strip strong{font-size:22px}
+.keyboard-strip{height:34px}
+.tcs-layout{display:grid;grid-template-columns:minmax(0,1fr) 20%;min-height:calc(100vh - 217px);background:#fff}
+.tcs-workspace{padding:36px 16px 80px;min-width:0}
+.tcs-writing-area{width:min(60%,760px)}
+.tcs-writing-area .passage{height:190px;min-height:150px;max-height:34vh;font:18px/1.45 Arial,sans-serif;border:1px solid #ccc;border-radius:5px;box-shadow:none;padding:10px;overflow-y:auto;overflow-x:hidden}
+.tcs-writing-area #typingInput{height:200px;max-height:35vh;min-height:150px;margin-top:14px;font:18px/1.45 Arial,sans-serif;background:#fff;border:1px solid #ccc;border-radius:5px;box-shadow:none;resize:none;overflow:auto}
+.candidate-panel{border-left:1px solid #c9c9c9;background:#fff;padding:12px 10px}
+.candidate-card{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font:700 16px Arial,sans-serif}
+.candidate-avatar{width:82px;height:82px;border:1px solid #c5c5c5;border-radius:8px;box-shadow:0 2px 7px #0002}
+.candidate-name{font-weight:800;color:#171717}.candidate-tag{font-size:10px;letter-spacing:1px;color:#75849a;width:100%;margin-left:94px;margin-top:-22px}
+.tcs-footer{position:fixed;bottom:0;left:0;right:0;height:72px;background:#fff;border-top:1px solid #d5d5d5;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:6}
+.cancel-btn{background:#d9364b;color:#fff;border:0;border-radius:6px;padding:13px 38px;font:700 13px Arial,sans-serif}
+.tcs-footer .submit{background:#4b91d8;color:#fff;border:0;border-radius:6px;padding:13px 38px;box-shadow:0 2px 5px #0002}
+@media(max-width:700px){.section-strip strong{font-size:16px}.tcs-layout{grid-template-columns:1fr}.tcs-workspace{padding:14px 10px 90px}.tcs-writing-area{width:100%}.tcs-writing-area .passage{height:32vh;max-height:320px;font-size:16px}.tcs-writing-area #typingInput{height:24vh;max-height:240px;font-size:16px}.candidate-panel{border-left:0;border-top:1px solid #ddd;padding:10px}.candidate-avatar{width:54px;height:54px}.candidate-card{font-size:13px}.candidate-tag{margin-left:66px;margin-top:-16px}.tcs-footer{height:62px;padding:0 10px}.cancel-btn,.tcs-footer .submit{padding:11px 24px}}
+
+</head>
+<body>
+<header class="topbar">
+ <button class="tool" id="increase" aria-label="Increase text size">+</button>
+ <button class="tool" id="decrease" aria-label="Decrease text size">−</button>
+ <div class="brand">SSC <span>EDGE</span></div>
+ <div class="exam-name" id="examName">EXAM</div>
+ <div class="mock-name" id="testName">MOCK</div>
+ <div class="timer" id="timer">00:00</div>
+</header>
+<div class="exam-strip">GROUP A</div>
+<div class="section-strip"><span>SECTION A</span><strong id="tcsTimer">Time Left: 00:00</strong></div>
+<div class="keyboard-strip">Keyboard Layout: QWERTY</div>
+<main class="tcs-layout" id="testPage">
+ <section class="tcs-workspace">
+  <div class="tcs-writing-area">
+   <div class="passage" id="passage">Loading passage...</div>
+   <textarea id="typingInput" placeholder="Start typing here..." autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+  </div>
+ </section>
+ <aside class="candidate-panel">
+  <div class="candidate-card">
+   <svg class="candidate-avatar" viewBox="0 0 160 160" role="img" aria-label="Candidate avatar">
+    <defs><linearGradient id="avbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eaf3ff"/><stop offset="1" stop-color="#9bb8d8"/></linearGradient><linearGradient id="shirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#425b7a"/><stop offset="1" stop-color="#172b46"/></linearGradient></defs>
+    <rect width="160" height="160" rx="16" fill="url(#avbg)"/>
+    <circle cx="80" cy="59" r="31" fill="#d7a783"/>
+    <path d="M49 59c0-29 15-43 33-43 24 0 37 18 34 48-7-10-13-18-22-23-13 11-26 15-45 18z" fill="#26384e"/>
+    <path d="M26 160c3-39 23-59 54-59s51 20 54 59" fill="url(#shirt)"/>
+    <path d="M62 104l18 18 18-18" fill="#f4f7fb"/>
+    <path d="M68 122l12 12 12-12" fill="#7894b5"/>
+   </svg>
+   <div class="candidate-name" id="candidateName">SSC EDGE Candidate</div>
+   <div class="candidate-tag">CANDIDATE</div>
+  </div>
+ </aside>
+</main>
+<footer class="tcs-footer"><button type="button" class="cancel-btn" id="cancelTest">Cancel</button><button type="button" class="submit" id="submit">Submit</button></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://dvvyoygahzzbnpqrfhen.supabase.co";
+const SUPABASE_KEY="sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+const params=new URLSearchParams(location.search),mockId=params.get("mock_id");
+let mock=null,passageText="",secondsLeft=0,timerHandle=null,finished=false,fontSize=20;
+const candidateId=(()=>{let id=localStorage.getItem("ssc_edge_typing_candidate_id");if(!id){id=crypto.randomUUID?crypto.randomUUID():"cand-"+Date.now()+"-"+Math.random().toString(36).slice(2);localStorage.setItem("ssc_edge_typing_candidate_id",id);}return id;})();
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+async function init(){
+ if(!mockId){$("passage").textContent="Mock not found. Please go back and select a mock.";return;}
+ const {data,error}=await db.from("typing_mocks").select("id,name,duration_minutes,keystrokes,passage_text,exam_id,typing_exams(name)").eq("id",mockId).maybeSingle();
+ if(error||!data){$("passage").textContent="Unable to load this typing test.";console.error(error);return;}
+ mock=data;passageText=String(data.passage_text||"");
+ if(!passageText.trim()){$("passage").textContent="Passage has not been added by admin.";return;}
+ $("examName").textContent=data.typing_exams?.name||"EXAM";$("testName").textContent=data.name;
+ $("passage").textContent=passageText;
+ secondsLeft=Math.max(1,Number(data.duration_minutes)||10)*60;
+ updateTimer();timerHandle=setInterval(()=>{secondsLeft--;updateTimer();if(secondsLeft<=0)finishTest(true);},1000);
+ $("typingInput").focus();
+}
+function updateTimer(){const m=Math.floor(secondsLeft/60),s=secondsLeft%60;const label="Time Left: "+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");$("timer").textContent=label;if($("tcsTimer"))$("tcsTimer").textContent=label;}
+function getMetrics(){
+ const typed=$("typingInput").value,limit=Math.min(typed.length,passageText.length);
+ let correct=0;for(let i=0;i<limit;i++)if(typed[i]===passageText[i])correct++;
+ const wrong=limit-correct,elapsed=Math.max(1,(Number(mock.duration_minutes)*60)-secondsLeft);
+ const accuracy=typed.length?correct/typed.length*100:0;
+ const wpm=(correct/5)/(elapsed/60);
+ return {typed,correct,wrong,accuracy,wpm,typedCount:typed.length};
+}
+function paintPassage(){
+ // Keep the reference passage clean: no per-character hints or colour feedback.
+}
+$("typingInput").addEventListener("input",()=>{if(finished)return;if($("typingInput").value.length>=passageText.length)finishTest(false);});
+$("submit").addEventListener("click",()=>finishTest(false));
+if($("cancelTest"))$("cancelTest").addEventListener("click",()=>{if(confirm("Cancel this typing test and return to mocks?"))location.href="typing.html";});
+async function finishTest(auto){
+ if(finished)return;finished=true;if(timerHandle)clearInterval(timerHandle);$("typingInput").disabled=true;$("submit").disabled=true;
+ const m=getMetrics(),elapsed=Math.max(1,(Number(mock.duration_minutes)*60)-secondsLeft);
+ const attempt={candidate_id:candidateId,mock_id:mock.id,exam_id:mock.exam_id,typed_text:m.typed,correct_chars:m.correct,incorrect_chars:m.wrong,typed_chars:m.typedCount,accuracy:Number(m.accuracy.toFixed(2)),gross_wpm:Number(m.wpm.toFixed(2)),duration_seconds:elapsed,auto_submitted:auto};
+ const {data:savedAttempt,error}=await db.from("typing_attempts").insert(attempt).select("id").single();
+ if(error){alert("Result could not be saved. Please inform support.");console.error(error);location.href="typing.html";return;}
+ location.href="typinganalysis.html?attempt_id="+encodeURIComponent(savedAttempt.id)+"&mock_id="+encodeURIComponent(mock.id);
+}
+$("increase").addEventListener("click",()=>{fontSize=Math.min(34,fontSize+2);$("passage").style.fontSize=fontSize+"px";$("typingInput").style.fontSize=fontSize+"px";});
+$("decrease").addEventListener("click",()=>{fontSize=Math.max(12,fontSize-2);$("passage").style.fontSize=fontSize+"px";$("typingInput").style.fontSize=fontSize+"px";});
+init();
+</script>
+</body>
+</html>

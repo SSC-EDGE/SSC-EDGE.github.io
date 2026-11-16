@@ -9,8 +9,8 @@
  :root{--bg:#08050e;--card:#171025;--card2:#251344;--purple:#7c3aed;--purple2:#a66bff;--text:#fff;--muted:#aaa2b9;--border:#302044;--surface:#100b19;--modal:#171025;--modal-option:#251b34;--modal-active:#321d51}
 :root[data-theme="light"],body[data-theme="light"],body.light-theme,body.light-mode{--bg:#f6f3fb;--card:#fff;--card2:#f1eafa;--purple:#6d35d4;--purple2:#8149e8;--text:#21182d;--muted:#746b80;--border:#e1d7ed;--surface:#fff;--modal:#fff;--modal-option:#f1eafa;--modal-active:#e8dcfa}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
-.simple-header{height:64px;display:flex;align-items:center;padding:0 18px;background:var(--surface);border-bottom:1px solid var(--border)}
-.header-brand{font-size:19px;font-weight:900;letter-spacing:.4px}.header-brand .edge{color:var(--purple2)}
+.simple-header{min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 18px;background:var(--surface);border-bottom:1px solid var(--border)}
+.header-brand{font-size:19px;font-weight:900;letter-spacing:.4px;white-space:nowrap}.header-brand .edge{color:var(--purple2)}.header-actions{display:flex;align-items:center;gap:9px}.header-btn{border:1px solid var(--border);border-radius:9px;background:var(--card2);color:var(--text);padding:9px 12px;font-size:12px;font-weight:800;text-decoration:none;white-space:nowrap}
 .page-container{max-width:900px;margin:auto;padding:24px 16px 100px}
 .page-title{font-size:27px;font-weight:900;margin:8px 0}.page-subtitle{color:var(--muted);margin:7px 0 25px;font-size:14px}
 .section-title{font-size:14px;letter-spacing:1px;font-weight:900;margin:22px 0 13px;color:var(--purple2)}
@@ -32,12 +32,12 @@
 .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:99;height:67px;display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border-top:1px solid var(--border)}
 .bottom-nav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-decoration:none;color:var(--muted)}
 .bottom-nav .nav-icon{font-size:20px}.bottom-nav small{font-size:9px;font-weight:800}.bottom-nav a.active small{color:var(--purple2)}
-.exam-card{min-height:126px;padding:25px;display:flex;flex-direction:column;justify-content:center}.exam-card h3{font-size:18px}.exam-card p{font-size:14px;margin-top:10px}.mode-option{min-height:58px}
-@media(max-width:480px){.page-container{padding:20px 14px 95px}.page-title{font-size:24px}.exam-grid{gap:10px}.exam-card{padding:24px;min-height:126px}.exam-card h3{font-size:17px}.mock-card{padding:12px}.start-btn{padding:9px 11px}}
+.exam-card{min-height:126px;padding:25px;display:flex;flex-direction:column;justify-content:center}.exam-card h3{font-size:18px}.exam-card p{font-size:14px;margin-top:10px}.mode-option{min-height:58px}@media(min-width:900px){.page-container{max-width:1120px;padding-top:34px}.exam-grid{gap:20px}.exam-card{min-height:170px;padding:32px;border-radius:18px}.exam-card h3{font-size:22px}.exam-card p{font-size:15px}.mock-list{gap:16px}.mock-card{padding:22px;min-height:132px}.mock-main h3{font-size:17px}.mock-meta{font-size:13px}.mock-actions{display:flex;gap:9px;align-items:center;margin-left:auto}.start-btn{padding:12px 18px}}
+@media(max-width:480px){.simple-header{padding:0 12px}.header-actions{gap:6px}.header-btn{padding:8px 9px;font-size:11px}.page-container{padding:20px 14px 25px}.page-title{font-size:24px}.exam-grid{gap:10px}.exam-card{padding:24px;min-height:126px}.exam-card h3{font-size:17px}.mock-card{padding:12px}.start-btn{padding:9px 11px}}
 </style>
 </head>
 <body>
-<header class="simple-header"><div class="header-brand">SSC <span class="edge">EDGE</span></div></header>
+<header class="simple-header"><div class="header-brand">SSC <span class="edge">EDGE</span></div><div class="header-actions"><button class="header-btn" id="themeToggle" type="button">☀️ Light</button><a class="header-btn" href="https://ssc-edge.pages.dev" target="_blank" rel="noopener">Visit Website ↗</a></div></header>
 <main class="page-container">
 <section id="examScreen">
 <h1 class="page-title">TYPING TEST</h1>
@@ -63,12 +63,7 @@
  <div class="mode-box"><button type="button" class="mode-close" id="closeAttemptResult">×</button><h2>Last Attempt Result</h2><div id="attemptResultBody"></div></div>
 </div>
 </main>
-<nav class="bottom-nav">
-<a href="home.html"><span class="nav-icon">🏠</span><small>Home</small></a>
-<a href="study.html"><span class="nav-icon">📚</span><small>Study Material</small></a>
-<a href="practice.html" class="active"><span class="nav-icon">📝</span><small>Practice</small></a>
-<a href="profile.html"><span class="nav-icon">👤</span><small>Profile</small></a>
-</nav>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL="https://dvvyoygahzzbnpqrfhen.supabase.co";
@@ -83,6 +78,16 @@ function syncTypingTheme(){
  if(theme)root.setAttribute("data-theme",theme.toLowerCase());
 }
 syncTypingTheme();window.addEventListener("storage",syncTypingTheme);
+function applyTypingTheme(theme){
+ document.documentElement.setAttribute("data-theme",theme);
+ document.body.setAttribute("data-theme",theme);
+ localStorage.setItem("ssc-edge-theme",theme);
+ $("themeToggle").textContent=theme==="light"?"🌙 Dark":"☀️ Light";
+}
+const savedTypingTheme=localStorage.getItem("ssc-edge-theme");
+if(savedTypingTheme==="light"||savedTypingTheme==="dark")applyTypingTheme(savedTypingTheme);
+else $("themeToggle").textContent=(document.documentElement.getAttribute("data-theme")==="light")?"🌙 Dark":"☀️ Light";
+$("themeToggle").addEventListener("click",()=>applyTypingTheme(document.documentElement.getAttribute("data-theme")==="light"?"dark":"light"));
 
 let selectedExam=null,pendingMockId=null;
 const candidateId=(()=>{let id=localStorage.getItem("ssc_edge_typing_candidate_id");if(!id){id=crypto.randomUUID?crypto.randomUUID():"cand-"+Date.now()+"-"+Math.random().toString(36).slice(2);localStorage.setItem("ssc_edge_typing_candidate_id",id);}return id;})();
@@ -107,22 +112,17 @@ async function openExam(exam){
  }
  list.innerHTML=data.map(m=>{
   const last=attemptMap[m.id];
-  return `<article class="mock-card"><div class="mock-icon">⌨️</div><div class="mock-main"><h3>${escapeHtml(m.name)}</h3><div class="mock-meta"><span>⏱ ${Number(m.duration_minutes)||0} min</span><span>⌨ ${Number(m.keystrokes)||0} keystrokes</span></div></div>${last?`<button class="start-btn result-btn" type="button" data-id="${m.id}">Result</button><button class="start-btn" type="button" data-id="${m.id}">Retake</button>`:`<button class="start-btn" type="button" data-id="${m.id}">Start</button>`}</article>`;
+  return `<article class="mock-card"><div class="mock-icon">⌨️</div><div class="mock-main"><h3>${escapeHtml(m.name)}</h3><div class="mock-meta"><span>⏱ ${Number(m.duration_minutes)||0} min</span><span>⌨ ${Number(m.keystrokes)||0} keystrokes</span></div><div class="mock-actions">${last?`<button class="start-btn result-btn" type="button" data-id="${m.id}">Result</button><button class="start-btn" type="button" data-id="${m.id}">Retake</button>`:`<button class="start-btn" type="button" data-id="${m.id}">Start</button>`}</div></div></article>`;
  }).join("");
  list.querySelectorAll(".start-btn:not(.result-btn)").forEach(btn=>btn.addEventListener("click",()=>{pendingMockId=btn.dataset.id;$("modeModal").classList.remove("hidden");}));
- list.querySelectorAll(".result-btn").forEach(btn=>btn.addEventListener("click",()=>showLastResult(attemptMap[btn.dataset.id])));
+ list.querySelectorAll(".result-btn").forEach(btn=>btn.addEventListener("click",()=>{location.href="typinganalysis.html?attempt_id="+encodeURIComponent(attemptMap[btn.dataset.id].id)+"&mock_id="+encodeURIComponent(btn.dataset.id);}));
 
 }
-function showLastResult(a){
- $("attemptResultBody").innerHTML=`<div class="mock-meta" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px"><div>Gross WPM<br><b>${Number(a.gross_wpm).toFixed(1)}</b></div><div>Accuracy<br><b>${Number(a.accuracy).toFixed(1)}%</b></div><div>Correct characters<br><b>${a.correct_chars}</b></div><div>Incorrect characters<br><b>${a.incorrect_chars}</b></div><div>Typed characters<br><b>${a.typed_chars}</b></div><div>Attempt date<br><b>${new Date(a.created_at).toLocaleString()}</b></div></div>`;
- $("attemptResultModal").classList.remove("hidden");
-}
-$("closeAttemptResult").addEventListener("click",()=>$("attemptResultModal").classList.add("hidden"));
-$("attemptResultModal").addEventListener("click",e=>{if(e.target.id==="attemptResultModal")$("attemptResultModal").classList.add("hidden");});
 $("backBtn").addEventListener("click",()=>{$("mockScreen").classList.add("hidden");$("examScreen").classList.remove("hidden");selectedExam=null;});
  $("closeMode").addEventListener("click",()=>{$("modeModal").classList.add("hidden");pendingMockId=null;});
  $("modeModal").addEventListener("click",e=>{if(e.target.id==="modeModal"){$("modeModal").classList.add("hidden");pendingMockId=null;}});
  $("eduquityMode").addEventListener("click",()=>{if(!pendingMockId)return;location.href="Typingtest.educuity.html?mock_id="+encodeURIComponent(pendingMockId);});
+$("tcsMode").addEventListener("click",()=>{if(!pendingMockId)return;location.href="typing.tcs.html?mock_id="+encodeURIComponent(pendingMockId);});
 function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 loadExams();
 </script>
