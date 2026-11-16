@@ -5,51 +5,145 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Typing Analysis | SSC EDGE</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#08050e;color:#fff;font-family:Arial,sans-serif}
-.wrap{max-width:850px;margin:auto;padding:24px 16px 50px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;background:#100b19;border-bottom:1px solid #302044}
-.brand{font-weight:900;font-size:19px}.brand span{color:#a66bff}.btn{border:0;border-radius:9px;background:#7c3aed;color:#fff;padding:11px 16px;font-weight:800;text-decoration:none;cursor:pointer}
-h1{font-size:27px;margin:24px 0 7px}.muted{color:#aaa2b9}.panel{margin-top:22px;padding:22px;border:1px solid #302044;border-radius:16px;background:linear-gradient(145deg,#171025,#251344)}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.stat{padding:17px;background:#100b19;border:1px solid #302044;border-radius:12px;color:#aaa2b9;font-size:13px}.stat b{display:block;color:#fff;font-size:25px;margin-bottom:6px}
-.error{padding:18px;background:#251344;border-radius:12px;color:#ffd7d7}
-@media(min-width:800px){.wrap{padding-top:42px}.panel{padding:30px}.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:420px){.top{padding:13px}.btn{padding:9px 11px;font-size:12px}.wrap{padding:18px 12px}}
+*{box-sizing:border-box}
+:root{color-scheme:dark;--bg:#08050e;--surface:#100b19;--card:#171025;--card2:#251344;--text:#fff;--muted:#aaa2b9;--border:#302044;--purple:#7c3aed;--purple2:#a66bff;--good:#20a56b;--bad:#e34d5b;--half:#2789ed}
+:root[data-theme="light"]{color-scheme:light;--bg:#f6f3fb;--surface:#fff;--card:#fff;--card2:#f1eafa;--text:#21182d;--muted:#746b80;--border:#e1d7ed;--purple:#6d35d4;--purple2:#8149e8;--good:#168653;--bad:#d9364b;--half:#1876d2}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+.top{min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;background:var(--surface);border-bottom:1px solid var(--border)}
+.brand{font-weight:900;font-size:19px}.brand span{color:var(--purple2)}
+.btn{border:1px solid var(--border);border-radius:9px;background:var(--card2);color:var(--text);padding:10px 13px;font-weight:800;text-decoration:none;white-space:nowrap}
+.website{background:#a66bff;border-color:#a66bff;color:#fff}
+.wrap{max-width:1050px;margin:auto;padding:24px 16px 50px}h1{font-size:27px;margin:8px 0}.muted{color:var(--muted)}
+.panel{margin-top:18px;padding:20px;border:1px solid var(--border);border-radius:16px;background:linear-gradient(145deg,var(--card),var(--card2))}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.stat{padding:17px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--muted);font-size:13px}
+.stat b{display:block;color:var(--text);font-size:26px;margin-bottom:6px}
+.stat.error b{color:var(--bad)}
+.points{padding-left:20px;line-height:1.8;color:var(--muted)}.points b{color:var(--text)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0;color:var(--muted);font-size:13px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.compare-box{min-width:0}.compare-box h3{font-size:15px;margin:0 0 9px}
+.text-view{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.75;padding:16px;border-radius:10px;background:#fff;color:#171717;min-height:130px;border:1px solid #d4d4d4}
+.text-view .full{color:#fff;background:#d9364b;border-radius:3px;padding:1px 2px}
+.text-view .half{color:#fff;background:#2789ed;border-radius:3px;padding:1px 2px}
+.remaining{margin-top:12px;padding:14px;border-radius:9px;background:#171717;color:#fff;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.remaining strong{display:block;color:#d6c5ff;font-size:12px;letter-spacing:.5px;margin-bottom:5px}
+.error-box{padding:18px;border-radius:10px;background:var(--card2);color:var(--text)}
+@media(max-width:650px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.compare{grid-template-columns:1fr}.wrap{padding:18px 12px}.panel{padding:14px}.stat{padding:13px}.stat b{font-size:22px}}
 </style>
 </head>
 <body>
-<header class="top"><div class="brand">SSC <span>EDGE</span></div><a class="btn" href="https://ssc-edge.pages.dev" target="_blank" rel="noopener">Visit Website ↗</a></header>
+<header class="top"><div class="brand">SSC <span>EDGE</span></div><a class="btn website" href="https://ssc-edge.pages.dev" target="_blank" rel="noopener">Visit Website ↗</a></header>
 <main class="wrap">
 <h1>Typing Test Analysis</h1>
-<p class="muted" id="mockTitle">Your latest typing performance</p>
-<section class="panel" id="analysis"><p class="muted">Loading your result...</p></section>
-<p style="margin-top:20px"><a class="btn" href="typing.html">Back to Typing Mocks</a></p>
+<p class="muted" id="mockTitle">Loading your performance...</p>
+<section class="panel"><div class="stats" id="stats"><div class="stat">Loading result...</div></div></section>
+<section class="panel"><h2 style="font-size:19px;margin:0 0 8px">Performance Analysis</h2><ul class="points" id="points"></ul></section>
+<section class="panel">
+<h2 style="font-size:19px;margin:0">Passage Comparison</h2>
+<div class="legend"><span><i class="dot" style="background:#d9364b"></i>Full mistake</span><span><i class="dot" style="background:#2789ed"></i>Half mistake</span><span><i class="dot" style="background:#171717"></i>Not typed yet</span></div>
+<div class="compare">
+<div class="compare-box"><h3>Given Passage</h3><div class="text-view" id="given"></div></div>
+<div class="compare-box"><h3>Typed Passage by Candidate</h3><div class="text-view" id="typed"></div><div class="remaining" id="remaining" hidden></div></div>
+</div>
+</section>
+<p style="margin-top:20px"><a class="btn" href="typing.html">← Back to Typing Mocks</a></p>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL="https://dvvyoygahzzbnpqrfhen.supabase.co";
 const SUPABASE_KEY="sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-const params=new URLSearchParams(location.search);
-const attemptId=params.get("attempt_id"),mockId=params.get("mock_id");
+const $=id=>document.getElementById(id);
+const params=new URLSearchParams(location.search),attemptId=params.get("attempt_id"),mockId=params.get("mock_id");
 const candidateId=localStorage.getItem("ssc_edge_typing_candidate_id");
-const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function applySavedTheme(){
+ const theme=localStorage.getItem("ssc-edge-theme")==="light"?"light":"dark";
+ document.documentElement.setAttribute("data-theme",theme);
+}
+applySavedTheme();window.addEventListener("storage",applySavedTheme);
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function tokens(s){const re=/\S+/g,out=[];let m,last=0;while((m=re.exec(s))){out.push({v:m[0],start:m.index,end:re.lastIndex,sep:s.slice(last,m.index)});last=re.lastIndex;}return {items:out,tail:s.slice(last)};}
+function core(w){return w.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu,"");}
+function punctuation(w){return w.replace(/[\p{L}\p{N}]/gu,"");}
+function compareText(source,typed){
+ const A=tokens(source),B=tokens(typed),a=A.items,b=B.items,n=a.length,m=b.length;
+ const dp=Array.from({length:n+1},()=>Array(m+1).fill(0)),op=Array.from({length:n+1},()=>Array(m+1).fill(""));
+ for(let i=0;i<=n;i++){dp[i][0]=i;op[i][0]="del";}
+ for(let j=0;j<=m;j++){dp[0][j]=j;op[0][j]="ins";}
+ for(let i=1;i<=n;i++)for(let j=1;j<=m;j++){
+  const same=core(a[i-1].v)===core(b[j-1].v)&&core(a[i-1].v)!=="";
+  const cost=same?0:1;
+  let best=dp[i-1][j-1]+cost,act=same?"match":"sub";
+  if(dp[i-1][j]+1<best){best=dp[i-1][j]+1;act="del";}
+  if(dp[i][j-1]+1<best){best=dp[i][j-1]+1;act="ins";}
+  if(i>1&&j>1&&core(a[i-1].v)===core(b[j-2].v)&&core(a[i-2].v)===core(b[j-1].v)&&core(a[i-1].v)!==core(a[i-2].v)&&dp[i-2][j-2]+0.5<best){best=dp[i-2][j-2]+0.5;act="swap";}
+  dp[i][j]=best;op[i][j]=act;
+ }
+ let i=n,j=m,marks=Array(m).fill("full"),full=0,half=0,matched=[];
+ while(i||j){
+  const act=op[i][j];
+  if(act==="match"||act==="sub"){
+   const x=a[i-1].v,y=b[j-1].v;
+   if(act==="sub"){marks[j-1]="full";full++;}
+   else if(x!==y||punctuation(x)!==punctuation(y)){marks[j-1]="half";half++;}
+   else marks[j-1]="ok";
+   matched.push([i-1,j-1]);i--;j--;
+  }else if(act==="swap"){
+   marks[j-1]="half";marks[j-2]="half";half++;matched.push([i-1,j-2],[i-2,j-1]);i-=2;j-=2;
+  }else if(act==="del"){full++;i--;}
+  else if(act==="ins"){marks[j-1]="full";full++;j--;}
+  else break;
+ }
+ matched.reverse();
+ // Incomplete last word is always one full mistake, even if it resembles the source token.
+ if(b.length&&typed.length&& !/\s$/.test(typed)){
+  const last=b[b.length-1],lastCore=core(last.v);
+  const sourceWord=a.find(x=>core(x.v).startsWith(lastCore)&&lastCore.length>0);
+  if(sourceWord&&lastCore.length<core(sourceWord.v).length&&marks[b.length-1]!=="full"){marks[b.length-1]="full";full++;if(marks[b.length-1]==="half")half=Math.max(0,half-1);}
+ }
+ // Wrong spacing between aligned neighbouring words is a half mistake.
+ for(let k=1;k<matched.length;k++){
+  const [ai,bi]=matched[k-1],[aj,bj]=matched[k];
+  if(aj===ai+1&&bj===bi+1){
+   const srcSep=source.slice(a[ai].end,a[aj].start),typSep=typed.slice(b[bi].end,b[bj].start);
+   if(srcSep!==typSep&&marks[bi]!=="full"&&marks[bj]!=="full"){marks[bi]="half";half++;}
+  }
+ }
+ let html="";
+ b.forEach((t,k)=>{const cls=marks[k]==="full"?"full":marks[k]==="half"?"half":"";html+=esc(t.sep)+`<span${cls?` class="${cls}"`:""}>${esc(t.v)}</span>`;});
+ html+=esc(B.tail);
+ return {html,full,half,typedCount:b.length,sourceCount:n,remaining:source.slice(typed.length)};
+}
 async function load(){
- let query=db.from("typing_attempts").select("*,typing_mocks(name,typing_exams(name))");
- if(attemptId) query=query.eq("id",attemptId);
- else if(candidateId&&mockId) query=query.eq("candidate_id",candidateId).eq("mock_id",mockId).order("created_at",{ascending:false}).limit(1);
- else {document.getElementById("analysis").innerHTML='<div class="error">Result not found. Please return to the typing mock list.</div>';return;}
- const {data,error}=await query;
- const a=Array.isArray(data)?data[0]:data;
- if(error||!a){document.getElementById("analysis").innerHTML='<div class="error">Unable to load this result. Please try again from the mock list.</div>';console.error(error);return;}
- document.getElementById("mockTitle").textContent=(a.typing_mocks?.typing_exams?.name||"Typing Test")+" · "+(a.typing_mocks?.name||"Mock");
- const date=a.created_at?new Date(a.created_at).toLocaleString():"—";
- document.getElementById("analysis").innerHTML=`<div class="grid">
- <div class="stat"><b>${Number(a.gross_wpm||0).toFixed(1)}</b>Gross WPM</div>
- <div class="stat"><b>${Number(a.accuracy||0).toFixed(1)}%</b>Accuracy</div>
- <div class="stat"><b>${Number(a.correct_chars||0)}</b>Correct characters</div>
- <div class="stat"><b>${Number(a.incorrect_chars||0)}</b>Incorrect characters</div>
- <div class="stat"><b>${Number(a.typed_chars||0)}</b>Typed characters</div>
- <div class="stat"><b>${Math.floor(Number(a.duration_seconds||0)/60)}:${String(Number(a.duration_seconds||0)%60).padStart(2,"0")}</b>Time used</div>
- </div><p class="muted" style="margin:20px 0 0">Attempt date: ${esc(date)}</p>`;
+ try{
+  if(!attemptId){$("stats").innerHTML='<div class="error-box">Result ID is missing. Please open Result from the mock list.</div>';return;}
+  const {data:a,error}=await db.from("typing_attempts").select("*").eq("id",attemptId).maybeSingle();
+  if(error||!a)throw error||new Error("Attempt not found");
+  let mock=null;
+  if(a.mock_id){const r=await db.from("typing_mocks").select("name,passage_text,typing_exams(name)").eq("id",a.mock_id).maybeSingle();mock=r.data;}
+  const passage=String(mock?.passage_text||"");
+  const typed=String(a.typed_text||"");
+  const seconds=Math.max(1,Number(a.duration_seconds)||1),minutes=seconds/60;
+  const gross=(typed.length/5)/minutes;
+  const cmp=compareText(passage,typed);
+  const weighted=cmp.full+cmp.half/2;
+  const errorPercent=passage.trim()?Math.min(100,weighted/Math.max(1,tokens(passage).items.length)*100):0;
+  const net=Math.max(0,gross-weighted/minutes);
+  const accuracy=Math.max(0,100-errorPercent);
+  $("mockTitle").textContent=(mock?.typing_exams?.name||"Typing Test")+" · "+(mock?.name||"Mock")+" · "+new Date(a.created_at).toLocaleString();
+  $("stats").innerHTML=`<div class="stat error"><b>${errorPercent.toFixed(2)}%</b>Error %</div><div class="stat"><b>${gross.toFixed(2)}</b>Gross WPM</div><div class="stat"><b>${net.toFixed(2)}</b>Net WPM</div><div class="stat"><b>${accuracy.toFixed(2)}%</b>Accuracy</div><div class="stat"><b>${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,"0")}</b>Time Taken</div><div class="stat"><b>${cmp.full} / ${cmp.half}</b>Full / Half Mistakes</div>`;
+  const pts=[];
+  pts.push(`<li><b>${cmp.full}</b> full mistakes and <b>${cmp.half}</b> half mistakes identified.</li>`);
+  pts.push(`<li>Weighted mistakes: <b>${weighted.toFixed(1)}</b> (one half mistake counts as 0.5).</li>`);
+  pts.push(`<li>Passage coverage: <b>${Math.min(100,cmp.typedCount/Math.max(1,cmp.sourceCount)*100).toFixed(1)}%</b> of passage words typed.</li>`);
+  pts.push(`<li>Gross speed is based on all typed characters; net speed subtracts weighted mistakes per minute.</li>`);
+  $("points").innerHTML=pts.join("");
+  $("given").textContent=passage;
+  $("typed").innerHTML=cmp.html||'<span class="muted">No text was typed.</span>';
+  if(cmp.remaining){$("remaining").hidden=false;$("remaining").innerHTML="<strong>PASSAGE NOT TYPED</strong>"+esc(cmp.remaining);}
+ }catch(e){console.error(e);$("stats").innerHTML='<div class="error-box">Unable to load this result. Please return to the mock list and open Result again.</div>';}
 }
 load();
 </script>

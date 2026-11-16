@@ -67,7 +67,7 @@ function getMetrics(){
  let correct=0;for(let i=0;i<limit;i++)if(typed[i]===passageText[i])correct++;
  const wrong=limit-correct,elapsed=Math.max(1,(Number(mock.duration_minutes)*60)-secondsLeft);
  const accuracy=typed.length?correct/typed.length*100:0;
- const wpm=(correct/5)/(elapsed/60);
+ const wpm=(typed.length/5)/(elapsed/60);
  return {typed,correct,wrong,accuracy,wpm,typedCount:typed.length};
 }
 function paintPassage(){

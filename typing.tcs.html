@@ -36,13 +36,14 @@ html,body{margin:0;min-height:100%;background:var(--paper);font-family:Georgia,"
 .tcs-writing-area #typingInput{height:200px;max-height:35vh;min-height:150px;margin-top:14px;font:18px/1.45 Arial,sans-serif;background:#fff;border:1px solid #ccc;border-radius:5px;box-shadow:none;resize:none;overflow:auto}
 .candidate-panel{border-left:1px solid #c9c9c9;background:#fff;padding:12px 10px}
 .candidate-card{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font:700 16px Arial,sans-serif}
-.candidate-avatar{width:82px;height:82px;border:1px solid #c5c5c5;border-radius:8px;box-shadow:0 2px 7px #0002}
+.candidate-avatar{width:92px;height:92px;border:1px solid #c5c5c5;border-radius:8px;box-shadow:0 2px 7px #0002}
 .candidate-name{font-weight:800;color:#171717}.candidate-tag{font-size:10px;letter-spacing:1px;color:#75849a;width:100%;margin-left:94px;margin-top:-22px}
 .tcs-footer{position:fixed;bottom:0;left:0;right:0;height:72px;background:#fff;border-top:1px solid #d5d5d5;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:6}
 .cancel-btn{background:#d9364b;color:#fff;border:0;border-radius:6px;padding:13px 38px;font:700 13px Arial,sans-serif}
 .tcs-footer .submit{background:#4b91d8;color:#fff;border:0;border-radius:6px;padding:13px 38px;box-shadow:0 2px 5px #0002}
 @media(max-width:700px){.section-strip strong{font-size:16px}.tcs-layout{grid-template-columns:1fr}.tcs-workspace{padding:14px 10px 90px}.tcs-writing-area{width:100%}.tcs-writing-area .passage{height:32vh;max-height:320px;font-size:16px}.tcs-writing-area #typingInput{height:24vh;max-height:240px;font-size:16px}.candidate-panel{border-left:0;border-top:1px solid #ddd;padding:10px}.candidate-avatar{width:54px;height:54px}.candidate-card{font-size:13px}.candidate-tag{margin-left:66px;margin-top:-16px}.tcs-footer{height:62px;padding:0 10px}.cancel-btn,.tcs-footer .submit{padding:11px 24px}}
 
+</style>
 </head>
 <body>
 <header class="topbar">
@@ -108,13 +109,13 @@ function getMetrics(){
  let correct=0;for(let i=0;i<limit;i++)if(typed[i]===passageText[i])correct++;
  const wrong=limit-correct,elapsed=Math.max(1,(Number(mock.duration_minutes)*60)-secondsLeft);
  const accuracy=typed.length?correct/typed.length*100:0;
- const wpm=(correct/5)/(elapsed/60);
+ const wpm=(typed.length/5)/(elapsed/60);
  return {typed,correct,wrong,accuracy,wpm,typedCount:typed.length};
 }
 function paintPassage(){
  // Keep the reference passage clean: no per-character hints or colour feedback.
 }
-$("typingInput").addEventListener("input",()=>{if(finished)return;if($("typingInput").value.length>=passageText.length)finishTest(false);});
+$("typingInput").addEventListener("input",()=>{if(finished)return;});
 $("submit").addEventListener("click",()=>finishTest(false));
 if($("cancelTest"))$("cancelTest").addEventListener("click",()=>{if(confirm("Cancel this typing test and return to mocks?"))location.href="typing.html";});
 async function finishTest(auto){
