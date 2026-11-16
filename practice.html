@@ -4327,8 +4327,16 @@ async function restoreRoute(){
   const board=m[1].toUpperCase(),examS=m[2],branchS=m[3];
   if(board==="RRB")await openRRB();else await openSSC();
   if(!examS)return true;
-  const exam=exams.find(e=>!isPracticeDrillExam(e)&&getExamGroup(e)===board&&examSlugs(e).includes(examS));
-  if(!exam)return true;
+  const strip=x=>String(x||"").replace(/^(ssc|rrb)-/,"");
+  const pool=exams.filter(e=>!isPracticeDrillExam(e)&&getExamGroup(e)===board);
+  const want=strip(examS);
+  let exam=pool.find(e=>examSlugs(e).includes(examS))
+    ||pool.find(e=>examSlugs(e).some(x=>strip(x)===want))
+    ||pool.find(e=>examSlugs(e).some(x=>strip(x).includes(want)||want.includes(strip(x))));
+  if(!exam){
+    console.warn("No exam matches '"+examS+"'. Available:",pool.map(e=>examSlugs(e)));
+    return true;
+  }
   await openExam(exam.id);
   if(!branchS)return true;
   const roots=getRoots();
