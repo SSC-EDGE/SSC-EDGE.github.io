@@ -17,6 +17,7 @@ var TOOLS=[
   ["admin-chapters.html","📑","Chapters","Subject-wise chapters"],
   ["question-manager.html","🧹","Mock Question Manager","Edit/remove questions inside a mock"]]},
  {g:"Mocks & Practice",i:"📝",items:[
+  ["admin-live.html","🔴","Live Tests","Schedule live mocks (locked analysis until end)"],
   ["admin-practice.html","🏗️","Practice Admin","Exams, folders, full & sectional mocks"],
   ["mock-manager.html","📋","Mock Manager","List of all mocks, jump to edit"],
   ["admin-mock.html","🧩","Mock Questions","Assign questions to mock sections"],
