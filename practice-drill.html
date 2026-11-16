@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<base href="/">
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1226,6 +1227,8 @@ async function load(){
     t.data || [];
 
 
+  try{ if(await restoreDrillRoute()) return; }catch(e){ console.error("Route restore failed",e); }
+
   const sid =
     new URLSearchParams(
       location.search
@@ -2082,6 +2085,61 @@ function openTest(id){
 
 }
 
+
+
+/* ==================================================
+   CLEAN URLS  (/practice/drill/quantitative-aptitude/chapter-wise/percentage)
+   Works for any subject / folder / chapter you add later:
+   the link is built from its name automatically.
+   ================================================== */
+
+function slugify(v){
+  return String(v||"").toLowerCase().replace(/&/g," and ").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
+}
+function folderSlug(f){ return slugify(f.display_name || f.name); }
+
+function syncUrl(){
+  try{
+    let path = "/practice/drill";
+    if(currentSubject){
+      path += "/" + slugify(currentSubject.name);
+      if(currentFolder){
+        path += "/" + folderSlug(currentFolder);
+        if(currentChapter) path += "/" + folderSlug(currentChapter);
+      }
+    }
+    if(location.pathname !== path) history.replaceState(null,"",path);
+  }catch(e){}
+}
+
+(function wrapNav(){
+  ["renderSubjects","renderFolders","renderFolderContents","openChapter"].forEach(name=>{
+    const orig = window[name];
+    if(typeof orig !== "function") return;
+    window[name] = async function(){
+      const r = await orig.apply(this,arguments);
+      syncUrl();
+      return r;
+    };
+  });
+})();
+
+async function restoreDrillRoute(){
+  const m = location.pathname.match(/^\/practice\/drill(?:\/([^\/]+))?(?:\/([^\/]+))?(?:\/([^\/]+))?\/?$/i);
+  if(!m || !m[1]) return false;
+  const subj = subjects.find(s=>slugify(s.name)===m[1])
+    || subjects.find(s=>slugify(s.name).includes(m[1]) || m[1].includes(slugify(s.name)));
+  if(!subj) return false;
+  openSubject(subj.id);
+  if(!m[2]) return true;
+  const folder = subjectFolders().find(f=>folderSlug(f)===m[2]);
+  if(!folder) return true;
+  openFolder(folder.id);
+  if(!m[3]) return true;
+  const chapter = childFolders().find(f=>folderSlug(f)===m[3]);
+  if(chapter) await openChapter(chapter.id);
+  return true;
+}
 
 /* ==================================================
    START
