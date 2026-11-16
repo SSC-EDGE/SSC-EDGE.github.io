@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+<base href="/">
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1756,169 +1757,10 @@ function getExamTier(exam){
 }
 
 /* =========================================================
-   CLEAN SHAREABLE PRACTICE URLS
-   Example:
-   /practice/mock-test/ssc/cgl-tier-2/pyq-mocks
-========================================================= */
-
-function practiceBasePath(){
-  const segments = location.pathname.split("/").filter(Boolean);
-  const index = segments.findIndex(part =>
-    /^practice(?:\.html)?$/i.test(part)
-  );
-
-  if(index >= 0){
-    return "/" + segments.slice(0,index+1).join("/")
-      .replace(/\.html$/i,"");
-  }
-
-  return location.pathname.replace(/\/+$/,"").replace(/\/[^/]*$/,"");
-}
-
-function practiceExamSlug(exam){
-  let name = getExamMainName(exam).toLowerCase();
-  name = name.replace(/^ssc\s+/,"").replace(/^rrb\s+/,"");
-  name = name.replace(/\s+(tier\s*[- ]?\s*\d+|mains|prelims?|preliminary)$/i,"");
-  return name.replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-}
-
-function practiceTierCode(exam){
-  const tier = getExamTier(exam).toLowerCase();
-  if(/tier\s*-?\s*2|mains/.test(tier)) return "2";
-  if(/tier\s*-?\s*1|pre/.test(tier)) return "1";
-  return "";
-}
-
-function practiceBranchSlug(branch){
-  if(branch === "pyq") return "pyq-mocks";
-  if(branch === "new") return "new-mocks";
-  return practiceFolderSlug(folderName(currentFolder) || "practice-tests");
-}
-
-function practiceFolderSlug(value){
-  return String(value || "")
-    .toLowerCase()
-    .trim()
-    .replace(/&/g," and ")
-    .replace(/[^a-z0-9]+/g,"-")
-    .replace(/^-|-$/g,"");
-}
-
-function setPracticeURL(level, extra={}){
-  const parts = ["mock-test"];
-
-  if(level !== "home"){
-    parts.push((currentGateway || "SSC").toLowerCase());
-  }
-
-  if((level === "exam" || level === "branch") && currentExam){
-    let examPart = practiceExamSlug(currentExam);
-    const tier = practiceTierCode(currentExam);
-    if(tier) examPart += "-tier-" + tier;
-    parts.push(examPart);
-  }
-
-  if(level === "branch"){
-    const branch = extra.type || currentBranch;
-    parts.push(practiceBranchSlug(branch));
-  }
-
-  const base = practiceBasePath().replace(/\/+$/,"");
-  const next = level === "home"
-    ? base
-    : base + "/" + parts.join("/");
-
-  if(location.pathname !== next){
-    history.pushState({sscEdgePractice:true},"",next);
-  }
-}
-
-function updatePracticeURLFromCurrent(){
-  if(!currentExam){
-    setPracticeURL(currentGateway ? "list" : "home");
-  }else if(currentBranch){
-    setPracticeURL("branch");
-  }else{
-    setPracticeURL("exam");
-  }
-}
-
-async function restorePracticeURL(){
-  // Find the mock-test segment directly. This also works when
-  // Cloudflare serves practice.html for a nested clean URL.
-  let pathParts = location.pathname
-    .replace(/\.html(?=\/|$)/i,"")
-    .split("/")
-    .filter(Boolean);
-
-  const routeIndex = pathParts.findIndex(
-    part => part.toLowerCase() === "mock-test"
-  );
-
-  if(routeIndex < 0) return false;
-
-  const parts = pathParts.slice(routeIndex);
-  const category = (parts[1] || "ssc").toUpperCase();
-  currentGateway = category === "RRB" ? "RRB" : "SSC";
-
-  const loaded = await (
-    examsLoadPromise ||
-    (examsLoadPromise = loadExams())
-  );
-  if(!loaded) return true;
-
-  if(currentGateway === "RRB") await openRRB(true);
-  else await openSSC(true);
-
-  if(parts.length < 3) return true;
-
-  let examPart = parts[2].toLowerCase();
-  let tier = "";
-  const tierMatch = examPart.match(/-tier-([12])$/);
-
-  if(tierMatch){
-    tier = tierMatch[1];
-    examPart = examPart.replace(/-tier-[12]$/,"");
-  }
-
-  const match = exams.find(e =>
-    getExamGroup(e) === currentGateway &&
-    practiceExamSlug(e) === examPart &&
-    (!tier || practiceTierCode(e) === tier)
-  );
-
-  if(!match) return true;
-
-  await openExam(match.id,true);
-
-  if(parts.length >= 4){
-    const branchSlug = parts[3].toLowerCase();
-    let branch = "custom";
-    let root = null;
-
-    if(branchSlug === "pyq-mocks"){
-      branch = "pyq";
-      root = getRoots().find(f=>folderType(f)==="pyq");
-    }else if(branchSlug === "new-mocks"){
-      branch = "new";
-      root = getRoots().find(f=>folderType(f)==="new");
-    }else{
-      root = getRoots().find(
-        f => practiceFolderSlug(folderName(f)) === branchSlug
-      );
-    }
-
-    await openMockBranch(root?.id || "",branch,true);
-  }
-
-  return true;
-}
-
-/* =========================================================
    SSC / RRB
 ========================================================= */
 
-async function openSSC(skipHistory=false){
+async function openSSC(){
 
   currentGateway =
     "SSC";
@@ -1938,11 +1780,10 @@ async function openSSC(skipHistory=false){
   if(loaded){
     renderExams("SSC");
   }
-  if(!skipHistory) setPracticeURL("list");
 
 }
 
-async function openRRB(skipHistory=false){
+async function openRRB(){
 
   currentGateway =
     "RRB";
@@ -1962,7 +1803,6 @@ async function openRRB(skipHistory=false){
   if(loaded){
     renderExams("RRB");
   }
-  if(!skipHistory) setPracticeURL("list");
 
 }
 
@@ -2039,7 +1879,7 @@ function renderExams(board){
    OPEN EXAM
 ========================================================= */
 
-async function openExam(id,skipHistory=false){
+async function openExam(id){
 
   currentExam =
     exams.find(
@@ -2122,7 +1962,6 @@ async function openExam(id,skipHistory=false){
   if(loaded){
     renderBranches();
   }
-  if(!skipHistory) setPracticeURL("exam");
 
 }
 
@@ -2158,8 +1997,6 @@ function backToExamList(){
   */
 
   hideAll();
-
-  setPracticeURL("list");
 
   if(
     currentGateway==="RRB"
@@ -2521,8 +2358,7 @@ function renderBranches(){
 
 function openMockBranch(
   id,
-  branch,
-  skipHistory=false
+  branch
 ){
 
   currentBranch =
@@ -2555,7 +2391,6 @@ function openMockBranch(
           : "NEW MOCKS";
 
   showMockType("full");
-  if(!skipHistory) setPracticeURL("branch",{type:branch});
 
 }
 
@@ -3907,7 +3742,6 @@ function updateTestCardStatus(test){
 function backToMockBranches(){
 
   currentFolder = null;
-  setPracticeURL("exam");
 
   currentSubject = null;
 
@@ -4409,10 +4243,7 @@ async function startPracticePage(){
     practice.html#ssc
   */
 
-  if(location.pathname.toLowerCase().split("/").includes("mock-test")){
-    const restored = await restorePracticeURL();
-    if(restored) return;
-  }
+  if(await restoreRoute())return;
 
   const hash =
     String(
@@ -4431,25 +4262,83 @@ async function startPracticePage(){
 }
 
 /* =========================================================
-   BROWSER BACK / FORWARD
-========================================================= */
-window.addEventListener("popstate", async ()=>{
-  if(location.pathname.toLowerCase().split("/").includes("mock-test")){
-    await restorePracticeURL();
-    return;
-  }
-  currentExam = null;
-  currentBranch = "";
-  currentMockType = "";
-  currentFolder = null;
-  currentSubject = null;
-  hideAll();
-  showMain();
-});
-
-/* =========================================================
    START PAGE
 ========================================================= */
+
+
+/* =========================================================
+   CLEAN URLS  (/practice/mock-test/ssc/cgl-tier-1/new-mocks)
+========================================================= */
+function slugify(v){
+  return String(v||"").toLowerCase().replace(/&/g," and ").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
+}
+function examSlugs(e){
+  const main=getExamMainName(e),tier=getExamTier(e);
+  return [...new Set([
+    slugify(main+" "+tier),
+    slugify(e.name),
+    slugify((e.name||"")+" "+(e.stage||"")),
+    slugify(main),
+    slugify((main)+" "+(e.stage||""))
+  ].filter(Boolean))];
+}
+function examSlug(e){return examSlugs(e)[0]}
+function branchSlug(){
+  if(currentBranch==="new")return "new-mocks";
+  if(currentBranch==="pyq")return "pyq-mocks";
+  if(currentBranch==="custom"&&currentFolder)return slugify(folderName(currentFolder));
+  return "";
+}
+function syncUrl(main){
+  try{
+    let path="/practice";
+    if(!main){
+      const board=(currentGateway||"").toLowerCase();
+      if(board){
+        path="/practice/mock-test/"+board;
+        if(currentExam){
+          path+="/"+examSlug(currentExam);
+          const b=branchSlug();
+          if(b)path+="/"+b;
+        }
+      }
+    }
+    if(location.pathname!==path)history.replaceState(null,"",path+location.search);
+  }catch(e){}
+}
+(function wrapNav(){
+  const wrap=(name,fn)=>{
+    const orig=window[name];
+    if(typeof orig!=="function")return;
+    window[name]=async function(){const r=await orig.apply(this,arguments);fn();return r};
+  };
+  wrap("openSSC",()=>syncUrl());
+  wrap("openRRB",()=>syncUrl());
+  wrap("openExam",()=>syncUrl());
+  wrap("openMockBranch",()=>syncUrl());
+  wrap("backToExamList",()=>syncUrl());
+  wrap("backToMockBranches",()=>{currentBranch="";syncUrl()});
+  wrap("showMain",()=>syncUrl(true));
+})();
+
+async function restoreRoute(){
+  const m=location.pathname.match(/^\/practice\/mock-test\/(ssc|rrb)(?:\/([^\/]+))?(?:\/([^\/]+))?\/?$/i);
+  if(!m)return false;
+  const board=m[1].toUpperCase(),examS=m[2],branchS=m[3];
+  if(board==="RRB")await openRRB();else await openSSC();
+  if(!examS)return true;
+  const exam=exams.find(e=>!isPracticeDrillExam(e)&&getExamGroup(e)===board&&examSlugs(e).includes(examS));
+  if(!exam)return true;
+  await openExam(exam.id);
+  if(!branchS)return true;
+  const roots=getRoots();
+  let root=null,branch="";
+  if(branchS==="new-mocks"){root=roots.find(r=>folderType(r)==="new")||null;branch="new"}
+  else if(branchS==="pyq-mocks"){root=roots.find(r=>folderType(r)==="pyq")||null;branch="pyq"}
+  else{root=roots.find(r=>folderType(r)!=="new"&&folderType(r)!=="pyq"&&slugify(folderName(r))===branchS)||null;branch="custom"}
+  if(root)openMockBranch(root.id,branch);
+  return true;
+}
 
 startPracticePage();
 
