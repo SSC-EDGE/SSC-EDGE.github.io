@@ -598,8 +598,21 @@ body{
 
 }
 
+
+.live-title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:900;margin:6px 0 10px}
+.live-dot{width:10px;height:10px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 0 #ef4444aa;animation:livepulse 1.4s infinite}
+@keyframes livepulse{70%{box-shadow:0 0 0 9px #ef444400}100%{box-shadow:0 0 0 0 #ef444400}}
+.live-card{border:1px solid #ef444466;background:linear-gradient(135deg,#ef444418,transparent);border-radius:14px;padding:14px;margin-bottom:10px}
+.live-card.up{border-color:#f59e0b66;background:linear-gradient(135deg,#f59e0b14,transparent)}
+.live-badge{display:inline-block;font-size:10px;font-weight:900;border-radius:6px;padding:3px 7px;background:#ef4444;color:#fff;margin-bottom:7px}
+.live-card.up .live-badge{background:#f59e0b;color:#111}
+.live-card h4{margin:0 0 4px;font-size:15px}
+.live-meta{font-size:11.5px;color:var(--muted,#9b9bb5);line-height:1.6}
+.live-btn{display:inline-block;margin-top:10px;padding:10px 16px;border-radius:9px;background:#ef4444;color:#fff;font-weight:800;font-size:12px;text-decoration:none}
+.live-btn.off{background:#444;color:#bbb;pointer-events:none}
 </style>
 
+<script src="live-guard.js"></script>
 </head>
 
 <body>
@@ -623,6 +636,8 @@ body{
   <p class="page-subtitle">
     Test your preparation and improve your score
   </p>
+
+  <div id="liveArea"></div>
 
   <h2 class="practice-section-title">
     MOCK TEST
@@ -1444,7 +1459,10 @@ async function loadExamData(examId){
           folder_id,
           duration_minutes,
           total_questions,
-          sort_order
+          sort_order,
+          is_live,
+          live_start,
+          live_end
         `)
         .eq("is_active",true)
         .eq("exam_id",examId)
@@ -1493,8 +1511,10 @@ async function loadExamData(examId){
       throw foldersResult.error;
     }
 
+    /* Live tests stay out of the folders until their live window ends. */
+    await SSCLive.sync(supabaseClient);
     tests =
-      testsResult.data || [];
+      (testsResult.data || []).filter(t => !SSCLive.locked(t));
 
     folders =
       foldersResult.data || [];
@@ -4267,6 +4287,70 @@ async function startPracticePage(){
 
 
 /* =========================================================
+   LIVE TESTS  (shown at the top of the Practice page)
+========================================================= */
+let liveTests=[],liveAttempted=new Set(),liveTimer=null;
+
+async function loadLiveTests(){
+  const box=document.getElementById("liveArea");
+  if(!box)return;
+  try{
+    await SSCLive.sync(supabaseClient);
+    const nowIso=new Date(SSCLive.nowMs()).toISOString();
+    const r=await supabaseClient.from("mock_tests")
+      .select("id,exam_id,title,description,duration_minutes,total_questions,is_live,live_start,live_end")
+      .eq("is_active",true).eq("is_live",true).gt("live_end",nowIso).order("live_start");
+    if(r.error)throw r.error;
+    liveTests=r.data||[];
+    liveAttempted=new Set();
+    if(liveTests.length){
+      try{
+        const u=await supabaseClient.auth.getUser();
+        const uid=u?.data?.user?.id;
+        if(uid){
+          const a=await supabaseClient.from("test_attempts").select("mock_test_id")
+            .eq("user_id",uid).in("mock_test_id",liveTests.map(t=>t.id)).not("completed_at","is",null);
+          (a.data||[]).forEach(x=>liveAttempted.add(String(x.mock_test_id)));
+        }
+      }catch(e){}
+      try{ await (examsLoadPromise||(examsLoadPromise=loadExams())); }catch(e){}
+    }
+    renderLiveTests();
+    clearInterval(liveTimer);
+    liveTimer=setInterval(()=>{
+      const changed=liveTests.some(t=>SSCLive.state(t)==="ended");
+      if(changed)loadLiveTests();else renderLiveTests();
+    },30000);
+  }catch(e){
+    console.warn("Live tests not loaded:",e);
+    box.innerHTML="";
+  }
+}
+
+function renderLiveTests(){
+  const box=document.getElementById("liveArea");
+  const list=liveTests.filter(t=>SSCLive.state(t)!=="ended");
+  if(!list.length){box.innerHTML="";return;}
+  const now=SSCLive.nowMs();
+  box.innerHTML=`<div class="live-title"><span class="live-dot"></span> LIVE TESTS</div>`+list.map(t=>{
+    const st=SSCLive.state(t),ex=exams.find(e=>String(e.id)===String(t.exam_id));
+    const done=liveAttempted.has(String(t.id));
+    let action;
+    if(st==="upcoming")action=`<span class="live-btn off">Starts in ${SSCLive.left(new Date(t.live_start)-now)}</span>`;
+    else if(done)action=`<span class="live-btn off">Attempted ✓ — results after ${escapeHtml(SSCLive.fmt(t.live_end))}</span>`;
+    else action=`<a class="live-btn" href="test.html?id=${encodeURIComponent(t.id)}">START LIVE TEST</a>`;
+    return `<div class="live-card ${st==="upcoming"?"up":""}">
+      <span class="live-badge">${st==="upcoming"?"UPCOMING":"LIVE NOW"}</span>
+      <h4>${escapeHtml(t.title||"Live Test")}</h4>
+      <div class="live-meta">${ex?escapeHtml(getExamMainName(ex))+" · ":""}⏱ ${t.duration_minutes||0} min · 📝 ${t.total_questions||0} questions<br>
+      ${escapeHtml(SSCLive.fmt(t.live_start))} → ${escapeHtml(SSCLive.fmt(t.live_end))}<br>
+      ${st==="live"?"Ends in "+SSCLive.left(new Date(t.live_end)-now)+" · Analysis &amp; solutions open after the live window":"Analysis &amp; solutions open after the live window"}</div>
+      ${action}
+    </div>`;
+  }).join("");
+}
+
+/* =========================================================
    CLEAN URLS  (/practice/mock-test/ssc/cgl-tier-1/new-mocks)
 ========================================================= */
 function slugify(v){
@@ -4348,6 +4432,7 @@ async function restoreRoute(){
   return true;
 }
 
+loadLiveTests();
 startPracticePage();
 
 </script>

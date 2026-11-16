@@ -1544,6 +1544,7 @@ body{
 
 </style>
 
+<script src="live-guard.js"></script>
 </head>
 
 <body>
@@ -2139,6 +2140,8 @@ let sectionElapsedData = {};
 let lastAttemptId = null;
 let lastAttemptNumber = null;
 let reattemptRequested = false;
+let liveInfo = null;
+let liveBlocked = false;
 
 /* ==================================================
    DOM HELPERS
@@ -2660,6 +2663,8 @@ async function initializeTest(){
       loadTestData()
     ]);
 
+    if(liveBlocked) return;
+
     buildResumeKey();
 
     await checkResumeAvailability();
@@ -2700,6 +2705,9 @@ async function loadTestData(){
         test_type,
         duration_minutes,
         subject_wise_timing,
+        is_live,
+        live_start,
+        live_end,
         marks_per_question,
         negative_marks_per_question,
         unattempted_marks_per_question
@@ -2720,6 +2728,43 @@ async function loadTestData(){
     }
 
     testData = test;
+
+    /* ---------- LIVE TEST CHECK ---------- */
+    await SSCLive.sync(supabaseClient);
+    liveInfo = test.is_live ? test : null;
+    const liveState = SSCLive.state(test);
+
+    if(liveState === "upcoming"){
+      liveBlocked = true;
+      showError(
+        "This is a LIVE test. It starts on " + SSCLive.fmt(test.live_start) +
+        ". Please come back then."
+      );
+      return;
+    }
+
+    if(liveState === "live"){
+      try{
+        const u = await supabaseClient.auth.getUser();
+        const uid = u?.data?.user?.id;
+        if(uid){
+          const c = await supabaseClient
+            .from("test_attempts")
+            .select("id",{count:"exact",head:true})
+            .eq("user_id",uid)
+            .eq("mock_test_id",testId)
+            .not("completed_at","is",null);
+          if(!c.error && Number(c.count||0) > 0){
+            liveBlocked = true;
+            showError(
+              "You have already attempted this live test. Your analysis and solutions " +
+              "will be available after " + SSCLive.fmt(test.live_end) + "."
+            );
+            return;
+          }
+        }
+      }catch(e){ console.warn("Live attempt check failed",e); }
+    }
 
     const headerTitle =
       formatTestHeaderName(
@@ -3585,6 +3630,12 @@ function resetTestState(){
         sum + Number(section.duration_minutes || section.duration || 0) * 60, 0);
 
   if(!totalRemainingSeconds) totalRemainingSeconds = 60 * 60;
+
+  /* Live test: the attempt must finish when the live window ends. */
+  if(liveInfo && SSCLive.state(liveInfo) === "live"){
+    const secondsLeft = Math.floor((new Date(liveInfo.live_end).getTime() - SSCLive.nowMs()) / 1000);
+    totalRemainingSeconds = Math.min(totalRemainingSeconds, Math.max(60, secondsLeft));
+  }
 
   const currentSection = getCurrentSection();
   currentSectionRemainingSeconds = Number(
@@ -5660,8 +5711,16 @@ function renderResultScreen(resultData){
       </div>
       ` : ""}
 
+      ${liveLocked() ? `
+      <div class="guest-save-box">
+        <b>🔴 Live test submitted</b><br>
+        Analysis and solutions will be available after
+        <b>${escapeHtml(SSCLive.fmt(liveInfo.live_end))}</b>.
+      </div>
+      ` : ""}
+
       <div class="result-actions">
-        ${isGuest ? `
+        ${liveLocked() ? `` : isGuest ? `
         <button type="button" class="result-action primary" onclick="goCreateAccount()">
           Create Account to Save Performance
         </button>
@@ -5673,9 +5732,9 @@ function renderResultScreen(resultData){
           View Analysis
         </button>
         `}
-        <button type="button" class="result-action" onclick="openSolutionsPage()">
+        ${liveLocked() ? `` : `<button type="button" class="result-action" onclick="openSolutionsPage()">
           View Solutions
-        </button>
+        </button>`}
         <button type="button" class="result-back" onclick="backToMocks()">
           Back to Practice
         </button>
@@ -5697,7 +5756,16 @@ function getSectionQuestionsForResult(section,index){
    OPEN SOLUTIONS
    ================================================== */
 
+function liveLocked(){
+  return !!(liveInfo && SSCLive.locked(liveInfo));
+}
+
 function openSolutionsPage(){
+
+  if(liveLocked()){
+    window.alert("Solutions will be available after the live test ends.");
+    return;
+  }
 
   recoverLastAttemptId();
 
@@ -5717,6 +5785,11 @@ function openSolutionsPage(){
    ================================================== */
 
 function openAnalysisPage(){
+
+  if(liveLocked()){
+    window.alert("Analysis will be available after the live test ends.");
+    return;
+  }
 
   recoverLastAttemptId();
 

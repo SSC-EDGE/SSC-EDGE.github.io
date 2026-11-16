@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live Tests · SSC EDGE Admin</title>
+<script>document.documentElement.dataset.theme=localStorage.getItem("ssc-edge-theme")||"dark";</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin-nav.js"></script>
+<script src="live-guard.js"></script>
+<style>
+:root{--b:#08050e;--c:#171025;--c2:#251344;--bd:#302044;--t:#fff;--m:#aaa2b9;--p:#7c3aed;--p2:#a66bff;--ok:#22c55e;--err:#ef4444;--warn:#f59e0b}
+:root[data-theme=light]{--b:#f6f3fb;--c:#fff;--c2:#f1eafa;--bd:#ddd1ef;--t:#211832;--m:#756985;--p:#6d35d4;--p2:#8149e8}
+*{box-sizing:border-box}body{margin:0;background:var(--b);color:var(--t);font:14px Arial,sans-serif}
+main{max-width:950px;margin:auto;padding:16px}
+.panel{background:var(--c);border:1px solid var(--bd);border-radius:13px;padding:14px;margin-bottom:14px}
+h2{margin:0 0 6px;font-size:17px}.muted{color:var(--m);font-size:12px;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px}
+label{display:block;font-size:11px;font-weight:bold;color:var(--m);margin-bottom:5px}
+input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--c2);color:var(--t)}
+.btn{border:0;border-radius:8px;padding:9px 13px;font-weight:bold;font-size:12px;cursor:pointer;background:var(--p);color:#fff}
+.btn.sec{background:var(--c2);border:1px solid var(--bd);color:var(--t)}.btn.dan{background:#ef444422;border:1px solid #ef444455;color:#f87171}
+.row{border:1px solid var(--bd);background:var(--c2);border-radius:10px;padding:11px;margin-top:8px}
+.rh{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:flex-start}
+.tag{font-size:10px;font-weight:900;border-radius:6px;padding:3px 7px;color:#fff}
+.t-live{background:#ef4444}.t-up{background:#f59e0b;color:#111}.t-end{background:#555}.t-none{background:#333}
+.edit{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--bd)}.edit.open{display:block}
+.msg{margin-top:10px;font-size:13px;white-space:pre-wrap}.err{color:var(--err)}.ok{color:var(--ok)}
+</style></head><body>
+<main>
+<section class="panel">
+  <h2>🔴 Live Tests</h2>
+  <p class="muted">Pick any normal mock (create it in Practice Admin inside <b>New Mocks</b> as usual) and set a live window. During the window it appears only in the <b>LIVE TESTS</b> section on the Practice page, students get one attempt, and analysis &amp; solutions are locked. When the window ends it automatically shows in its normal folder and everything unlocks. All times are Indian time (IST).</p>
+  <div class="grid">
+    <div><label>Exam</label><select id="exam" onchange="render()"><option value="">All exams</option></select></div>
+    <div><label>Search mock</label><input id="q" placeholder="Search title…" oninput="render()"></div>
+    <div><label>Show</label><select id="flt" onchange="render()"><option value="">All mocks</option><option value="live">Live / upcoming only</option></select></div>
+  </div>
+  <div id="msg" class="msg"></div>
+</section>
+<section class="panel"><div id="list">Loading…</div></section>
+</main>
+<script>
+const db=supabase.createClient("https://dvvyoygahzzbnpqrfhen.supabase.co","sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s");
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let exams=[],mocks=[];
+function say(t,cls){$("msg").className="msg "+(cls||"");$("msg").textContent=t}
+function istInput(iso){return iso?new Date(new Date(iso).getTime()+19800000).toISOString().slice(0,16):""}
+function toIso(v){return v?new Date(v+":00+05:30").toISOString():null}
+async function init(){
+  try{
+    await SSCLive.sync(db);
+    const e=await db.from("exams").select("id,name,stage").order("name");if(e.error)throw e.error;
+    exams=(e.data||[]).filter(x=>!/practice\s*drill/i.test(x.name||""));
+    $("exam").innerHTML='<option value="">All exams</option>'+exams.map(x=>`<option value="${esc(x.id)}">${esc(x.name+(x.stage?" · "+x.stage:""))}</option>`).join("");
+    await load();
+  }catch(err){
+    $("list").innerHTML="";say("Could not load: "+err.message+"\nHave you run live-tests.sql in Supabase?","err");
+  }
+}
+async function load(){
+  let out=[];
+  for(let f=0;;f+=1000){
+    const r=await db.from("mock_tests").select("id,exam_id,title,description,duration_minutes,total_questions,is_active,is_live,live_start,live_end").order("id",{ascending:false}).range(f,f+999);
+    if(r.error)throw r.error;out=out.concat(r.data||[]);if(!r.data||r.data.length<1000)break;
+  }
+  mocks=out;render();
+}
+function render(){
+  const ex=$("exam").value,q=$("q").value.trim().toLowerCase(),fl=$("flt").value;
+  const exSet=new Set(exams.map(x=>String(x.id)));
+  let arr=mocks.filter(m=>exSet.has(String(m.exam_id))&&(!ex||String(m.exam_id)===ex)&&(!q||(m.title+" "+(m.description||"")).toLowerCase().includes(q)));
+  if(fl==="live")arr=arr.filter(m=>m.is_live&&["live","upcoming"].includes(SSCLive.state(m)));
+  arr=arr.slice(0,150);
+  if(!arr.length){$("list").innerHTML='<div class="muted">No mocks found.</div>';return}
+  $("list").innerHTML=arr.map(m=>{
+    const st=SSCLive.state(m),en=exams.find(x=>String(x.id)===String(m.exam_id));
+    const tag={live:'<span class="tag t-live">LIVE NOW</span>',upcoming:'<span class="tag t-up">UPCOMING</span>',ended:'<span class="tag t-end">ENDED</span>',none:'<span class="tag t-none">NORMAL</span>'}[st];
+    const when=m.is_live&&m.live_start?`<br>${esc(SSCLive.fmt(m.live_start))} → ${esc(SSCLive.fmt(m.live_end))}`:"";
+    return `<div class="row"><div class="rh"><div><b>${esc(m.title)}</b> ${tag}<div class="muted">${esc(en?en.name:"")} · ${m.duration_minutes||0} min · ${m.total_questions||0} questions${when}</div></div>
+      <div><button class="btn" onclick="toggle('${m.id}')">${m.is_live?"Edit live time":"Make live"}</button>
+      ${m.is_live?`<button class="btn dan" onclick="clearLive('${m.id}')">Remove live</button>`:""}</div></div>
+      <div class="edit" id="e${m.id}"><div class="grid">
+        <div><label>Live starts (IST)</label><input type="datetime-local" id="s${m.id}" value="${istInput(m.live_start)}"></div>
+        <div><label>Live ends (IST)</label><input type="datetime-local" id="n${m.id}" value="${istInput(m.live_end)}"></div></div>
+        <div style="margin-top:10px"><button class="btn" onclick="save('${m.id}')">Save live schedule</button></div></div></div>`;
+  }).join("");
+}
+function toggle(id){$("e"+id).classList.toggle("open")}
+async function save(id){
+  const m=mocks.find(x=>String(x.id)===String(id));
+  const s=toIso($("s"+id).value),e=toIso($("n"+id).value);
+  if(!s||!e)return say("Set both start and end time.","err");
+  if(new Date(e)<=new Date(s))return say("End time must be after start time.","err");
+  if(new Date(e)<=new Date(SSCLive.nowMs()))return say("End time is already in the past.","err");
+  const win=(new Date(e)-new Date(s))/60000;
+  if(win<(m.duration_minutes||0)&&!confirm(`The live window (${Math.round(win)} min) is shorter than the test duration (${m.duration_minutes} min). Students will get less time. Continue?`))return;
+  const r=await db.from("mock_tests").update({is_live:true,live_start:s,live_end:e}).eq("id",id);
+  if(r.error)return say("Save failed: "+r.error.message,"err");
+  say("Live schedule saved for “"+m.title+"”.","ok");await load();
+}
+async function clearLive(id){
+  if(!confirm("Remove live status? The mock goes back to its normal folder immediately."))return;
+  const r=await db.from("mock_tests").update({is_live:false,live_start:null,live_end:null}).eq("id",id);
+  if(r.error)return say(r.error.message,"err");
+  say("Live status removed.","ok");await load();
+}
+init();
+</script></body></html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script>document.documentElement.dataset.theme=localStorage.getItem("ssc-edge-theme")||"dark";</script>
+<title>SSC EDGE - Live Tests</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="live-guard.js"></script>
+<style>
+:root{--bg:#080811;--card:#11111d;--card2:#171727;--bd:#292943;--t:#f5f5ff;--m:#9b9bb5;--p:#8b5cf6;--p2:#a78bfa;--hd:#21152f;--hd2:#17111f}
+:root[data-theme=light]{--bg:#f5f6fb;--card:#fff;--card2:#f0f0f8;--bd:#dcdceb;--t:#171725;--m:#68687d;--p:#6d3ee8;--p2:#7c4dff;--hd:#eee3ff;--hd2:#f8f4ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font-family:Arial,Helvetica,sans-serif}
+.head{height:62px;display:flex;align-items:center;padding:0 20px;background:linear-gradient(100deg,var(--hd),var(--hd2));border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:10}
+.brand{font-size:22px;font-weight:900}.brand span{color:#b487ff}
+.back{max-width:900px;margin:10px auto 0;padding:0 15px}
+.back button{min-height:40px;padding:0 15px;border:1px solid var(--bd);border-radius:10px;background:var(--card2);color:var(--t);font-size:12px;font-weight:800;cursor:pointer}
+.wrap{max-width:900px;margin:auto;padding:15px}
+h1{font-size:21px;margin:6px 0 4px;display:flex;align-items:center;gap:9px}
+.sub{font-size:12px;color:var(--m)}
+.dot{width:11px;height:11px;border-radius:50%;background:#ef4444;animation:p 1.4s infinite}
+@keyframes p{70%{box-shadow:0 0 0 9px #ef444400}0%{box-shadow:0 0 0 0 #ef4444aa}100%{box-shadow:0 0 0 0 #ef444400}}
+.sec{font-size:12px;font-weight:900;color:var(--m);letter-spacing:.6px;text-transform:uppercase;margin:20px 2px 9px}
+.card{border:1px solid #ef444466;background:linear-gradient(135deg,#ef444418,transparent),var(--card);border-radius:14px;padding:15px;margin-bottom:11px}
+.card.up{border-color:#f59e0b66;background:linear-gradient(135deg,#f59e0b14,transparent),var(--card)}
+.badge{display:inline-block;font-size:10px;font-weight:900;border-radius:6px;padding:3px 8px;background:#ef4444;color:#fff;margin-bottom:8px}
+.up .badge{background:#f59e0b;color:#111}
+.card h3{margin:0 0 5px;font-size:16px}
+.meta{font-size:12px;color:var(--m);line-height:1.7}
+.btn{display:inline-block;margin-top:11px;padding:11px 18px;border-radius:10px;background:#ef4444;color:#fff;font-weight:800;font-size:12px;text-decoration:none}
+.btn.off{background:#444;color:#bbb;pointer-events:none}
+.empty{text-align:center;color:var(--m);padding:44px 10px;font-size:14px;line-height:1.7}
+.note{font-size:11.5px;color:var(--m);margin-top:18px;line-height:1.6;text-align:center}
+</style></head><body>
+<header class="head"><div class="brand">SSC <span>EDGE</span></div></header>
+<div class="back"><button onclick="location.href='home.html'">‹ &nbsp; Back</button></div>
+<main class="wrap">
+  <h1><span class="dot"></span> Live Tests</h1>
+  <div class="sub">All live and upcoming mock tests. When a live test ends it moves to its exam's New Mocks folder.</div>
+  <div id="app"><div class="empty">Loading…</div></div>
+  <div class="note">Analysis and solutions open after the live window ends.</div>
+</main>
+<script>
+const db=supabase.createClient("https://dvvyoygahzzbnpqrfhen.supabase.co","sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s");
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let tests=[],exams=[],done=new Set(),timer=null;
+async function load(){
+  try{
+    await SSCLive.sync(db);
+    const iso=new Date(SSCLive.nowMs()).toISOString();
+    const [t,e]=await Promise.all([
+      db.from("mock_tests").select("id,exam_id,title,duration_minutes,total_questions,is_live,live_start,live_end").eq("is_active",true).eq("is_live",true).gt("live_end",iso).order("live_start"),
+      db.from("exams").select("id,name,stage")
+    ]);
+    if(t.error)throw t.error;
+    tests=t.data||[];exams=e.data||[];done=new Set();
+    if(tests.length){
+      try{
+        const u=await db.auth.getUser(),uid=u?.data?.user?.id;
+        if(uid){const a=await db.from("test_attempts").select("mock_test_id").eq("user_id",uid).in("mock_test_id",tests.map(x=>x.id)).not("completed_at","is",null);
+          (a.data||[]).forEach(x=>done.add(String(x.mock_test_id)))}
+      }catch(_){}
+    }
+    render();
+    clearInterval(timer);
+    timer=setInterval(()=>{tests.some(x=>SSCLive.state(x)==="ended")?load():render()},30000);
+  }catch(err){
+    document.getElementById("app").innerHTML='<div class="empty">Could not load live tests.<br>'+esc(err.message)+'</div>';
+  }
+}
+function card(t){
+  const st=SSCLive.state(t),now=SSCLive.nowMs(),ex=exams.find(x=>String(x.id)===String(t.exam_id));
+  let act;
+  if(st==="upcoming")act=`<span class="btn off">Starts in ${SSCLive.left(new Date(t.live_start)-now)}</span>`;
+  else if(done.has(String(t.id)))act=`<span class="btn off">Attempted ✓ — results after ${esc(SSCLive.fmt(t.live_end))}</span>`;
+  else act=`<a class="btn" href="test.html?id=${encodeURIComponent(t.id)}">START LIVE TEST</a>`;
+  return `<div class="card ${st==="upcoming"?"up":""}"><span class="badge">${st==="upcoming"?"UPCOMING":"LIVE NOW"}</span>
+    <h3>${esc(t.title||"Live Test")}</h3>
+    <div class="meta">${ex?esc(ex.name+(ex.stage?" · "+ex.stage:""))+"<br>":""}⏱ ${t.duration_minutes||0} min · 📝 ${t.total_questions||0} questions<br>
+    ${esc(SSCLive.fmt(t.live_start))} → ${esc(SSCLive.fmt(t.live_end))}${st==="live"?"<br>Ends in "+SSCLive.left(new Date(t.live_end)-now):""}</div>${act}</div>`;
+}
+function render(){
+  const live=tests.filter(t=>SSCLive.state(t)==="live"),up=tests.filter(t=>SSCLive.state(t)==="upcoming");
+  if(!live.length&&!up.length){
+    document.getElementById("app").innerHTML='<div class="empty">🕐 No live tests right now.<br>Check back soon — new live mocks are announced here.</div>';return;
+  }
+  document.getElementById("app").innerHTML=
+    (live.length?'<div class="sec">Live now</div>'+live.map(card).join(""):"")+
+    (up.length?'<div class="sec">Upcoming</div>'+up.map(card).join(""):"");
+}
+load();
+</script></body></html>
