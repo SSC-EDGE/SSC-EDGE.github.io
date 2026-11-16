@@ -10,7 +10,7 @@
 :root[data-theme="light"],body[data-theme="light"],body.light-theme,body.light-mode{--bg:#f6f3fb;--card:#fff;--card2:#f1eafa;--purple:#6d35d4;--purple2:#8149e8;--text:#21182d;--muted:#746b80;--border:#e1d7ed;--surface:#fff;--modal:#fff;--modal-option:#f1eafa;--modal-active:#e8dcfa}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
 .simple-header{min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 18px;background:var(--surface);border-bottom:1px solid var(--border)}
-.header-brand{font-size:19px;font-weight:900;letter-spacing:.4px;white-space:nowrap}.header-brand .edge{color:var(--purple2)}.header-actions{display:flex;align-items:center;gap:9px}.header-btn{border:1px solid var(--border);border-radius:9px;background:var(--card2);color:var(--text);padding:9px 12px;font-size:12px;font-weight:800;text-decoration:none;white-space:nowrap}
+.header-brand{font-size:19px;font-weight:900;letter-spacing:.4px;white-space:nowrap}.header-brand .edge{color:var(--purple2)}.header-actions{display:flex;align-items:center;gap:9px}.header-btn{border:1px solid var(--border);border-radius:9px;background:var(--card2);color:var(--text);padding:9px 12px;font-size:12px;font-weight:800;text-decoration:none;white-space:nowrap}.header-btn.website-btn{background:#a66bff;border-color:#a66bff;color:#fff}
 .page-container{max-width:900px;margin:auto;padding:24px 16px 100px}
 .page-title{font-size:27px;font-weight:900;margin:8px 0}.page-subtitle{color:var(--muted);margin:7px 0 25px;font-size:14px}
 .section-title{font-size:14px;letter-spacing:1px;font-weight:900;margin:22px 0 13px;color:var(--purple2)}
@@ -37,7 +37,7 @@
 </style>
 </head>
 <body>
-<header class="simple-header"><div class="header-brand">SSC <span class="edge">EDGE</span></div><div class="header-actions"><button class="header-btn" id="themeToggle" type="button">☀️ Light</button><a class="header-btn" href="https://ssc-edge.pages.dev" target="_blank" rel="noopener">Visit Website ↗</a></div></header>
+<header class="simple-header"><div class="header-brand">SSC <span class="edge">EDGE</span></div><div class="header-actions"><button class="header-btn" id="themeToggle" type="button">☀️ Light</button><a class="header-btn website-btn" href="https://ssc-edge.pages.dev" target="_blank" rel="noopener">Visit Website ↗</a></div></header>
 <main class="page-container">
 <section id="examScreen">
 <h1 class="page-title">TYPING TEST</h1>
@@ -54,13 +54,9 @@
 </section>
 <div id="modeModal" class="mode-modal hidden" role="dialog" aria-modal="true" aria-labelledby="modeTitle">
  <div class="mode-box"><button type="button" class="mode-close" id="closeMode">×</button><h2 id="modeTitle">Choose Typing Mode</h2><p>Select the typing test format you want to attempt.</p>
-  <button type="button" class="mode-option" disabled><span>OPTION A</span><small>Coming soon</small></button>
-  <button type="button" class="mode-option" disabled><span>OPTION B</span><small>Coming soon</small></button>
+  <button type="button" class="mode-option active" id="tcsMode"><span>TCS MODE</span><small>Start typing test →</small></button>
   <button type="button" class="mode-option active" id="eduquityMode"><span>EDUQUITY MODE</span><small>Start typing test →</small></button>
  </div>
-</div>
-<div id="attemptResultModal" class="mode-modal hidden" role="dialog" aria-modal="true">
- <div class="mode-box"><button type="button" class="mode-close" id="closeAttemptResult">×</button><h2>Last Attempt Result</h2><div id="attemptResultBody"></div></div>
 </div>
 </main>
 
