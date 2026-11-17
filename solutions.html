@@ -346,6 +346,7 @@ margin-top:20px;font-size:13px
 .saved-top-btn{padding:5px 6px}
 }
 </style>
+<script src="live-guard.js" data-guard></script>
 </head>
 
 <body class="solution-page">
@@ -978,25 +979,34 @@ renderGrid();
 
 }
 
+let userId=null;
+
+async function getUserId(){
+try{
+const s=await db.auth.getSession();
+if(s.data&&s.data.session&&s.data.session.user)return s.data.session.user.id;
+}catch(e){}
+try{
+const u=await db.auth.getUser();
+return u.data&&u.data.user?u.data.user.id:null;
+}catch(e){return null}
+}
+
+async function inChunks(table,select,col,ids,size,order){
+const parts=[];
+for(let i=0;i<ids.length;i+=size)parts.push(ids.slice(i,i+size));
+const res=await Promise.all(parts.map(p=>{
+let q=db.from(table).select(select).in(col,p);
+if(order)q=q.order(order);
+return q;
+}));
+const out=[];
+res.forEach(r=>{if(r.error)throw r.error;out.push(...(r.data||[]))});
+return out;
+}
+
 async function loadCurrentAttempt(id){
-
-const r=
-await db
-.from("test_attempts")
-.select("id,user_id,mock_test_id,completed_at")
-.eq("id",id)
-.eq(
-"user_id",
-(await db.auth.getUser()).data.user.id
-)
-.eq("mock_test_id",testId)
-.not("completed_at","is",null)
-.maybeSingle();
-
-if(r.error)throw r.error;
-
-return r.data;
-
+return userAttempts.find(a=>String(a.id)===String(id))||null;
 }
 
 async function loadAnswerData(){
@@ -1043,8 +1053,6 @@ await loadAnswerData();
 
 language="default";
 
-currentSectionIndex=0;
-
 const first=
 sections.findIndex(
 s=>questions.some(
@@ -1074,6 +1082,109 @@ showError(
 
 }
 
+/* Average time / correct % of all students.
+   Runs AFTER the solutions are already on screen. */
+async function loadAverages(){
+
+try{
+
+let all=[];
+
+for(let f=0;;f+=1000){
+
+const r=
+await db
+.from("test_attempts")
+.select("id,user_id,completed_at")
+.eq("mock_test_id",testId)
+.not("completed_at","is",null)
+.order("completed_at",{ascending:false})
+.range(f,f+999);
+
+if(r.error)return;
+
+all=all.concat(r.data||[]);
+
+if((r.data||[]).length<1000||all.length>=3000)break;
+
+}
+
+const latestByUser=new Map();
+
+all.forEach(a=>{
+const u=String(a.user_id);
+if(!latestByUser.has(u))latestByUser.set(u,a);
+});
+
+const avgIds=[...latestByUser.values()]
+.slice(0,400)
+.map(a=>a.id);
+
+if(!avgIds.length)return;
+
+const per=Math.max(1,Math.floor(900/Math.max(1,questions.length)));
+
+const rows=
+await inChunks(
+"user_answers",
+"attempt_id,question_id,selected_option_id,time_spent_seconds",
+"attempt_id",
+avgIds,
+per
+);
+
+const correctMap=
+new Map(
+questions.map(
+q=>[
+String(q.id),
+String((q.options||[]).find(o=>o.is_correct)?.id||"")
+]
+)
+);
+
+const times=new Map(),right=new Map(),answered=new Map();
+
+rows.forEach(r=>{
+
+const k=String(r.question_id);
+const t=Number(r.time_spent_seconds||0);
+
+if(t>0){
+if(!times.has(k))times.set(k,[]);
+times.get(k).push(t);
+}
+
+if(r.selected_option_id!=null){
+
+answered.set(k,(answered.get(k)||0)+1);
+
+if(String(r.selected_option_id)===correctMap.get(k)){
+right.set(k,(right.get(k)||0)+1);
+}
+
+}
+
+});
+
+times.forEach((v,k)=>
+avgTimes[k]=v.reduce((a,b)=>a+b,0)/v.length
+);
+
+answered.forEach((v,k)=>
+correctRates[k]=v?((right.get(k)||0)/v)*100:null
+);
+
+render();
+
+}catch(e){
+
+console.warn("Averages unavailable:",e);
+
+}
+
+}
+
 async function run(){
 
 try{
@@ -1086,14 +1197,31 @@ return;
 
 }
 
-const tr=
-await db
-.from("mock_tests")
+const [uid,tr,sr,ar]=
+await Promise.all([
+
+getUserId(),
+
+db.from("mock_tests")
 .select("*")
 .eq("id",testId)
-.maybeSingle();
+.maybeSingle(),
+
+db.from("mock_test_sections")
+.select("*")
+.eq("mock_test_id",testId)
+.order("section_order"),
+
+db.from("mock_test_questions")
+.select("question_id,question_order,section_id")
+.eq("mock_test_id",testId)
+.order("question_order")
+
+]);
 
 if(tr.error)throw tr.error;
+if(sr.error)throw sr.error;
+if(ar.error)throw ar.error;
 
 if(!tr.data){
 
@@ -1103,53 +1231,19 @@ return;
 
 }
 
-test=tr.data;
+if(!uid){
 
-const sr=
-await db
-.from("mock_test_sections")
-.select("*")
-.eq("mock_test_id",testId)
-.order("section_order");
+showError("Please login to view solutions.");
 
-if(sr.error)throw sr.error;
-
-sections=sr.data||[];
-
-const subjectIds=[
-...new Set(
-sections
-.map(x=>x.subject_id)
-.filter(x=>x!=null)
-)
-];
-
-if(subjectIds.length){
-
-const sub=
-await db
-.from("subjects")
-.select("id,name")
-.in("id",subjectIds);
-
-if(sub.error)throw sub.error;
-
-(sub.data||[]).forEach(
-x=>subjectNames[String(x.id)]=x.name
-);
+return;
 
 }
 
-const ar=
-await db
-.from("mock_test_questions")
-.select(
-"question_id,question_order,section_id"
-)
-.eq("mock_test_id",testId)
-.order("question_order");
+userId=uid;
 
-if(ar.error)throw ar.error;
+test=tr.data;
+
+sections=sr.data||[];
 
 const assignments=ar.data||[];
 
@@ -1164,29 +1258,44 @@ return;
 
 }
 
-const [qr,or]=
+const subjectIds=[
+...new Set(
+sections
+.map(x=>x.subject_id)
+.filter(x=>x!=null)
+)
+];
+
+const [sub,qrows,orows,ta]=
 await Promise.all([
 
-db
-.from("questions")
-.select("*")
-.in("id",ids),
+subjectIds.length
+?db.from("subjects").select("id,name").in("id",subjectIds)
+:Promise.resolve({data:[]}),
 
-db
-.from("question_options")
-.select("*")
-.in("question_id",ids)
-.order("id")
+inChunks("questions","*","id",ids,150),
+
+inChunks("question_options","*","question_id",ids,150,"id"),
+
+db.from("test_attempts")
+.select("id,user_id,completed_at")
+.eq("mock_test_id",testId)
+.eq("user_id",uid)
+.not("completed_at","is",null)
+.order("completed_at",{ascending:false})
 
 ]);
 
-if(qr.error)throw qr.error;
+if(sub.error)throw sub.error;
+if(ta.error)throw ta.error;
 
-if(or.error)throw or.error;
+(sub.data||[]).forEach(
+x=>subjectNames[String(x.id)]=x.name
+);
 
 const qm=
 new Map(
-(qr.data||[]).map(
+qrows.map(
 q=>[
 String(q.id),
 {...q,options:[]}
@@ -1194,7 +1303,7 @@ String(q.id),
 )
 );
 
-(or.data||[]).forEach(o=>{
+orows.forEach(o=>{
 
 const q=
 qm.get(String(o.question_id));
@@ -1222,35 +1331,6 @@ question_order:a.question_order
 })
 .filter(Boolean);
 
-const ur=
-await db.auth.getUser();
-
-const user=
-ur.data?.user;
-
-if(!user){
-
-showError(
-"Please login to view solutions."
-);
-
-return;
-
-}
-
-const ta=
-await db
-.from("test_attempts")
-.select(
-"id,user_id,completed_at"
-)
-.eq("mock_test_id",testId)
-.eq("user_id",user.id)
-.not("completed_at","is",null)
-.order("completed_at",{ascending:false});
-
-if(ta.error)throw ta.error;
-
 userAttempts=ta.data||[];
 
 if(!userAttempts.length){
@@ -1270,120 +1350,6 @@ userAttempts.find(
 a=>String(a.id)===String(requestedAttemptId)
 )
 )||userAttempts[0];
-
-const latestAll=
-await db
-.from("test_attempts")
-.select(
-"id,user_id,completed_at"
-)
-.eq("mock_test_id",testId)
-.not("completed_at","is",null)
-.order("completed_at",{ascending:false});
-
-if(latestAll.error)
-throw latestAll.error;
-
-const latestByUser=new Map();
-
-(latestAll.data||[]).forEach(a=>{
-
-const u=String(a.user_id);
-
-if(!latestByUser.has(u))
-latestByUser.set(u,a);
-
-});
-
-const avgIds=
-[...latestByUser.values()]
-.map(a=>a.id);
-
-if(avgIds.length){
-
-const ua=
-await db
-.from("user_answers")
-.select(
-"attempt_id,question_id,selected_option_id,time_spent_seconds"
-)
-.in("attempt_id",avgIds);
-
-if(!ua.error){
-
-const rows=ua.data||[];
-
-const correctMap=
-new Map(
-questions.map(
-q=>[
-String(q.id),
-String(
-(q.options||[])
-.find(o=>o.is_correct)?.id||""
-)
-]
-)
-);
-
-const times=new Map(),
-right=new Map(),
-answered=new Map();
-
-rows.forEach(r=>{
-
-const k=String(r.question_id);
-
-const t=
-Number(r.time_spent_seconds||0);
-
-if(t>0){
-
-if(!times.has(k))
-times.set(k,[]);
-
-times.get(k).push(t);
-
-}
-
-if(r.selected_option_id!=null){
-
-answered.set(
-k,
-(answered.get(k)||0)+1
-);
-
-if(
-String(r.selected_option_id)===
-correctMap.get(k)
-){
-
-right.set(
-k,
-(right.get(k)||0)+1
-);
-
-}
-
-}
-
-});
-
-times.forEach((v,k)=>
-avgTimes[k]=
-v.reduce((a,b)=>a+b,0)/v.length
-);
-
-answered.forEach((v,k)=>
-correctRates[k]=
-v
-?((right.get(k)||0)/v)*100
-:null
-);
-
-}
-
-}
 
 await loadAnswerData();
 
@@ -1437,6 +1403,8 @@ currentIndex=
 l.length?l[0].i:0;
 
 render();
+
+loadAverages();
 
 }catch(e){
 

@@ -8,21 +8,52 @@
 function escapeHtml(value){return String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
 document.documentElement.dataset.theme=localStorage.getItem("ssc-edge-theme")||"dark";
 </script>
+<script src="live-guard.js" data-guard></script>
 <style>
-:root{--bg:#08050e;--header:#160b26;--card:#171025;--card2:#251344;--purple:#7c3aed;--purple2:#a66bff;--text:#fff;--muted:#aaa2b9;--border:#302044;--green:#25c27a;--red:#ef5b67}
+:root{--bg:#08050e;--header:#160b26;--card:#171025;--card2:#251344;--purple:#7c3aed;--purple2:#a66bff;--text:#fff;--muted:#aaa2b9;--border:#302044;--green:#22a559;--red:#e5484d;--amber:#d9a21b}
 :root[data-theme="light"]{--bg:#f6f3fb;--header:#eee7fa;--card:#fff;--card2:#eee6fa;--purple:#6d35d4;--purple2:#8149e8;--text:#17121e;--muted:#706879;--border:#ddd4e9}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
 .header{height:58px;background:var(--header);display:flex;align-items:center;padding:0 18px;border-bottom:1px solid var(--border)}
-.logo{font-size:21px;font-weight:800;letter-spacing:.4px}.logo span{color:#b98cff}.container{max-width:850px;margin:auto;padding:18px 14px 35px}
-.test-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.test-title{min-width:0}.test-name{font-size:20px;font-weight:800;margin-bottom:5px;word-break:break-word}.test-no{color:var(--muted);font-size:13px}
-.header-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}.solution-btn,.attempt-select{border:1px solid var(--purple);background:transparent;color:var(--purple2);padding:9px 12px;border-radius:10px;font-weight:700;cursor:pointer}.attempt-select{appearance:auto;max-width:125px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:18px}.card-title{font-size:17px;font-weight:800;margin-bottom:18px}
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stat{background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:14px}.stat-label{color:var(--muted);font-size:12px;margin-bottom:7px}.stat-value{font-size:20px;font-weight:800}.small-value{font-size:16px}.subheading{margin:20px 0 10px;font-size:14px;font-weight:800}.green{color:var(--green)}.red{color:var(--red)}.breakdown{margin-top:18px}
-.section-card{overflow:hidden}.section-top{display:grid;grid-template-columns:1fr 1.25fr;border-bottom:1px solid var(--border);margin:-18px -18px 0}.section-top-box{padding:15px}.section-top-box:first-child{border-right:1px solid var(--border)}.section-top-label{color:var(--muted);font-size:12px;margin-bottom:6px}.section-top-value{font-size:18px;font-weight:800;word-break:break-word}
-.tabs-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}.tabs-wrap::-webkit-scrollbar{display:none}.tabs{display:flex;gap:8px;padding:15px 0 12px;width:max-content}.tab{border:1px solid var(--border);background:var(--card2);color:var(--muted);padding:9px 14px;border-radius:20px;white-space:nowrap;font-size:13px;font-weight:700;cursor:pointer}.tab.active{background:var(--purple);border-color:var(--purple);color:#fff}
-.section-details{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}.detail{background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:14px}.detail-label{color:var(--muted);font-size:12px;margin-bottom:7px}.detail-value{font-size:18px;font-weight:800}
-.status{text-align:center;padding:35px 15px;color:var(--muted)}.error{color:var(--red)}.loading{min-height:60vh;display:flex;align-items:center;justify-content:center;color:var(--muted)}
-@media(max-width:520px){.container{padding:14px 11px 28px}.test-name{font-size:18px}.solution-btn,.attempt-select{padding:8px 9px;font-size:12px}.attempt-select{max-width:105px}.card{padding:15px;border-radius:13px}.section-top{margin:-15px -15px 0}.stat-grid,.section-details{gap:9px}.stat,.detail{padding:12px}}
+.logo{font-size:21px;font-weight:800;letter-spacing:.4px}.logo span{color:#b98cff}
+.container{max-width:850px;margin:auto;padding:18px 14px 40px}
+.test-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.test-title{min-width:0}.test-name{font-size:20px;font-weight:800;margin-bottom:5px;word-break:break-word}.test-no{color:var(--muted);font-size:13px}
+.header-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.solution-btn,.attempt-select{border:1px solid var(--purple);background:transparent;color:var(--purple2);padding:9px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+.attempt-select{max-width:125px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:18px}
+.card-title{font-size:17px;font-weight:800;margin-bottom:16px}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat{background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:14px}
+.stat-label{color:var(--muted);font-size:12px;margin-bottom:7px}
+.stat-value{font-size:20px;font-weight:800}.stat-value small{font-size:13px;color:var(--muted);font-weight:700}
+.small-value{font-size:16px}.green{color:var(--green)}.red{color:var(--red)}
+.subheading{margin:18px 0 10px;font-size:14px;font-weight:800}
+
+/* ---------- subject wise marks ---------- */
+.sw{margin-top:20px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--card)}
+.sw-head{display:flex;align-items:center;gap:12px;padding:16px 18px;background:var(--card2);border-bottom:1px solid var(--border);font-size:18px;font-weight:800}
+.sw-item{padding:16px 18px;border-bottom:1px solid var(--border)}
+.sw-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.sw-part{font-size:12px;font-weight:900;letter-spacing:.6px;color:var(--purple2);text-transform:uppercase}
+.sw-name{font-size:17px;font-weight:800;margin-top:3px;line-height:1.3}
+.sw-score{font-size:30px;font-weight:900;line-height:1;white-space:nowrap}.sw-score small{font-size:14px;font-weight:600;color:var(--muted)}
+.bar{display:flex;height:11px;border-radius:99px;overflow:hidden;background:#8a8fa233;margin:14px 0 11px}
+.bar i{display:block;height:100%}.bar .r{background:var(--green)}.bar .w{background:var(--red)}.bar .n{background:#9aa0b655}
+.sw-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.sq{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.sq.r{background:var(--green)}.sq.w{background:var(--red)}.sq.n{background:#9aa0b6}
+.sw-meta b{color:var(--text)}
+.acc{padding:5px 11px;border-radius:99px;font-size:12px;font-weight:800}
+.acc.hi{background:#22a55922;color:#22a559}.acc.mid{background:#d9a21b26;color:#c48a00}.acc.lo{background:#e5484d22;color:#e5484d}
+.rank{margin-left:auto;font-size:13px;color:var(--muted)}.rank b{color:var(--text);font-size:16px}
+.sw-total{padding:18px;background:#1c2333;color:#fff}
+.sw-total .sw-part{color:#8fb0ff}.sw-total .sw-score small,.sw-total .rank,.sw-total .sw-meta{color:#a9b2c7}
+.sw-total .sw-meta b,.sw-total .rank b{color:#fff}.sw-total .bar{background:#ffffff22}
+.sw-total .acc{background:#ffffff1f;color:#fff}
+.status{text-align:center;padding:35px 15px;color:var(--muted)}.error{color:var(--red)}
+.loading{min-height:60vh;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+@media(max-width:520px){.container{padding:14px 11px 30px}.test-name{font-size:18px}.solution-btn,.attempt-select{padding:8px 9px;font-size:12px}.attempt-select{max-width:105px}.card{padding:15px}.sw-score{font-size:26px}.stat,.sw-item{padding:12px}}
 </style>
 </head>
 <body>
@@ -30,118 +61,218 @@ document.documentElement.dataset.theme=localStorage.getItem("ssc-edge-theme")||"
 <main class="container">
 <div id="loading" class="loading">Loading analysis...</div>
 <div id="content" style="display:none">
-<div class="test-head">
-<div class="test-title"><div id="testName" class="test-name">Test</div><div id="testNo" class="test-no">Test No. —</div></div>
-<div class="header-actions">
-<select id="attemptSelect" class="attempt-select" aria-label="Select attempt"></select>
-<button class="solution-btn" onclick="openSolutions()">Solutions</button>
-</div>
-</div>
-<section class="card">
-<div class="card-title">Overall Summary</div>
-<div class="stat-grid">
-<div class="stat"><div class="stat-label">Rank</div><div id="rank" class="stat-value">—</div></div>
-<div class="stat"><div class="stat-label">Marks</div><div id="marks" class="stat-value">—</div></div>
-<div class="stat"><div class="stat-label">Attempted</div><div id="attempted" class="stat-value">—</div></div>
-<div class="stat"><div class="stat-label">Correct / Incorrect </div><div id="correctWrong" class="stat-value small-value">—</div></div>
-</div>
-<div class="subheading">Performance</div>
-<div class="stat-grid">
-<div class="stat"><div class="stat-label">Accuracy</div><div id="accuracy" class="stat-value">—</div></div>
-<div class="stat"><div class="stat-label">Percentile</div><div id="percentile" class="stat-value">—</div></div>
-</div>
-</section>
-<div class="subheading breakdown">SECTIONAL BREAKDOWN</div>
-<section class="card section-card">
-<div id="tabsWrap" class="tabs-wrap"><div id="tabs" class="tabs"></div></div>
-<div id="sectionDetails" class="section-details"></div>
-<div id="noSections" class="status" style="display:none">No sectional data available.</div>
-</section>
+  <div class="test-head">
+    <div class="test-title"><div id="testName" class="test-name">Test</div><div id="testNo" class="test-no"></div></div>
+    <div class="header-actions">
+      <select id="attemptSelect" class="attempt-select" aria-label="Select attempt"></select>
+      <button class="solution-btn" onclick="openSolutions()">Solutions</button>
+    </div>
+  </div>
+  <section class="card">
+    <div class="card-title">Overall Summary</div>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-label">Rank</div><div id="rank" class="stat-value">—</div></div>
+      <div class="stat"><div class="stat-label">Marks</div><div id="marks" class="stat-value">—</div></div>
+      <div class="stat"><div class="stat-label">Attempted</div><div id="attempted" class="stat-value">—</div></div>
+      <div class="stat"><div class="stat-label">Correct / Incorrect</div><div id="correctWrong" class="stat-value small-value">—</div></div>
+    </div>
+    <div class="subheading">Performance</div>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-label">Accuracy</div><div id="accuracy" class="stat-value">—</div></div>
+      <div class="stat"><div class="stat-label">Percentile</div><div id="percentile" class="stat-value">—</div></div>
+    </div>
+  </section>
+  <section class="sw">
+    <div class="sw-head">📘 Subject Wise Marks</div>
+    <div id="sections"></div>
+    <div id="total"></div>
+  </section>
 </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SUPABASE_URL="https://dvvyoygahzzbnpqrfhen.supabase.co";
-const SUPABASE_KEY="sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s";
-const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const db=supabase.createClient("https://dvvyoygahzzbnpqrfhen.supabase.co","sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s");
 const params=new URLSearchParams(location.search);
-const mockTestId=params.get("test_id")||params.get("id");
+const testId=params.get("test_id")||params.get("id");
 const requestedAttemptId=params.get("attempt_id");
-let currentTest=null,currentUser=null,currentAttempt=null,allUserAttempts=[],sectionStats=[],selectedSectionIndex=0,overallRank=null,totalAttemptedUsers=null,overallPercentile=null;
 const $=id=>document.getElementById(id);
-function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f}
-function formatScore(v){const n=Number(v);return Number.isFinite(n)?Number(n.toFixed(2)).toString():"—"}
-function formatPercent(v){if(v===null||v===undefined||!Number.isFinite(Number(v)))return"—";return Number(v).toFixed(1).replace(/\.0$/,"")+"%"}
-function showError(m){$("loading").className="status error";$("loading").textContent=m}
-function openSolutions(){if(!mockTestId)return;let u="solutions.html?test_id="+encodeURIComponent(mockTestId);if(currentAttempt?.id)u+="&attempt_id="+encodeURIComponent(currentAttempt.id);location.href=u}
-async function loadTest(){const {data,error}=await supabaseClient.from("mock_tests").select("*").eq("id",mockTestId).single();if(error)throw error;return data}
-async function loadUserAttempts(userId){const {data,error}=await supabaseClient.from("test_attempts").select("id,user_id,mock_test_id,started_at,completed_at,score,correct_answers,wrong_answers,unanswered,rank,percentile,sectional_data").eq("mock_test_id",mockTestId).eq("user_id",userId).not("completed_at","is",null).order("completed_at",{ascending:false});if(error)throw error;return data||[]}
-async function loadExactAttempt(id){const {data,error}=await supabaseClient.from("test_attempts").select("id,user_id,mock_test_id,started_at,completed_at,score,correct_answers,wrong_answers,unanswered,rank,percentile,sectional_data").eq("id",id).eq("mock_test_id",mockTestId).eq("user_id",currentUser.id).not("completed_at","is",null).maybeSingle();if(error)throw error;return data}
-async function loadAssignedQuestions(){const {data,error}=await supabaseClient.from("mock_test_questions").select("id,mock_test_id,question_id,section_id,question_order").eq("mock_test_id",mockTestId).order("question_order",{ascending:true});if(error)throw error;return data||[]}
-async function loadQuestions(ids){if(!ids.length)return[];const {data,error}=await supabaseClient.from("questions").select("id,question_text,marks,negative_marks,subject_id,chapter_id,section_id").in("id",ids);if(error)throw error;return data||[]}
-async function loadOptions(ids){if(!ids.length)return[];const {data,error}=await supabaseClient.from("question_options").select("id,question_id,option_label,is_correct").in("question_id",ids);if(error)throw error;return data||[]}
-async function loadAnswers(id){const {data,error}=await supabaseClient.from("user_answers").select("attempt_id,question_id,selected_option_id").eq("attempt_id",id);if(error)throw error;return data||[]}
-async function loadSections(){const {data,error}=await supabaseClient.from("mock_test_sections").select("id,mock_test_id,subject_id,section_order,duration_minutes").eq("mock_test_id",mockTestId).order("section_order",{ascending:true});if(error)throw error;return data||[]}
-async function loadSubjects(ids){const u=[...new Set(ids.filter(x=>x!==null&&x!==undefined&&x!=="").map(String))];if(!u.length)return[];const {data,error}=await supabaseClient.from("subjects").select("id,name").in("id",u);if(error)throw error;return data||[]}
-function isCorrectOption(o){return o.is_correct===true||o.is_correct==="true"||o.is_correct===1||o.is_correct==="1"}
-function calculateResults(assignments,questions,options,answers,sections){
-const qm=new Map(questions.map(q=>[String(q.id),q])),am=new Map(answers.map(a=>[String(a.question_id),a.selected_option_id])),cm=new Map(),sm=new Map(sections.map(s=>[String(s.id),s]));
-options.forEach(o=>{if(isCorrectOption(o))cm.set(String(o.question_id),String(o.id))});
-return assignments.map(a=>{const q=qm.get(String(a.question_id));if(!q)return null;const selected=am.get(String(q.id)),correct=cm.get(String(q.id));const marks=num(q.marks,num(currentTest.marks_per_question,0)),negative=num(q.negative_marks,num(currentTest.negative_marks,0));let status="unanswered",earned=0;if(selected!==null&&selected!==undefined&&String(selected)!==""){if(correct!==undefined&&String(selected)===correct){status="correct";earned=marks}else{status="wrong";earned=-negative}}const section=sm.get(String(a.section_id));return{question:q,assignment:a,section,subjectId:q.subject_id??section?.subject_id??null,marks,negative,status,earned}}).filter(Boolean)
+
+let test=null,sections=[],assignments=[],subjectNames={},userId=null,
+    myAttempts=[],attempt=null,calc=null,
+    overallRank=null,overallTotal=null,overallPct=null,sectionRank={};
+
+/* ---------- helpers ---------- */
+const num=(v,f=0)=>{const n=Number(v);return Number.isFinite(n)?n:f};
+const fmt=v=>Number.isFinite(Number(v))?Number(Number(v).toFixed(2)).toString():"—";
+const pct=v=>(v==null||!Number.isFinite(Number(v)))?"—":Number(v).toFixed(1).replace(/\.0$/,"")+"%";
+const inr=v=>Number(v).toLocaleString("en-IN");
+function showError(m){$("loading").className="status error";$("loading").style.display="block";$("loading").textContent=m}
+function openSolutions(){let u="solutions.html?test_id="+encodeURIComponent(testId);if(attempt?.id)u+="&attempt_id="+encodeURIComponent(attempt.id);location.href=u}
+async function getUserId(){
+  try{const s=await db.auth.getSession();if(s.data?.session?.user)return s.data.session.user.id}catch(e){}
+  try{const u=await db.auth.getUser();return u.data?.user?.id||null}catch(e){return null}
 }
-function buildSectionStats(results,subjects,sections){
-const subMap=new Map(subjects.map(s=>[String(s.id),s])),map=new Map();
-results.forEach(r=>{let key=r.subjectId;if(key===null||key===undefined||key==="")key="__section__"+String(r.assignment.section_id??"other");key=String(key);if(!map.has(key)){const sub=r.subjectId!=null?subMap.get(String(r.subjectId)):null;map.set(key,{key,subjectId:r.subjectId,name:sub?.name||(r.section?"Section "+r.section.section_order:"Section"),score:0,maxMarks:0,correct:0,incorrect:0,attempted:0,unanswered:0,percentile:null,order:r.section?.section_order??9999})}const s=map.get(key);s.maxMarks+=r.marks;s.score+=r.earned;if(r.status==="correct"){s.correct++;s.attempted++}else if(r.status==="wrong"){s.incorrect++;s.attempted++}else s.unanswered++});
-return[...map.values()].sort((a,b)=>a.order-b.order)
+async function inChunks(table,select,col,ids,size){
+  const parts=[];for(let i=0;i<ids.length;i+=size)parts.push(ids.slice(i,i+size));
+  const res=await Promise.all(parts.map(p=>db.from(table).select(select).in(col,p)));
+  const out=[];res.forEach(r=>{if(r.error)throw r.error;out.push(...(r.data||[]))});return out;
 }
-async function loadAllCompletedAttempts(){let all=[],from=0;while(true){const {data,error}=await supabaseClient.from("test_attempts").select("id,user_id,score,completed_at,rank,percentile,sectional_data").eq("mock_test_id",mockTestId).not("completed_at","is",null).range(from,from+999);if(error)throw error;if(!data?.length)break;all=all.concat(data);if(data.length<1000)break;from+=1000}return all}
-async function calculateOverallRank(){const attempts=await loadAllCompletedAttempts(),best=new Map();attempts.forEach(a=>{if(a.user_id==null)return;const u=String(a.user_id),s=num(a.score);if(!best.has(u)||s>best.get(u))best.set(u,s)});const scores=[...best.values()],totalUsers=scores.length;if(!totalUsers)return{rank:null,totalUsers:null,percentile:null};const my=num(currentAttempt.score),higher=scores.filter(s=>s>my).length,lower=scores.filter(s=>s<my).length;return{rank:higher+1,totalUsers,percentile:totalUsers>1?(lower/(totalUsers-1))*100:100}}
-async function calculateSectionPercentiles(){
-if(!sectionStats.length||!currentAttempt)return;
-try{const attempts=await loadAllCompletedAttempts();if(!attempts.length)return;let allAnswers=[];for(let i=0;i<attempts.length;i+=500){const batch=attempts.slice(i,i+500).map(a=>a.id),{data,error}=await supabaseClient.from("user_answers").select("attempt_id,question_id,selected_option_id").in("attempt_id",batch);if(error)return;if(data)allAnswers=allAnswers.concat(data)}
-const assignments=await loadAssignedQuestions(),ids=assignments.map(a=>a.question_id),[questions,options,sections]=await Promise.all([loadQuestions(ids),loadOptions(ids),loadSections()]),subjects=await loadSubjects([...questions.map(q=>q.subject_id),...sections.map(s=>s.subject_id)]),lists=new Map();
-attempts.forEach(a=>{const answers=allAnswers.filter(x=>String(x.attempt_id)===String(a.id)),stats=buildSectionStats(calculateResults(assignments,questions,options,answers,sections),subjects,sections);stats.forEach(s=>{const k=s.subjectId!=null?String(s.subjectId):String(s.key);if(!lists.has(k))lists.set(k,[]);lists.get(k).push(s.score)})});
-sectionStats.forEach(s=>{const k=s.subjectId!=null?String(s.subjectId):String(s.key),scores=lists.get(k);if(!scores?.length)return;const lower=scores.filter(x=>x<s.score).length;s.percentile=scores.length>1?(lower/(scores.length-1))*100:100})
-}catch(e){console.log("Section percentile unavailable:",e)}
+
+/* ---------- SAME marking rules as the test page ----------
+   correct  = +marks_per_question        (bonus counts as correct when attempted)
+   wrong    = -negative_marks_per_question
+   skipped  = unattempted_marks_per_question (normally 0)        */
+function markRules(){
+  return {
+    marks:num(test.marks_per_question,2),
+    neg:num(test.negative_marks_per_question,0),
+    unatt:num(test.unattempted_marks_per_question,0)
+  };
 }
-function renderOverall(){const correct=num(currentAttempt.correct_answers),wrong=num(currentAttempt.wrong_answers),attempted=correct+wrong,accuracy=attempted?correct/attempted*100:null;$("rank").textContent=overallRank!=null?(totalAttemptedUsers!=null?overallRank+" / "+totalAttemptedUsers:String(overallRank)):"—";$("marks").textContent=formatScore(currentAttempt.score);$("attempted").textContent=attempted;$("correctWrong").innerHTML='<span class="green">'+correct+'</span> / <span class="red">'+wrong+'</span>';$("accuracy").textContent=formatPercent(accuracy);$("percentile").textContent=formatPercent(overallPercentile)}
-function renderTabs(){const tabs=$("tabs");tabs.innerHTML="";const b=document.createElement("button");b.className="tab"+(selectedSectionIndex===0?" active":"");b.textContent="Score";b.onclick=()=>{selectedSectionIndex=0;renderTabs();renderSelectedSection()};tabs.appendChild(b);sectionStats.forEach((s,i)=>{const x=document.createElement("button");x.className="tab"+(selectedSectionIndex===i+1?" active":"");x.textContent=s.name;x.onclick=()=>{selectedSectionIndex=i+1;renderTabs();renderSelectedSection()};tabs.appendChild(x)})}
-function renderSelectedSection(){if(!sectionStats.length){$("sectionDetails").style.display="none";$("tabsWrap").style.display="none";$("noSections").style.display="block";return}$("sectionDetails").style.display="grid";$("tabsWrap").style.display="block";$("noSections").style.display="none";const d=$("sectionDetails");d.innerHTML="";if(selectedSectionIndex===0){sectionStats.forEach(s=>{const x=document.createElement("div");x.className="detail";x.innerHTML='<div class="detail-label">'+escapeHtml(s.name)+' Score</div><div class="detail-value">'+formatScore(s.score)+' / '+formatScore(s.maxMarks)+'</div>';d.appendChild(x)});const total=sectionStats.reduce((a,b)=>a+Number(b.score||0),0),max=sectionStats.reduce((a,b)=>a+Number(b.maxMarks||0),0),x=document.createElement("div");x.className="detail";x.innerHTML='<div class="detail-label">Total Score</div><div class="detail-value">'+formatScore(total)+' / '+formatScore(max)+'</div>';d.appendChild(x);return}const s=sectionStats[selectedSectionIndex-1];if(!s)return;d.innerHTML='<div class="detail"><div class="detail-label">Score</div><div class="detail-value">'+formatScore(s.score)+' / '+formatScore(s.maxMarks)+'</div></div><div class="detail"><div class="detail-label">Section Percentile</div><div class="detail-value">'+formatPercent(s.percentile)+'</div></div><div class="detail"><div class="detail-label">Correct</div><div class="detail-value green">'+s.correct+'</div></div><div class="detail"><div class="detail-label">Incorrect</div><div class="detail-value red">'+s.incorrect+'</div></div>'}
-function renderAttemptSelector(){const s=$("attemptSelect");s.innerHTML="";allUserAttempts.forEach((a,i)=>{const o=document.createElement("option");o.value=a.id;o.textContent="Attempt "+(allUserAttempts.length-i);s.appendChild(o)});if(currentAttempt)s.value=currentAttempt.id}
-async function prepareAttempt(attempt){
- currentAttempt=attempt;
- const assignments=await loadAssignedQuestions(),ids=assignments.map(a=>a.question_id);
- const [questions,options,answers,sections]=await Promise.all([loadQuestions(ids),loadOptions(ids),loadAnswers(currentAttempt.id),loadSections()]);
- const subjects=await loadSubjects([...questions.map(q=>q.subject_id),...sections.map(s=>s.subject_id)]);
- sectionStats=buildSectionStats(calculateResults(assignments,questions,options,answers,sections),subjects,sections);
- // Use saved rank/percentile for the first paint; expensive cross-user calculations run after the page is visible.
- overallRank=currentAttempt.rank!=null?num(currentAttempt.rank):null;
- totalAttemptedUsers=null;
- overallPercentile=currentAttempt.percentile!=null?num(currentAttempt.percentile):null;
- selectedSectionIndex=0;
- renderOverall();renderTabs();renderSelectedSection();renderAttemptSelector();
+function groupKey(a){return a.section_id==null?"__all":String(a.section_id)}
+
+function compute(answerRows){
+  const r=markRules(),ans=new Map(answerRows.map(x=>[String(x.question_id),x]));
+  const groups=new Map();
+  assignments.forEach(a=>{
+    const k=groupKey(a);
+    if(!groups.has(k))groups.set(k,{key:k,correct:0,wrong:0,na:0,score:0,max:0});
+    const g=groups.get(k),row=ans.get(String(a.question_id));
+    const sel=row?row.selected_option_id:null;
+    const attempted=sel!==null&&sel!==undefined&&String(sel)!=="";
+    g.max+=r.marks;
+    if(!attempted){g.na++;g.score+=r.unatt}
+    else if(row.is_correct===true||row.is_correct==="true"||row.is_correct===1){g.correct++;g.score+=r.marks}
+    else{g.wrong++;g.score-=r.neg}
+  });
+  const list=[...groups.values()];
+  const order=new Map(sections.map((s,i)=>[String(s.id),i]));
+  list.sort((a,b)=>(order.has(a.key)?order.get(a.key):999)-(order.has(b.key)?order.get(b.key):999));
+  list.forEach((g,i)=>{
+    const s=sections.find(x=>String(x.id)===g.key);
+    g.name=(s&&subjectNames[String(s.subject_id)])||s?.section_name||(g.key==="__all"?"All Questions":"Section "+(i+1));
+    g.part="PART-"+String.fromCharCode(65+i);
+  });
+  const t={correct:0,wrong:0,na:0,score:0,max:0};
+  list.forEach(g=>{t.correct+=g.correct;t.wrong+=g.wrong;t.na+=g.na;t.score+=g.score;t.max+=g.max});
+  return {list,total:t};
 }
-async function refreshBackgroundStats(){
- const attemptId=String(currentAttempt?.id||"");
- try{
-  const r=await calculateOverallRank();
-  if(String(currentAttempt?.id||"")!==attemptId)return;
-  overallRank=r.rank;totalAttemptedUsers=r.totalUsers;
-  if(r.percentile!=null)overallPercentile=r.percentile;
-  renderOverall();
- }catch(e){console.log("Overall rank unavailable:",e)}
- try{
-  await calculateSectionPercentiles();
-  if(String(currentAttempt?.id||"")!==attemptId)return;
-  renderTabs();renderSelectedSection();
- }catch(e){console.log("Section percentile unavailable:",e)}
+
+/* ---------- render ---------- */
+function accClass(a){return a>=80?"hi":(a>=60?"mid":"lo")}
+function barHtml(c,w,n){
+  const t=c+w+n||1;
+  return `<div class="bar"><i class="r" style="width:${c/t*100}%"></i><i class="w" style="width:${w/t*100}%"></i><i class="n" style="width:${n/t*100}%"></i></div>`;
 }
-async function switchAttempt(id){try{const a=allUserAttempts.find(x=>String(x.id)===String(id));if(a){await prepareAttempt(a);refreshBackgroundStats()}}catch(e){console.error(e);showError("Unable to switch attempt: "+(e?.message||String(e)))}}
-function render(){ $("testName").textContent=currentTest.title||"SSC EDGE Test";const n=currentTest.test_number??currentTest.test_no??currentTest.number??"—";$("testNo").textContent="Test No. "+n;renderOverall();renderTabs();renderSelectedSection();renderAttemptSelector();$("loading").style.display="none";$("content").style.display="block"}
+function metaHtml(g,rankHtml){
+  const att=g.correct+g.wrong,acc=att?g.correct/att*100:0;
+  return `<div class="sw-meta"><span><i class="sq r"></i><b>${g.correct}</b> R</span><span><i class="sq w"></i><b>${g.wrong}</b> W</span><span><i class="sq n"></i><b>${g.na}</b> N/A</span><span class="acc ${accClass(acc)}">${Math.round(acc)}% acc.</span>${rankHtml}</div>`;
+}
+function renderAll(){
+  $("testName").textContent=test.title||"SSC EDGE Test";
+  const n=test.test_number??test.test_no??test.number;
+  $("testNo").textContent=n!=null?"Test No. "+n:"";
+  const t=calc.total,att=t.correct+t.wrong,totalQ=t.correct+t.wrong+t.na;
+  $("rank").textContent=overallRank!=null?(overallTotal!=null?inr(overallRank)+" / "+inr(overallTotal):inr(overallRank)):"—";
+  $("marks").innerHTML=fmt(t.score)+' <small>/ '+fmt(t.max)+'</small>';
+  $("attempted").innerHTML=att+' <small>/ '+totalQ+'</small>';
+  $("correctWrong").innerHTML='<span class="green">'+t.correct+'</span> / <span class="red">'+t.wrong+'</span>';
+  $("accuracy").textContent=att?pct(t.correct/att*100):"—";
+  $("percentile").textContent=pct(overallPct);
+  $("sections").innerHTML=calc.list.map(g=>{
+    const sr=sectionRank[g.key];
+    const rk=`<span class="rank">Rank <b>${sr?inr(sr):"—"}</b></span>`;
+    return `<div class="sw-item"><div class="sw-top"><div><div class="sw-part">${escapeHtml(g.part)}</div><div class="sw-name">${escapeHtml(g.name)}</div></div>
+      <div class="sw-score">${fmt(g.score)} <small>/ ${fmt(g.max)}</small></div></div>${barHtml(g.correct,g.wrong,g.na)}${metaHtml(g,rk)}</div>`;
+  }).join("");
+  $("total").innerHTML=`<div class="sw-total"><div class="sw-top"><div><div class="sw-part">ALL SUBJECTS</div><div class="sw-name">Overall</div></div>
+    <div class="sw-score">${fmt(t.score)} <small>/ ${fmt(t.max)}</small></div></div>${barHtml(t.correct,t.wrong,t.na)}
+    ${metaHtml(t,`<span class="rank">Attempted <b>${att}</b></span>`)}</div>`;
+  const sel=$("attemptSelect");sel.innerHTML="";
+  myAttempts.forEach((a,i)=>{const o=document.createElement("option");o.value=a.id;o.textContent="Attempt "+(myAttempts.length-i);sel.appendChild(o)});
+  if(attempt)sel.value=attempt.id;
+}
+
+/* ---------- load ---------- */
+async function prepare(a){
+  attempt=a;
+  const r=await db.from("user_answers").select("question_id,selected_option_id,is_correct").eq("attempt_id",a.id);
+  if(r.error)throw r.error;
+  calc=compute(r.data||[]);
+  overallRank=a.rank!=null?num(a.rank):null;overallTotal=null;
+  overallPct=a.percentile!=null?num(a.percentile):null;
+  sectionRank={};
+  renderAll();
+}
 async function init(){
-try{if(!mockTestId){showError("Invalid test. Test ID is missing.");return}const {data,error}=await supabaseClient.auth.getUser();if(error||!data?.user){showError("Please login to view your analysis.");return}currentUser=data.user;currentTest=await loadTest();allUserAttempts=await loadUserAttempts(currentUser.id);if(!allUserAttempts.length){showError("No completed attempt found for this test.");return}
-currentAttempt=(requestedAttemptId&&allUserAttempts.find(a=>String(a.id)===String(requestedAttemptId)))||allUserAttempts[0];await prepareAttempt(currentAttempt);render();refreshBackgroundStats();$("attemptSelect").onchange=e=>switchAttempt(e.target.value)
-}catch(e){console.error("Analysis error:",e);showError("Unable to load analysis: "+(e?.message||String(e)))}
+  try{
+    if(!testId){showError("Invalid test. Test ID is missing.");return}
+    const [uid,tr,sr,ar]=await Promise.all([
+      getUserId(),
+      db.from("mock_tests").select("*").eq("id",testId).maybeSingle(),
+      db.from("mock_test_sections").select("id,subject_id,section_name,section_order").eq("mock_test_id",testId).order("section_order"),
+      db.from("mock_test_questions").select("question_id,section_id,question_order").eq("mock_test_id",testId).order("question_order")
+    ]);
+    if(tr.error)throw tr.error;if(sr.error)throw sr.error;if(ar.error)throw ar.error;
+    if(!uid){showError("Please login to view your analysis.");return}
+    if(!tr.data){showError("Test not found.");return}
+    userId=uid;test=tr.data;sections=sr.data||[];assignments=ar.data||[];
+    const subIds=[...new Set(sections.map(s=>s.subject_id).filter(x=>x!=null))];
+    const [sub,ta]=await Promise.all([
+      subIds.length?db.from("subjects").select("id,name").in("id",subIds):Promise.resolve({data:[]}),
+      db.from("test_attempts").select("id,user_id,score,correct_answers,wrong_answers,unanswered,rank,percentile,completed_at")
+        .eq("mock_test_id",testId).eq("user_id",uid).not("completed_at","is",null).order("completed_at",{ascending:false})
+    ]);
+    (sub.data||[]).forEach(s=>subjectNames[String(s.id)]=s.name);
+    if(ta.error)throw ta.error;
+    myAttempts=ta.data||[];
+    if(!myAttempts.length){showError("No completed attempt found for this test.");return}
+    const first=(requestedAttemptId&&myAttempts.find(a=>String(a.id)===String(requestedAttemptId)))||myAttempts[0];
+    await prepare(first);
+    $("loading").style.display="none";$("content").style.display="block";
+    $("attemptSelect").onchange=async e=>{
+      const a=myAttempts.find(x=>String(x.id)===String(e.target.value));
+      if(a){await prepare(a);backgroundStats()}
+    };
+    backgroundStats();
+  }catch(e){console.error("Analysis error:",e);showError("Unable to load analysis: "+(e?.message||String(e)))}
+}
+
+/* ---------- rank & percentile (runs after the page is visible) ---------- */
+async function backgroundStats(){
+  const mine=String(attempt?.id||"");
+  try{
+    let all=[];
+    for(let f=0;;f+=1000){
+      const r=await db.from("test_attempts").select("id,user_id,score").eq("mock_test_id",testId).not("completed_at","is",null).range(f,f+999);
+      if(r.error)return;all=all.concat(r.data||[]);
+      if((r.data||[]).length<1000||all.length>=20000)break;
+    }
+    const best=new Map();
+    all.forEach(a=>{if(a.user_id==null)return;const u=String(a.user_id),s=num(a.score);if(!best.has(u)||s>best.get(u).score)best.set(u,{id:a.id,score:s})});
+    const me=String(userId),others=[...best.entries()].filter(([u])=>u!==me);
+    const myScore=calc.total.score;
+    const total=others.length+1;
+    overallRank=others.filter(([,v])=>v.score>myScore).length+1;
+    overallTotal=total;
+    overallPct=total>1?others.filter(([,v])=>v.score<myScore).length/(total-1)*100:100;
+    if(String(attempt?.id||"")!==mine)return;
+    renderAll();
+
+    /* section-wise rank (only when the number of students is small enough to do quickly) */
+    if(total>600||!assignments.length)return;
+    const ids=others.map(([,v])=>v.id);
+    const per=Math.max(1,Math.floor(900/Math.max(1,assignments.length)));
+    const rows=await inChunks("user_answers","attempt_id,question_id,selected_option_id,is_correct","attempt_id",ids,per);
+    const byAttempt=new Map();
+    rows.forEach(x=>{const k=String(x.attempt_id);if(!byAttempt.has(k))byAttempt.set(k,[]);byAttempt.get(k).push(x)});
+    const scores=new Map();
+    byAttempt.forEach(list=>{compute(list).list.forEach(g=>{if(!scores.has(g.key))scores.set(g.key,[]);scores.get(g.key).push(g.score)})});
+    const rk={};
+    calc.list.forEach(g=>{const s=scores.get(g.key)||[];rk[g.key]=s.filter(v=>v>g.score).length+1});
+    if(String(attempt?.id||"")!==mine)return;
+    sectionRank=rk;renderAll();
+  }catch(e){console.log("Rank unavailable:",e)}
 }
 init();
 </script>

@@ -16,6 +16,7 @@ document.documentElement.dataset.theme =
 <title>SSC EDGE - Quantitative Aptitude</title>
 
 <link rel="stylesheet" href="css/style.css">
+<script src="js/downloads.js"></script>
 
 <style>
 
@@ -441,9 +442,7 @@ async function loadPDFs(){
 
           <a
             class="open"
-            href="${escapeAttribute(fileUrl)}"
-            target="_blank"
-            rel="noopener"
+            href="pdf-viewer.html?file=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(title)}"
           >
             📄 Open PDF
           </a>
@@ -451,8 +450,6 @@ async function loadPDFs(){
           <a
             class="download"
             href="${escapeAttribute(downloadUrl)}"
-            target="_blank"
-            rel="noopener"
             download
           >
             ⬇ Download
@@ -474,6 +471,32 @@ async function loadPDFs(){
          creation — no template
          string syntax issue.
       ========================= */
+
+      const downloadButton =
+        content.querySelector(".download");
+
+      if(downloadButton){
+
+        downloadButton.addEventListener(
+          "click",
+          function(){
+
+            if(window.SSCEdgeDownloads){
+
+              window.SSCEdgeDownloads.recordDownload({
+                id:id,
+                title:title,
+                subject:"Quantitative Aptitude",
+                type:"PDF",
+                url:fileUrl
+              });
+
+            }
+
+          }
+        );
+
+      }
 
       const openButton =
         content.querySelector(".open");
