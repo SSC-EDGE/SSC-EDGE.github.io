@@ -599,17 +599,16 @@ body{
 }
 
 
-.live-title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:900;margin:6px 0 10px}
-.live-dot{width:10px;height:10px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 0 #ef4444aa;animation:livepulse 1.4s infinite}
-@keyframes livepulse{70%{box-shadow:0 0 0 9px #ef444400}100%{box-shadow:0 0 0 0 #ef444400}}
-.live-card{border:1px solid #ef444466;background:linear-gradient(135deg,#ef444418,transparent);border-radius:14px;padding:14px;margin-bottom:10px}
-.live-card.up{border-color:#f59e0b66;background:linear-gradient(135deg,#f59e0b14,transparent)}
-.live-badge{display:inline-block;font-size:10px;font-weight:900;border-radius:6px;padding:3px 7px;background:#ef4444;color:#fff;margin-bottom:7px}
-.live-card.up .live-badge{background:#f59e0b;color:#111}
-.live-card h4{margin:0 0 4px;font-size:15px}
-.live-meta{font-size:11.5px;color:var(--muted,#9b9bb5);line-height:1.6}
-.live-btn{display:inline-block;margin-top:10px;padding:10px 16px;border-radius:9px;background:#ef4444;color:#fff;font-weight:800;font-size:12px;text-decoration:none}
-.live-btn.off{background:#444;color:#bbb;pointer-events:none}
+.live-wrap{margin:0 0 22px}
+.live-title{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:900;margin:0 0 12px}
+.live-dot{width:9px;height:9px;border-radius:50%;background:#ef4444;animation:livepulse 1.4s infinite}
+@keyframes livepulse{0%{box-shadow:0 0 0 0 #ef4444aa}70%{box-shadow:0 0 0 8px #ef444400}100%{box-shadow:0 0 0 0 #ef444400}}
+.live-box{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;margin-bottom:9px;border:1px solid #ef444466;border-radius:12px;background:var(--p-card2);cursor:pointer}
+.live-box h4{margin:0 0 3px;font-size:14px;font-weight:800}
+.live-meta{font-size:11px;color:var(--p-muted)}
+.live-timer{flex-shrink:0;text-align:right;font-size:15px;font-weight:900;color:#ef4444;font-variant-numeric:tabular-nums}
+.live-timer small{display:block;font-size:9px;font-weight:700;color:var(--p-muted);letter-spacing:.4px;text-transform:uppercase}
+.live-box.up{border-color:#f59e0b66}.live-box.up .live-timer{color:#f59e0b}
 </style>
 
 <script src="live-guard.js"></script>
@@ -4289,65 +4288,66 @@ async function startPracticePage(){
 /* =========================================================
    LIVE TESTS  (shown at the top of the Practice page)
 ========================================================= */
-let liveTests=[],liveAttempted=new Set(),liveTimer=null;
+let liveTests=[],liveTick=null,liveRefresh=null;
+const LIVE_CACHE="ssc-live-cache";
+
+function liveClock(ms){
+  ms=Math.max(0,Math.floor(ms/1000));
+  const h=Math.floor(ms/3600),m=Math.floor((ms%3600)/60),s=ms%60,p=n=>String(n).padStart(2,"0");
+  return (h?p(h)+":":"")+p(m)+":"+p(s);
+}
 
 async function loadLiveTests(){
   const box=document.getElementById("liveArea");
   if(!box)return;
+  /* show last known list instantly, then refresh in background */
   try{
-    await SSCLive.sync(supabaseClient);
-    const nowIso=new Date(SSCLive.nowMs()).toISOString();
-    const r=await supabaseClient.from("mock_tests")
-      .select("id,exam_id,title,description,duration_minutes,total_questions,is_live,live_start,live_end")
-      .eq("is_active",true).eq("is_live",true).gt("live_end",nowIso).order("live_start");
+    const c=JSON.parse(localStorage.getItem(LIVE_CACHE)||"null");
+    if(c&&Array.isArray(c)){liveTests=c;renderLiveTests();}
+  }catch(e){}
+  try{
+    const nowIso=new Date(Date.now()-60000).toISOString();
+    const [,r]=await Promise.all([
+      SSCLive.sync(supabaseClient),
+      supabaseClient.from("mock_tests")
+        .select("id,title,duration_minutes,total_questions,is_live,live_start,live_end")
+        .eq("is_active",true).eq("is_live",true).gt("live_end",nowIso).order("live_start")
+    ]);
     if(r.error)throw r.error;
-    liveTests=r.data||[];
-    liveAttempted=new Set();
-    if(liveTests.length){
-      try{
-        const u=await supabaseClient.auth.getUser();
-        const uid=u?.data?.user?.id;
-        if(uid){
-          const a=await supabaseClient.from("test_attempts").select("mock_test_id")
-            .eq("user_id",uid).in("mock_test_id",liveTests.map(t=>t.id)).not("completed_at","is",null);
-          (a.data||[]).forEach(x=>liveAttempted.add(String(x.mock_test_id)));
-        }
-      }catch(e){}
-      try{ await (examsLoadPromise||(examsLoadPromise=loadExams())); }catch(e){}
-    }
+    liveTests=(r.data||[]).filter(t=>SSCLive.state(t)!=="ended");
+    try{localStorage.setItem(LIVE_CACHE,JSON.stringify(liveTests))}catch(e){}
     renderLiveTests();
-    clearInterval(liveTimer);
-    liveTimer=setInterval(()=>{
-      const changed=liveTests.some(t=>SSCLive.state(t)==="ended");
-      if(changed)loadLiveTests();else renderLiveTests();
-    },30000);
+    clearInterval(liveRefresh);
+    liveRefresh=setInterval(loadLiveTests,60000);
   }catch(e){
     console.warn("Live tests not loaded:",e);
-    box.innerHTML="";
   }
+}
+
+function liveTimerHtml(t){
+  const now=SSCLive.nowMs(),st=SSCLive.state(t);
+  if(st==="upcoming")return `<small>Starts in</small>${liveClock(new Date(t.live_start)-now)}`;
+  return `<small>Ends in</small>${liveClock(new Date(t.live_end)-now)}`;
 }
 
 function renderLiveTests(){
   const box=document.getElementById("liveArea");
   const list=liveTests.filter(t=>SSCLive.state(t)!=="ended");
+  clearInterval(liveTick);
   if(!list.length){box.innerHTML="";return;}
-  const now=SSCLive.nowMs();
-  box.innerHTML=`<div class="live-title"><span class="live-dot"></span> LIVE TESTS</div>`+list.map(t=>{
-    const st=SSCLive.state(t),ex=exams.find(e=>String(e.id)===String(t.exam_id));
-    const done=liveAttempted.has(String(t.id));
-    let action;
-    if(st==="upcoming")action=`<span class="live-btn off">Starts in ${SSCLive.left(new Date(t.live_start)-now)}</span>`;
-    else if(done)action=`<span class="live-btn off">Attempted ✓ — results after ${escapeHtml(SSCLive.fmt(t.live_end))}</span>`;
-    else action=`<a class="live-btn" href="test.html?id=${encodeURIComponent(t.id)}">START LIVE TEST</a>`;
-    return `<div class="live-card ${st==="upcoming"?"up":""}">
-      <span class="live-badge">${st==="upcoming"?"UPCOMING":"LIVE NOW"}</span>
-      <h4>${escapeHtml(t.title||"Live Test")}</h4>
-      <div class="live-meta">${ex?escapeHtml(getExamMainName(ex))+" · ":""}⏱ ${t.duration_minutes||0} min · 📝 ${t.total_questions||0} questions<br>
-      ${escapeHtml(SSCLive.fmt(t.live_start))} → ${escapeHtml(SSCLive.fmt(t.live_end))}<br>
-      ${st==="live"?"Ends in "+SSCLive.left(new Date(t.live_end)-now)+" · Analysis &amp; solutions open after the live window":"Analysis &amp; solutions open after the live window"}</div>
-      ${action}
-    </div>`;
-  }).join("");
+  box.innerHTML=`<div class="live-wrap"><div class="live-title"><span class="live-dot"></span> Live Test</div>`+
+    list.map((t,i)=>`<div class="live-box ${SSCLive.state(t)==="upcoming"?"up":""}" onclick="location.href='live.html'">
+      <div><h4>${list.length>1?escapeHtml(t.title||"Test "+(i+1)):escapeHtml(t.title||"Test 1")}</h4>
+      <div class="live-meta">⏱ ${t.duration_minutes||0} min · 📝 ${t.total_questions||0} questions</div></div>
+      <div class="live-timer" id="lt${i}">${liveTimerHtml(t)}</div></div>`).join("")+`</div>`;
+  liveTick=setInterval(()=>{
+    let ended=false;
+    list.forEach((t,i)=>{
+      if(SSCLive.state(t)==="ended"){ended=true;return;}
+      const el=document.getElementById("lt"+i);if(el)el.innerHTML=liveTimerHtml(t);
+    });
+    if(ended){liveTests=liveTests.filter(t=>SSCLive.state(t)!=="ended");renderLiveTests();}
+  },1000);
 }
 
 /* =========================================================

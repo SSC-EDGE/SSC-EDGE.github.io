@@ -2692,6 +2692,10 @@ async function initializeTest(){
 
 async function loadTestData(){
 
+  /* start the clock sync and login check at the same time as the test fetch */
+  const liveSyncP = SSCLive.sync(supabaseClient);
+  const liveUserP = supabaseClient.auth.getUser().catch(()=>null);
+
   try{
 
     const {
@@ -2730,7 +2734,7 @@ async function loadTestData(){
     testData = test;
 
     /* ---------- LIVE TEST CHECK ---------- */
-    await SSCLive.sync(supabaseClient);
+    await liveSyncP;
     liveInfo = test.is_live ? test : null;
     const liveState = SSCLive.state(test);
 
@@ -2745,7 +2749,7 @@ async function loadTestData(){
 
     if(liveState === "live"){
       try{
-        const u = await supabaseClient.auth.getUser();
+        const u = await liveUserP;
         const uid = u?.data?.user?.id;
         if(uid){
           const c = await supabaseClient
