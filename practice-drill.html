@@ -18,27 +18,27 @@ localStorage.getItem("ssc-edge-theme") || "dark";
 <style>
 
 :root{
-  --pd-bg:#080811;
-  --pd-card:#11111d;
-  --pd-card2:#171727;
-  --pd-border:#292943;
-  --pd-text:#f5f5ff;
-  --pd-muted:#9b9bb5;
-  --pd-purple:#8b5cf6;
-  --pd-purple2:#a78bfa;
+  --pd-bg:#0f0f14;
+  --pd-card:#17171f;
+  --pd-card2:#20202a;
+  --pd-border:#30303c;
+  --pd-text:#f7f4fa;
+  --pd-muted:#aaa4b3;
+  --pd-purple:#9b5cff;
+  --pd-purple2:#b487ff;
   --pd-header:#21152f;
   --pd-header2:#17111f;
 }
 
 :root[data-theme="light"]{
-  --pd-bg:#f5f6fb;
+  --pd-bg:#f7f5fa;
   --pd-card:#ffffff;
-  --pd-card2:#f0f0f8;
-  --pd-border:#dcdceb;
-  --pd-text:#171725;
-  --pd-muted:#68687d;
-  --pd-purple:#6d3ee8;
-  --pd-purple2:#7c4dff;
+  --pd-card2:#f0ebf7;
+  --pd-border:#ddd6e8;
+  --pd-text:#211d27;
+  --pd-muted:#716a7b;
+  --pd-purple:#8b45ee;
+  --pd-purple2:#7834db;
   --pd-header:#eee3ff;
   --pd-header2:#f8f4ff;
 }
@@ -51,7 +51,8 @@ body{
   margin:0;
   background:var(--pd-bg);
   color:var(--pd-text);
-  font-family:Arial,Helvetica,sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  padding-bottom:60px;
 }
 
 /* =========================
@@ -66,9 +67,6 @@ body{
   padding:0 20px;
   background:linear-gradient(100deg,var(--pd-header),var(--pd-header2)) !important;
   border-bottom:1px solid var(--pd-border);
-  position:sticky;
-  top:0;
-  z-index:10;
 }
 
 .pd-brand{
@@ -88,32 +86,17 @@ body{
    ========================= */
 
 .pd-top-back{
-  max-width:900px;
-  margin:10px auto 0;
-  padding:0 15px;
+  max-width:760px;
+  margin:0 auto;
+  padding:22px 18px 0;
 }
 
-.pd-top-back button{
-  min-height:40px;
-  padding:0 15px;
-
-  border:1px solid var(--pd-border);
-  border-radius:10px;
-
-  background:var(--pd-card2);
-  color:var(--pd-text);
-
-  font-size:12px;
-  font-weight:800;
-
-  cursor:pointer;
-
-  transition:.15s ease;
-}
-
-.pd-top-back button:hover{
-  border-color:var(--pd-purple);
+.pd-top-back .practice-back{
+  display:inline-block;
   color:var(--pd-purple2);
+  font-size:13px;
+  font-weight:800;
+  cursor:pointer;
 }
 
 /* =========================
@@ -121,20 +104,59 @@ body{
    ========================= */
 
 .pd-wrap{
-  max-width:900px;
+  max-width:760px;
   margin:auto;
-  padding:15px;
+  padding:14px 18px 30px;
 }
 
 .pd-title{
-  font-size:20px;
-  font-weight:800;
-  margin:5px 0 5px;
+  font-size:27px;
+  line-height:1.15;
+  font-weight:900;
+  margin:0 0 6px;
 }
 
 .pd-muted{
-  font-size:12px;
+  font-size:13px;
   color:var(--pd-muted);
+}
+
+/* subject cards — same look as the exam cards on practice.html */
+.pd-subjects{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  margin-top:22px;
+}
+
+.pd-subject-card{
+  min-height:104px;
+  padding:14px 10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  text-align:center;
+  flex-direction:column;
+  border-radius:15px;
+  background:var(--pd-card);
+  border:1px solid var(--pd-border);
+  cursor:pointer;
+}
+
+.pd-subject-card:hover{
+  border-color:var(--pd-purple);
+}
+
+.pd-subject-icon{
+  font-size:30px;
+  line-height:1;
+}
+
+.pd-subject-name{
+  font-size:15px;
+  font-weight:900;
+  line-height:1.25;
 }
 
 /* =========================
@@ -542,9 +564,9 @@ body{
 
 <div class="pd-top-back" id="backNav">
 
-  <button onclick="goBack()">
-    ‹ &nbsp; Back
-  </button>
+  <div class="practice-back" onclick="goBack()">
+    ← Back
+  </div>
 
 </div>
 
@@ -664,6 +686,10 @@ function iconFor(n){
    ================================================== */
 
 function folderLogo(f){
+
+  if(f.virtualIcon){
+    return { icon:f.virtualIcon, cls:"chapter" };
+  }
 
   const type =
     String(
@@ -1226,6 +1252,8 @@ async function load(){
   tests =
     t.data || [];
 
+  applyEnglishGroups();
+
 
   try{ if(await restoreDrillRoute()) return; }catch(e){ console.error("Route restore failed",e); }
 
@@ -1263,9 +1291,10 @@ function renderSubjects(){
 
   const wanted = [
     { label:"Quantitative Aptitude", icon:"🔢", keys:["quantitative aptitude","quant aptitude","quant"] },
-    { label:"GENERAL AWARENESS", icon:"🌍", keys:["general awareness","general knowledge","gk"] },
-    { label:"REASONING", icon:"🧠", keys:["reasoning","general intelligence"] },
-    { label:"ENGLISH", icon:"📘", keys:["english","english language"] }
+    { label:"General Awareness", icon:"🌍", keys:["general awareness","general knowledge","gk"] },
+    { label:"Reasoning", icon:"🧠", keys:["reasoning","general intelligence"] },
+    { label:"English", icon:"📘", keys:["english","english language"] },
+    { label:"Computer Knowledge", icon:"💻", keys:["computer"] }
   ];
 
   const orderedSubjects = wanted.map(item => {
@@ -1277,17 +1306,16 @@ function renderSubjects(){
   }).filter(item => item.subject);
 
   document.getElementById("app").innerHTML = `
-    <div class="pd-title">Chapter Wise Practice</div>
-    <div class="pd-muted">Choose a subject to continue practice.</div>
-    <div class="pd-grid">
+    <div class="pd-title">Practice Drill</div>
+    <div class="pd-muted">Choose a subject to continue practice</div>
+    <div class="pd-subjects">
       ${orderedSubjects.map(item => `
-        <div class="pd-card" onclick="openSubject('${item.subject.id}')">
-          <div class="pd-icon">${item.icon}</div>
-          <h3>${esc(item.label)}</h3>
-          <span class="pd-arrow" aria-hidden="true">➜</span>
+        <div class="pd-subject-card" onclick="openSubject('${item.subject.id}')">
+          <div class="pd-subject-icon">${item.icon}</div>
+          <div class="pd-subject-name">${esc(item.label)}</div>
         </div>
       `).join("") || `
-        <div class="pd-empty">No matching subjects found.</div>
+        <div class="pd-empty" style="grid-column:1/-1">No matching subjects found.</div>
       `}
     </div>
   `;
@@ -1324,6 +1352,72 @@ function openSubject(id){
 
 }
 
+
+/* ==================================================
+   ENGLISH → Grammar / Vocabulary / Reading Comprehension
+   English has 3 fixed folders. Every chapter (Antonyms, Voice,
+   Cloze Test …) is placed in one of them automatically and keeps
+   its own folder of sets inside. Edit the keyword lists to move a chapter.
+   ================================================== */
+
+const ENGLISH_GROUPS = [
+  { key:"grammar",    name:"Grammar",               icon:"✍️", words:[] },
+  { key:"vocabulary", name:"Vocabulary",            icon:"📖", words:["antonym","synonym","homonym","idiom","phrase","phrasal","one word","spelling","vocab","word"] },
+  { key:"reading",    name:"Reading Comprehension", icon:"📄", words:["comprehension","cloze","passage"] }
+];
+
+function englishGroupOf(name){
+  const n = String(name || "").toLowerCase();
+  for(const g of [ENGLISH_GROUPS[2], ENGLISH_GROUPS[1]]){
+    if(g.words.some(w => n.includes(w))) return g;
+  }
+  return ENGLISH_GROUPS[0];
+}
+
+function applyEnglishGroups(){
+
+  subjects.filter(s => /english/i.test(String(s.name||""))).forEach(sub => {
+
+    const roots = folders.filter(f =>
+      String(f.subject_id || "") === String(sub.id) &&
+      !f.parent_id &&
+      String(f.folder_type || "").toUpperCase().includes("CHAPTER")
+    );
+
+    if(!roots.length) return;
+
+    const rootIds = new Set(roots.map(r => String(r.id)));
+    const chapterFolders = folders.filter(f => rootIds.has(String(f.parent_id || "")));
+
+    folders = folders.filter(f => !rootIds.has(String(f.id)));
+
+    ENGLISH_GROUPS.forEach((g,i) => {
+
+      const virtualId = "grp-" + g.key + "-" + sub.id;
+
+      folders.push({
+        id:virtualId,
+        subject_id:sub.id,
+        exam_id:roots[0].exam_id,
+        parent_id:null,
+        name:g.name,
+        display_name:g.name,
+        folder_type:"CHAPTER",
+        is_active:true,
+        sort_order:i + 1,
+        virtualIcon:g.icon,
+        virtual:true
+      });
+
+      chapterFolders
+        .filter(c => englishGroupOf(c.display_name || c.name) === g)
+        .forEach(c => { c.parent_id = virtualId; });
+
+    });
+
+  });
+
+}
 
 /* ==================================================
    SUBJECT FOLDERS
@@ -1445,6 +1539,11 @@ function renderFolders(){
    ================================================== */
 
 function folderHint(f){
+
+  if(f.virtual){
+    const n = folders.filter(c => String(c.parent_id || "") === String(f.id)).length;
+    return n + (n === 1 ? " topic" : " topics");
+  }
 
   const x =
     String(
