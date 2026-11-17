@@ -149,14 +149,14 @@ body{
 }
 
 .pd-subject-icon{
-  font-size:30px;
-  line-height:1;
+  display:none;
 }
 
 .pd-subject-name{
   font-size:15px;
   font-weight:900;
   line-height:1.25;
+  color:var(--pd-purple2);
 }
 
 /* =========================
@@ -1311,7 +1311,6 @@ function renderSubjects(){
     <div class="pd-subjects">
       ${orderedSubjects.map(item => `
         <div class="pd-subject-card" onclick="openSubject('${item.subject.id}')">
-          <div class="pd-subject-icon">${item.icon}</div>
           <div class="pd-subject-name">${esc(item.label)}</div>
         </div>
       `).join("") || `
@@ -1363,7 +1362,7 @@ function openSubject(id){
 const ENGLISH_GROUPS = [
   { key:"grammar",    name:"Grammar",               icon:"✍️", words:[] },
   { key:"vocabulary", name:"Vocabulary",            icon:"📖", words:["antonym","synonym","homonym","idiom","phrase","phrasal","one word","spelling","vocab","word"] },
-  { key:"reading",    name:"Reading Comprehension", icon:"📄", words:["comprehension","cloze","passage"] }
+  { key:"reading",    name:"Reading Comprehension", icon:"", words:["comprehension","cloze","passage","para jumble","parajumble","sentence rearrangement","sentence rearrange","pqrs"] }
 ];
 
 function englishGroupOf(name){
@@ -1411,7 +1410,14 @@ function applyEnglishGroups(){
 
       chapterFolders
         .filter(c => englishGroupOf(c.display_name || c.name) === g)
-        .forEach(c => { c.parent_id = virtualId; });
+        .forEach(c => {
+          const chapterName = String(c.display_name || c.name || "").toLowerCase();
+          if (chapterName.includes("mc sentence rearrangement") ||
+              chapterName.includes("mc sentence rearrange")) {
+            c.display_name = "Para Jumble [PQRS]";
+          }
+          c.parent_id = virtualId;
+        });
 
     });
 
