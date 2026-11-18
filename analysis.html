@@ -10,50 +10,52 @@ document.documentElement.dataset.theme=localStorage.getItem("ssc-edge-theme")||"
 </script>
 <script src="live-guard.js" data-guard></script>
 <style>
-:root{--bg:#08050e;--header:#160b26;--card:#171025;--card2:#251344;--purple:#7c3aed;--purple2:#a66bff;--text:#fff;--muted:#aaa2b9;--border:#302044;--green:#22a559;--red:#e5484d;--amber:#d9a21b}
-:root[data-theme="light"]{--bg:#f6f3fb;--header:#eee7fa;--card:#fff;--card2:#eee6fa;--purple:#6d35d4;--purple2:#8149e8;--text:#17121e;--muted:#706879;--border:#ddd4e9}
+:root{--bg:#0f0f14;--header:#21152f;--card:#17171f;--card2:#20202a;--purple:#9b5cff;--purple2:#b487ff;--text:#f7f4fa;--muted:#aaa4b3;--border:#30303c;--lav:#2a2040;--lav2:#3a2a5c;--green:#2fbf71;--red:#ef5b67;--amber:#e0a82e}
+:root[data-theme="light"]{--bg:#f7f5fa;--header:#eee3ff;--card:#ffffff;--card2:#f0ebf7;--purple:#8b45ee;--purple2:#7834db;--text:#211d27;--muted:#716a7b;--border:#ddd6e8;--lav:#efe6ff;--lav2:#e3d4ff}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
-.header{height:58px;background:var(--header);display:flex;align-items:center;padding:0 18px;border-bottom:1px solid var(--border)}
-.logo{font-size:21px;font-weight:800;letter-spacing:.4px}.logo span{color:#b98cff}
-.container{max-width:850px;margin:auto;padding:18px 14px 40px}
-.test-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
-.test-title{min-width:0}.test-name{font-size:20px;font-weight:800;margin-bottom:5px;word-break:break-word}.test-no{color:var(--muted);font-size:13px}
+.header{height:62px;background:linear-gradient(100deg,var(--header),#17111f);display:flex;align-items:center;padding:0 20px;border-bottom:1px solid var(--border)}
+:root[data-theme="light"] .header{background:linear-gradient(100deg,#eee3ff,#f8f4ff)}
+.logo{font-size:22px;font-weight:900}.logo span{color:#b487ff}
+.container{max-width:700px;margin:auto;padding:16px 14px 40px}
+.test-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.test-title{min-width:0}.test-name{font-size:18px;font-weight:900;margin-bottom:3px;word-break:break-word}.test-no{color:var(--muted);font-size:12px}
 .header-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}
-.solution-btn,.attempt-select{border:1px solid var(--purple);background:transparent;color:var(--purple2);padding:9px 12px;border-radius:10px;font-weight:700;cursor:pointer}
-.attempt-select{max-width:125px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:18px}
-.card-title{font-size:17px;font-weight:800;margin-bottom:16px}
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.stat{background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:14px}
-.stat-label{color:var(--muted);font-size:12px;margin-bottom:7px}
-.stat-value{font-size:20px;font-weight:800}.stat-value small{font-size:13px;color:var(--muted);font-weight:700}
-.small-value{font-size:16px}.green{color:var(--green)}.red{color:var(--red)}
-.subheading{margin:18px 0 10px;font-size:14px;font-weight:800}
+.solution-btn,.attempt-select{border:1px solid var(--purple);background:transparent;color:var(--purple2);padding:8px 11px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer}
+.attempt-select{max-width:115px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px}
+.card-title{font-size:15px;font-weight:900;margin-bottom:12px}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.stat{background:var(--lav);border:1px solid var(--border);border-radius:11px;padding:11px 12px}
+.stat-label{color:var(--muted);font-size:11px;margin-bottom:5px;font-weight:700}
+.stat-value{font-size:18px;font-weight:900}.stat-value small{font-size:12px;color:var(--muted);font-weight:700}
+.small-value{font-size:15px}.green{color:var(--green)}.red{color:var(--red)}
+.subheading{margin:14px 0 8px;font-size:12px;font-weight:900;color:var(--purple2);letter-spacing:.5px;text-transform:uppercase}
 
 /* ---------- subject wise marks ---------- */
-.sw{margin-top:20px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--card)}
-.sw-head{display:flex;align-items:center;gap:12px;padding:16px 18px;background:var(--card2);border-bottom:1px solid var(--border);font-size:18px;font-weight:800}
-.sw-item{padding:16px 18px;border-bottom:1px solid var(--border)}
+.sw{margin-top:16px;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--card)}
+.sw-head{display:flex;align-items:center;gap:9px;padding:12px 14px;background:var(--lav);border-bottom:1px solid var(--border);font-size:15px;font-weight:900}
+.sw-item{padding:13px 14px;border-bottom:1px solid var(--border)}
 .sw-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.sw-part{font-size:12px;font-weight:900;letter-spacing:.6px;color:var(--purple2);text-transform:uppercase}
-.sw-name{font-size:17px;font-weight:800;margin-top:3px;line-height:1.3}
-.sw-score{font-size:30px;font-weight:900;line-height:1;white-space:nowrap}.sw-score small{font-size:14px;font-weight:600;color:var(--muted)}
-.bar{display:flex;height:11px;border-radius:99px;overflow:hidden;background:#8a8fa233;margin:14px 0 11px}
-.bar i{display:block;height:100%}.bar .r{background:var(--green)}.bar .w{background:var(--red)}.bar .n{background:#9aa0b655}
-.sw-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
-.sq{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
-.sq.r{background:var(--green)}.sq.w{background:var(--red)}.sq.n{background:#9aa0b6}
+.sw-part{font-size:10px;font-weight:900;letter-spacing:.7px;color:var(--purple2);text-transform:uppercase}
+.sw-name{font-size:15px;font-weight:800;margin-top:2px;line-height:1.25}
+.sw-score{font-size:24px;font-weight:900;line-height:1;white-space:nowrap}.sw-score small{font-size:12px;font-weight:700;color:var(--muted)}
+.bar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--lav2);margin:11px 0 9px}
+.bar i{display:block;height:100%}.bar .r{background:var(--green)}.bar .w{background:var(--red)}.bar .n{background:transparent}
+.sw-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.sq{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:0}
+.sq.r{background:var(--green)}.sq.w{background:var(--red)}.sq.n{background:var(--lav2)}
 .sw-meta b{color:var(--text)}
-.acc{padding:5px 11px;border-radius:99px;font-size:12px;font-weight:800}
-.acc.hi{background:#22a55922;color:#22a559}.acc.mid{background:#d9a21b26;color:#c48a00}.acc.lo{background:#e5484d22;color:#e5484d}
-.rank{margin-left:auto;font-size:13px;color:var(--muted)}.rank b{color:var(--text);font-size:16px}
-.sw-total{padding:18px;background:#1c2333;color:#fff}
-.sw-total .sw-part{color:#8fb0ff}.sw-total .sw-score small,.sw-total .rank,.sw-total .sw-meta{color:#a9b2c7}
-.sw-total .sw-meta b,.sw-total .rank b{color:#fff}.sw-total .bar{background:#ffffff22}
-.sw-total .acc{background:#ffffff1f;color:#fff}
+.acc{padding:3px 9px;border-radius:99px;font-size:11px;font-weight:800}
+.acc.hi{background:#2fbf7122;color:var(--green)}.acc.mid{background:#e0a82e26;color:var(--amber)}.acc.lo{background:#ef5b6722;color:var(--red)}
+.rank{margin-left:auto;font-size:12px;color:var(--muted)}.rank b{color:var(--text);font-size:14px}
+.sw-total{padding:14px;background:linear-gradient(135deg,#6d35d4,#9b5cff);color:#fff}
+.sw-total .sw-part{color:#e6d9ff}.sw-total .sw-score small,.sw-total .rank,.sw-total .sw-meta{color:#ecdfff}
+.sw-total .sw-meta b,.sw-total .rank b{color:#fff}.sw-total .bar{background:#ffffff30}
+.sw-total .sq.n{background:#ffffff55}
+.sw-total .acc{background:#ffffff26;color:#fff}
 .status{text-align:center;padding:35px 15px;color:var(--muted)}.error{color:var(--red)}
 .loading{min-height:60vh;display:flex;align-items:center;justify-content:center;color:var(--muted)}
-@media(max-width:520px){.container{padding:14px 11px 30px}.test-name{font-size:18px}.solution-btn,.attempt-select{padding:8px 9px;font-size:12px}.attempt-select{max-width:105px}.card{padding:15px}.sw-score{font-size:26px}.stat,.sw-item{padding:12px}}
+@media(max-width:520px){.container{padding:12px 10px 30px}.sw-score{font-size:22px}}
 </style>
 </head>
 <body>
@@ -99,7 +101,7 @@ const $=id=>document.getElementById(id);
 
 let test=null,sections=[],assignments=[],subjectNames={},userId=null,
     myAttempts=[],attempt=null,calc=null,
-    overallRank=null,overallTotal=null,overallPct=null,sectionRank={};
+    overallRank=null,overallTotal=null,overallPct=null,sectionPct={};
 
 /* ---------- helpers ---------- */
 const num=(v,f=0)=>{const n=Number(v);return Number.isFinite(n)?n:f};
@@ -180,8 +182,8 @@ function renderAll(){
   $("accuracy").textContent=att?pct(t.correct/att*100):"—";
   $("percentile").textContent=pct(overallPct);
   $("sections").innerHTML=calc.list.map(g=>{
-    const sr=sectionRank[g.key];
-    const rk=`<span class="rank">Rank <b>${sr?inr(sr):"—"}</b></span>`;
+    const sp=sectionPct[g.key];
+    const rk=`<span class="rank">Percentile <b>${sp==null?"—":pct(sp)}</b></span>`;
     return `<div class="sw-item"><div class="sw-top"><div><div class="sw-part">${escapeHtml(g.part)}</div><div class="sw-name">${escapeHtml(g.name)}</div></div>
       <div class="sw-score">${fmt(g.score)} <small>/ ${fmt(g.max)}</small></div></div>${barHtml(g.correct,g.wrong,g.na)}${metaHtml(g,rk)}</div>`;
   }).join("");
@@ -201,7 +203,7 @@ async function prepare(a){
   calc=compute(r.data||[]);
   overallRank=a.rank!=null?num(a.rank):null;overallTotal=null;
   overallPct=a.percentile!=null?num(a.percentile):null;
-  sectionRank={};
+  sectionPct={};
   renderAll();
 }
 async function init(){
@@ -259,7 +261,7 @@ async function backgroundStats(){
     if(String(attempt?.id||"")!==mine)return;
     renderAll();
 
-    /* section-wise rank (only when the number of students is small enough to do quickly) */
+    /* section-wise percentile (only when the number of students is small enough to do quickly) */
     if(total>600||!assignments.length)return;
     const ids=others.map(([,v])=>v.id);
     const per=Math.max(1,Math.floor(900/Math.max(1,assignments.length)));
@@ -268,10 +270,10 @@ async function backgroundStats(){
     rows.forEach(x=>{const k=String(x.attempt_id);if(!byAttempt.has(k))byAttempt.set(k,[]);byAttempt.get(k).push(x)});
     const scores=new Map();
     byAttempt.forEach(list=>{compute(list).list.forEach(g=>{if(!scores.has(g.key))scores.set(g.key,[]);scores.get(g.key).push(g.score)})});
-    const rk={};
-    calc.list.forEach(g=>{const s=scores.get(g.key)||[];rk[g.key]=s.filter(v=>v>g.score).length+1});
+    const pc={};
+    calc.list.forEach(g=>{const s=scores.get(g.key)||[];pc[g.key]=s.length?s.filter(v=>v<g.score).length/s.length*100:100});
     if(String(attempt?.id||"")!==mine)return;
-    sectionRank=rk;renderAll();
+    sectionPct=pc;renderAll();
   }catch(e){console.log("Rank unavailable:",e)}
 }
 init();
