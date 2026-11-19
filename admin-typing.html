@@ -73,13 +73,14 @@ async function loadExams(){
 }
 function renderExams(){
  if(!exams.length){$("examList").innerHTML='<div class="empty">No exams added. Use Add Exam.</div>';return;}
- $("examList").innerHTML=exams.map((e,i)=>`<div class="item"><div class="item-info"><div class="item-name">${esc(e.name)}</div><div class="item-meta">${e.is_active?"Visible to students":"Hidden from students"}</div></div><div class="actions"><button class="secondary" data-act="up" data-id="${e.id}" ${i===0?"disabled":""}>↑</button><button class="secondary" data-act="down" data-id="${e.id}" ${i===exams.length-1?"disabled":""}>↓</button><button class="secondary" data-act="select" data-id="${e.id}">Mocks</button><button class="secondary" data-act="edit" data-id="${e.id}">Edit</button><button class="danger" data-act="delete" data-id="${e.id}">Delete</button></div></div>`).join("");
+ $("examList").innerHTML=exams.map((e,i)=>`<div class="item"><div class="item-info"><div class="item-name">${esc(e.name)}</div><div class="item-meta">${e.is_active?"Visible to students":"Hidden from students"}</div></div><div class="actions"><button class="secondary" data-act="up" data-id="${e.id}" ${i===0?"disabled":""}>↑</button><button class="secondary" data-act="down" data-id="${e.id}" ${i===exams.length-1?"disabled":""}>↓</button><button class="secondary" data-act="select" data-id="${e.id}">Mocks</button><button class="secondary" data-act="toggle" data-id="${e.id}">${e.is_active?"Hide":"Show"}</button><button class="secondary" data-act="edit" data-id="${e.id}">Edit</button><button class="danger" data-act="delete" data-id="${e.id}">Delete</button></div></div>`).join("");
  $("examList").querySelectorAll("button").forEach(b=>b.onclick=()=>examAction(b.dataset.act,b.dataset.id));
 }
 async function examAction(act,id){
  const idx=exams.findIndex(e=>e.id===id),e=exams[idx];if(!e)return;
  if(act==="select"){selectedExam=e;$("selectedTitle").textContent=e.name+" — Mocks";$("mockPanel").classList.remove("hidden");await loadMocks();$("mockPanel").scrollIntoView({behavior:"smooth"});}
  if(act==="edit"){showForm("exam",e);}
+ if(act==="toggle"){const r=await db.from("typing_exams").update({is_active:!e.is_active}).eq("id",id);if(r.error)return alert(r.error.message);await loadExams();}
  if(act==="delete"){
   if(!confirm(`Delete "${e.name}" and all its typing mocks?`))return;
   const {error}=await db.from("typing_exams").delete().eq("id",id);
@@ -88,10 +89,10 @@ async function examAction(act,id){
   await loadExams();
  }
  if(act==="up"||act==="down"){
-  const other=exams[idx+(act==="up"?-1:1)];if(!other)return;
-  const a=await db.from("typing_exams").update({sort_order:other.sort_order}).eq("id",e.id);
-  const b=await db.from("typing_exams").update({sort_order:e.sort_order}).eq("id",other.id);
-  if(a.error||b.error)return alert((a.error||b.error).message);
+  const j=idx+(act==="up"?-1:1);if(j<0||j>=exams.length)return;
+  const arr=exams.slice();[arr[idx],arr[j]]=[arr[j],arr[idx]];
+  const res=await Promise.all(arr.map((x,i)=>db.from("typing_exams").update({sort_order:i+1}).eq("id",x.id)));
+  const bad=res.find(r=>r.error);if(bad)return alert(bad.error.message);
   await loadExams();
  }
 }
@@ -101,18 +102,19 @@ async function loadMocks(){
  const {data,error}=await db.from("typing_mocks").select("*").eq("exam_id",selectedExam.id).order("sort_order").order("created_at");
  if(error){$("mockList").innerHTML='<div class="empty">Unable to load mocks.</div>';console.error(error);return;}
  if(!data.length){$("mockList").innerHTML='<div class="empty">No mocks for this exam yet.</div>';return;}
- $("mockList").innerHTML=data.map((m,i)=>`<div class="item"><div class="item-info"><div class="item-name">${esc(m.name)}</div><div class="item-meta">${m.duration_minutes} min · ${Number(m.keystrokes).toLocaleString()} keystrokes · ${m.is_active?"Visible":"Hidden"}</div></div><div class="actions"><button class="secondary" data-act="up" data-id="${m.id}" ${i===0?"disabled":""}>↑</button><button class="secondary" data-act="down" data-id="${m.id}" ${i===data.length-1?"disabled":""}>↓</button><button class="secondary" data-act="edit" data-id="${m.id}">Edit</button><button class="danger" data-act="delete" data-id="${m.id}">Delete</button></div></div>`).join("");
+ $("mockList").innerHTML=data.map((m,i)=>`<div class="item"><div class="item-info"><div class="item-name">${esc(m.name)}</div><div class="item-meta">${m.duration_minutes} min · ${Number(m.keystrokes).toLocaleString()} keystrokes · ${m.is_active?"Visible":"Hidden"}</div></div><div class="actions"><button class="secondary" data-act="up" data-id="${m.id}" ${i===0?"disabled":""}>↑</button><button class="secondary" data-act="down" data-id="${m.id}" ${i===data.length-1?"disabled":""}>↓</button><button class="secondary" data-act="toggle" data-id="${m.id}">${m.is_active?"Hide":"Show"}</button><button class="secondary" data-act="edit" data-id="${m.id}">Edit</button><button class="danger" data-act="delete" data-id="${m.id}">Delete</button></div></div>`).join("");
  $("mockList").querySelectorAll("button").forEach(b=>b.onclick=()=>mockAction(b.dataset.act,b.dataset.id,data));
 }
 async function mockAction(act,id,data){
  const i=data.findIndex(m=>m.id===id),m=data[i];if(!m)return;
  if(act==="edit")return showForm("mock",m);
+ if(act==="toggle"){const r=await db.from("typing_mocks").update({is_active:!m.is_active}).eq("id",id);if(r.error)return alert(r.error.message);return loadMocks();}
  if(act==="delete"){if(!confirm(`Delete "${m.name}"?`))return;const {error}=await db.from("typing_mocks").delete().eq("id",id);if(error)return alert(error.message);return loadMocks();}
  if(act==="up"||act==="down"){
-  const other=data[i+(act==="up"?-1:1)];if(!other)return;
-  const a=await db.from("typing_mocks").update({sort_order:other.sort_order}).eq("id",m.id);
-  const b=await db.from("typing_mocks").update({sort_order:m.sort_order}).eq("id",other.id);
-  if(a.error||b.error)return alert((a.error||b.error).message);return loadMocks();
+  const j=i+(act==="up"?-1:1);if(j<0||j>=data.length)return;
+  const arr=data.slice();[arr[i],arr[j]]=[arr[j],arr[i]];
+  const res=await Promise.all(arr.map((x,k)=>db.from("typing_mocks").update({sort_order:k+1}).eq("id",x.id)));
+  const bad=res.find(r=>r.error);if(bad)return alert(bad.error.message);return loadMocks();
  }
 }
 function showForm(type,item=null){

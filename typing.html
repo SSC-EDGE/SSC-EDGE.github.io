@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Typing Test | SSC EDGE</title>
+<link rel="preconnect" href="https://dvvyoygahzzbnpqrfhen.supabase.co">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="css/style.css">
+<script src="join-popup.js" defer></script>
 <style>
  :root{--bg:#08050e;--card:#171025;--card2:#251344;--purple:#7c3aed;--purple2:#a66bff;--text:#fff;--muted:#aaa2b9;--border:#302044;--surface:#100b19;--modal:#171025;--modal-option:#251b34;--modal-active:#321d51}
 :root[data-theme="light"],body[data-theme="light"],body.light-theme,body.light-mode{--bg:#f6f3fb;--card:#fff;--card2:#f1eafa;--purple:#6d35d4;--purple2:#8149e8;--text:#21182d;--muted:#746b80;--border:#e1d7ed;--surface:#fff;--modal:#fff;--modal-option:#f1eafa;--modal-active:#e8dcfa}
@@ -25,7 +28,7 @@
 .mock-card{display:flex;align-items:center;gap:12px;cursor:default}
 .mock-icon{width:43px;height:43px;display:grid;place-items:center;border-radius:12px;background:#3a2060;font-size:21px;flex-shrink:0}
 .mock-main{flex:1;min-width:0}.mock-main h3{font-size:14px}.mock-meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:7px;color:var(--muted);font-size:12px}
-.start-btn{border:0;border-radius:9px;background:var(--purple);color:#fff;padding:10px 14px;font-weight:900;white-space:nowrap}
+.start-btn{border:1px solid var(--purple);border-radius:9px;background:var(--purple);color:#fff;min-height:36px;padding:0 16px;font-size:12px;font-weight:800;white-space:nowrap;cursor:pointer}.start-btn.result-btn{background:transparent;color:var(--purple2)}.start-btn.result-btn:hover{background:rgba(139,92,246,.10)}.mock-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.attempt-info{font-size:11px;font-weight:800;color:var(--purple2);margin-top:8px}@media(max-width:520px){.mock-actions .start-btn{flex:1;min-width:90px}}
 .empty{padding:25px;text-align:center;background:var(--card);border:1px dashed var(--border);border-radius:13px;color:var(--muted);font-size:13px}
 .hidden{display:none!important}
 .mode-modal{position:fixed;inset:0;z-index:200;background:#000b;display:grid;place-items:center;padding:18px}.mode-box{width:min(430px,100%);background:var(--modal);color:var(--text);border:1px solid var(--border);border-radius:18px;padding:22px;position:relative;box-shadow:0 18px 60px #0009}.mode-box h2{margin:0;font-size:21px}.mode-box p{color:var(--muted);font-size:13px;margin:8px 0 18px}.mode-close{position:absolute;right:12px;top:10px;background:transparent;color:var(--text);font-size:25px;padding:3px 8px}.mode-option{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;margin:10px 0;padding:18px;border-radius:11px;background:var(--modal-option);color:var(--text);border:1px solid var(--border)}.mode-option{font-size:15px;font-weight:800}.mode-option small{font-size:12px;color:#92869f}.mode-option:disabled{opacity:.55;cursor:not-allowed}.mode-option.active{background:var(--modal-active);color:var(--text);border:1px solid var(--purple2);cursor:pointer}.mode-option.active small{color:#d8c2ff}
@@ -89,7 +92,7 @@ let selectedExam=null,pendingMockId=null;
 const candidateId=(()=>{let id=localStorage.getItem("ssc_edge_typing_candidate_id");if(!id){id=crypto.randomUUID?crypto.randomUUID():"cand-"+Date.now()+"-"+Math.random().toString(36).slice(2);localStorage.setItem("ssc_edge_typing_candidate_id",id);}return id;})();
 async function loadExams(){
  const grid=$("examGrid");grid.innerHTML='<div class="empty">Loading exams...</div>';
- const {data,error}=await db.from("typing_exams").select("*").eq("is_active",true).order("sort_order").order("created_at");
+ const {data,error}=await db.from("typing_exams").select("id,name").eq("is_active",true).order("sort_order").order("created_at");
  if(error){grid.innerHTML='<div class="empty">Unable to load exams. Run the supplied SQL setup first.</div>';console.error(error);return;}
  if(!data.length){grid.innerHTML='<div class="empty">No typing exams available yet.</div>';return;}
  grid.innerHTML=data.map(e=>`<article class="exam-card" data-id="${e.id}"><span class="arrow">›</span><h3>${escapeHtml(e.name)}</h3><p>Typing practice</p></article>`).join("");
@@ -98,17 +101,18 @@ async function loadExams(){
 async function openExam(exam){
  selectedExam=exam;$("examHeading").textContent=exam.name;$("examScreen").classList.add("hidden");$("mockScreen").classList.remove("hidden");
  const list=$("mockList");list.innerHTML='<div class="empty">Loading mocks...</div>';
- const {data,error}=await db.from("typing_mocks").select("*").eq("exam_id",exam.id).eq("is_active",true).order("sort_order").order("created_at");
+ const {data,error}=await db.from("typing_mocks").select("id,name,duration_minutes,keystrokes").eq("exam_id",exam.id).eq("is_active",true).order("sort_order").order("created_at");
  if(error){list.innerHTML='<div class="empty">Unable to load mocks.</div>';console.error(error);return;}
  if(!data.length){list.innerHTML='<div class="empty">No mocks added for this exam yet.</div>';return;}
- const attemptMap={};
- for(const m of data){
-  const {data:attempts,error:attemptError}=await db.from("typing_attempts").select("*").eq("candidate_id",candidateId).eq("mock_id",m.id).order("created_at",{ascending:false}).limit(1);
-  if(!attemptError&&attempts?.length)attemptMap[m.id]=attempts[0];
+ const attemptMap={},attemptCount={};
+ {
+  const ids=data.map(m=>m.id);
+  const {data:rows,error:attemptError}=await db.from("typing_attempts").select("id,mock_id,created_at").eq("candidate_id",candidateId).in("mock_id",ids).order("created_at",{ascending:false});
+  if(!attemptError)(rows||[]).forEach(r=>{if(!attemptMap[r.mock_id])attemptMap[r.mock_id]=r;attemptCount[r.mock_id]=(attemptCount[r.mock_id]||0)+1;});
  }
  list.innerHTML=data.map(m=>{
   const last=attemptMap[m.id];
-  return `<article class="mock-card"><div class="mock-icon">⌨️</div><div class="mock-main"><h3>${escapeHtml(m.name)}</h3><div class="mock-meta"><span>⏱ ${Number(m.duration_minutes)||0} min</span><span>⌨ ${Number(m.keystrokes)||0} keystrokes</span></div><div class="mock-actions">${last?`<button class="start-btn result-btn" type="button" data-id="${m.id}">Result</button><button class="start-btn" type="button" data-id="${m.id}">Retake</button>`:`<button class="start-btn" type="button" data-id="${m.id}">Start</button>`}</div></div></article>`;
+  return `<article class="mock-card"><div class="mock-icon">⌨️</div><div class="mock-main"><h3>${escapeHtml(m.name)}</h3><div class="mock-meta"><span>⏱ ${Number(m.duration_minutes)||0} min</span><span>⌨ ${Number(m.keystrokes)||0} keystrokes</span></div>${last?`<div class="attempt-info">${attemptCount[m.id]} attempt${attemptCount[m.id]>1?"s":""} completed</div>`:""}<div class="mock-actions">${last?`<button class="start-btn" type="button" data-id="${m.id}">RETAKE</button><button class="start-btn result-btn" type="button" data-id="${m.id}">RESULT</button>`:`<button class="start-btn" type="button" data-id="${m.id}">START</button>`}</div></div></article>`;
  }).join("");
  list.querySelectorAll(".start-btn:not(.result-btn)").forEach(btn=>btn.addEventListener("click",()=>{pendingMockId=btn.dataset.id;$("modeModal").classList.remove("hidden");}));
  list.querySelectorAll(".result-btn").forEach(btn=>btn.addEventListener("click",()=>{location.href="typinganalysis.html?attempt_id="+encodeURIComponent(attemptMap[btn.dataset.id].id)+"&mock_id="+encodeURIComponent(btn.dataset.id);}));

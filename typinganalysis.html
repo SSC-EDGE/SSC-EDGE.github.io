@@ -101,7 +101,7 @@ function compareText(source,typed){
  if(b.length&&typed.length&& !/\s$/.test(typed)){
   const last=b[b.length-1],lastCore=core(last.v);
   const sourceWord=a.find(x=>core(x.v).startsWith(lastCore)&&lastCore.length>0);
-  if(sourceWord&&lastCore.length<core(sourceWord.v).length&&marks[b.length-1]!=="full"){marks[b.length-1]="full";full++;if(marks[b.length-1]==="half")half=Math.max(0,half-1);}
+  if(sourceWord&&lastCore.length<core(sourceWord.v).length&&marks[b.length-1]!=="full"){if(marks[b.length-1]==="half")half=Math.max(0,half-1);marks[b.length-1]="full";full++;}
  }
  // Wrong spacing between aligned neighbouring words is a half mistake.
  for(let k=1;k<matched.length;k++){
