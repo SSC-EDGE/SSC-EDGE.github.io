@@ -24,6 +24,8 @@ var TOOLS=[
   ["question-shift-manager.html","🕐","Date & Shift Folders","Subject → Date → Shift question folders"]]},
  {g:"Typing",i:"⌨️",items:[
   ["admin-typing.html","⌨️","Typing Tests","Typing exams, mocks and passages"]]},
+ {g:"Insights",i:"📊",items:[
+  ["admin-stats.html","📊","Users & Activity","Registered, active and mock-attempt numbers"]]},
  {g:"Practice Drill",i:"🎯",items:[
   ["admin-practice-drill.html","📁","Drill Folders & Tests","Folders and tests in Practice Drill"],
   ["chapter-mock-generator.html","⚡","Chapter Mock Generator","Auto-make sets of 25 from chapter questions"],
