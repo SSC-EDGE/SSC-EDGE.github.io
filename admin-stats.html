@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Users & Activity · SSC EDGE Admin</title>
+<script>document.documentElement.dataset.theme=localStorage.getItem("ssc-edge-theme")||"dark";</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin-nav.js"></script>
+<style>
+:root{--b:#08050e;--c:#171025;--c2:#251344;--bd:#302044;--t:#fff;--m:#aaa2b9;--p:#7c3aed;--p2:#a66bff;--g:#22c55e;--r:#ef4444;--a:#f59e0b}
+:root[data-theme=light]{--b:#f6f3fb;--c:#fff;--c2:#f1eafa;--bd:#ddd1ef;--t:#211832;--m:#756985;--p:#6d35d4;--p2:#8149e8}
+*{box-sizing:border-box}body{margin:0;background:var(--b);color:var(--t);font:14px Arial,sans-serif}
+main{max-width:1000px;margin:auto;padding:16px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+h1{margin:0 0 4px;font-size:22px}.muted{color:var(--m);font-size:12px;line-height:1.6}
+.btn{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;font-size:12px;cursor:pointer;background:var(--p);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:16px}
+.card{background:var(--c);border:1px solid var(--bd);border-radius:14px;padding:15px}
+.card h2{margin:0 0 12px;font-size:14px;color:var(--p2);text-transform:uppercase;letter-spacing:.6px}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:9px 0;border-top:1px solid var(--bd)}
+.row:first-of-type{border-top:0}.row span{color:var(--m);font-size:12px}
+.row b{font-size:20px}.row small{font-size:11px;color:var(--m);font-weight:normal;margin-left:4px}
+.ok{color:var(--g)}.bad{color:var(--r)}.warn{color:var(--a)}
+.note{margin-top:16px;padding:12px;border-radius:10px;background:var(--c2);font-size:12px;line-height:1.7;color:var(--m)}
+.err{margin-top:16px;padding:14px;border-radius:10px;background:#ef444422;color:#f87171;white-space:pre-wrap}
+</style></head><body>
+<main>
+ <div class="top"><div><h1>📊 Users & Activity</h1><div class="muted" id="stamp">Loading…</div></div><button class="btn" onclick="load()">↻ Refresh</button></div>
+ <div id="out"></div>
+ <div class="note"><b>How these are counted</b><br>
+ • <b>Registered</b> = accounts created on the website (guests are not counted).<br>
+ • <b>Active</b> = the user opened the website, logged in, or finished a mock in that period.<br>
+ • <b>Attempted a mock</b> = users with at least one finished mock in that period; <b>Total mock attempts</b> counts every finished attempt.<br>
+ • <b>Registered but inactive</b> = registered users who were not active in that period (for “All time”: never used the site after registering).<br>
+ • Website opens are only recorded from the day <code>activity.js</code> is added to your pages; before that, activity is based on login time and mock attempts.</div>
+</main>
+<script>
+const db=supabase.createClient("https://dvvyoygahzzbnpqrfhen.supabase.co","sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s");
+const n=v=>Number(v||0).toLocaleString("en-IN");
+const pc=(a,b)=>b?Math.round(a/b*100)+"%":"—";
+async function load(){
+  $("stamp").textContent="Loading…";
+  const r=await db.rpc("admin_user_stats");
+  if(r.error){
+    $("out").innerHTML='<div class="err">Could not load: '+r.error.message+'\nHave you run admin-stats.sql in Supabase, and are you logged in as admin?</div>';
+    $("stamp").textContent="";return;
+  }
+  $("stamp").textContent="Updated "+new Date().toLocaleString("en-IN",{timeZone:"Asia/Kolkata",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",hour12:true})+" IST";
+  $("out").innerHTML='<div class="grid">'+(r.data||[]).map(p=>`
+   <div class="card"><h2>${p.label}</h2>
+    <div class="row"><span>Total registered users</span><b>${n(p.registered_total)}</b></div>
+    <div class="row"><span>${p.key==="all"?"Registered (all time)":"New users registered"}</span><b class="ok">${n(p.new_users)}</b></div>
+    <div class="row"><span>Active users</span><b>${n(p.active_users)}<small>${pc(p.active_users,p.registered_total)}</small></b></div>
+    <div class="row"><span>Registered but inactive</span><b class="bad">${n(p.inactive_users)}<small>${pc(p.inactive_users,p.registered_total)}</small></b></div>
+    <div class="row"><span>Users who attempted a mock</span><b>${n(p.mock_users)}</b></div>
+    <div class="row"><span>Total mock attempts</span><b class="warn">${n(p.mock_attempts)}</b></div>
+   </div>`).join("")+'</div>';
+}
+function $(id){return document.getElementById(id)}
+load();
+</script></body></html>
