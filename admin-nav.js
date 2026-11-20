@@ -14,6 +14,7 @@ var TOOLS=[
   ["questions.html","🗂️","Question Bank","Browse, search, edit, delete questions"],
   ["create-questions.html","✍️","Create Question","Add one question (English + Hindi)"],
   ["bulk-import.html","📥","Bulk Import","Excel/CSV import: shift-wise or chapter-wise"],
+  ["admin-bulk-solutions.html","📝","Bulk Solutions","Add solutions to existing questions from Excel"],
   ["admin-chapters.html","📑","Chapters","Subject-wise chapters"],
   ["question-manager.html","🧹","Mock Question Manager","Edit/remove questions inside a mock"]]},
  {g:"Mocks & Practice",i:"📝",items:[
