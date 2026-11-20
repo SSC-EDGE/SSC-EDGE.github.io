@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bulk Solutions · SSC EDGE Admin</title>
+<script>document.documentElement.dataset.theme=localStorage.getItem("ssc-edge-theme")||"dark";</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="admin-nav.js"></script>
+<style>
+:root{--b:#08050e;--c:#171025;--c2:#251344;--bd:#302044;--t:#fff;--m:#aaa2b9;--p:#7c3aed;--p2:#a66bff;--g:#22c55e;--r:#ef4444;--a:#f59e0b}
+:root[data-theme=light]{--b:#f6f3fb;--c:#fff;--c2:#f1eafa;--bd:#ddd1ef;--t:#211832;--m:#756985;--p:#6d35d4;--p2:#8149e8}
+*{box-sizing:border-box}body{margin:0;background:var(--b);color:var(--t);font:14px Arial,sans-serif}
+main{max-width:900px;margin:auto;padding:16px}
+.panel{background:var(--c);border:1px solid var(--bd);border-radius:13px;padding:15px;margin-bottom:14px}
+h2{margin:0 0 6px;font-size:17px}.muted{color:var(--m);font-size:12px;line-height:1.6}
+label{display:block;font-size:11px;font-weight:bold;color:var(--m);margin:10px 0 5px}
+select,input[type=file]{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--c2);color:var(--t)}
+.btn{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;font-size:12px;cursor:pointer;background:var(--p);color:#fff;margin-top:10px}
+.btn.sec{background:var(--c2);border:1px solid var(--bd);color:var(--t)}.btn:disabled{opacity:.5}
+.chk{display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:13px}.chk input{margin-top:3px;accent-color:var(--p)}
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;margin-top:12px}
+.sum div{background:var(--c2);border:1px solid var(--bd);border-radius:10px;padding:11px;font-size:11px;color:var(--m)}
+.sum b{display:block;font-size:22px;color:var(--t);margin-bottom:3px}
+.log{margin-top:10px;max-height:260px;overflow:auto;font-size:12px;line-height:1.6;white-space:pre-wrap;background:var(--c2);border-radius:9px;padding:10px}
+.ok{color:var(--g)}.bad{color:var(--r)}.warn{color:var(--a)}
+code{background:var(--c2);padding:1px 5px;border-radius:5px}
+</style></head><body>
+<main>
+<section class="panel">
+  <h2>📝 Bulk Solutions for Existing Questions</h2>
+  <p class="muted">Adds or updates the <b>Explanation</b> and <b>Solution Video Link</b> of questions that are already in your Question Bank. Nothing else about the question changes, and no new questions are created.</p>
+</section>
+
+<section class="panel">
+  <h2>Step 1 — Download your questions</h2>
+  <p class="muted">Gives an Excel file with every question of the subject (and its current solution). Write the solutions in the <b>Explanation</b> column and save.</p>
+  <label>Subject</label><select id="subj"><option value="">All subjects</option></select>
+  <button class="btn sec" id="dl" onclick="downloadSheet()">⬇ Download questions sheet</button>
+  <div class="muted" id="dlmsg" style="margin-top:8px"></div>
+</section>
+
+<section class="panel">
+  <h2>Step 2 — Upload the filled sheet</h2>
+  <p class="muted">Columns used: <code>Question ID</code> (best — comes from Step 1) <b>or</b> <code>Question English</code> (matched by exact text), plus <code>Explanation</code> and/or <code>Video Link</code>. A <code>Subject</code> column is optional and only narrows text matching. Any other columns are ignored.</p>
+  <input type="file" id="file" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
+  <label class="chk" style="margin-top:12px"><input type="checkbox" id="keep"> Don't overwrite questions that already have a solution</label>
+  <label class="chk"><input type="checkbox" id="allcopies" checked> If the same question text exists more than once, update all copies</label>
+  <div id="sum" class="sum"></div>
+  <div id="log" class="log" style="display:none"></div>
+  <button class="btn" id="go" style="display:none" onclick="run()">Update solutions</button>
+</section>
+</main>
+<script>
+const db=supabase.createClient("https://dvvyoygahzzbnpqrfhen.supabase.co","sb_publishable_2uiQtIIUylApCJSCpnaDkg_Ihh09v8s");
+const $=id=>document.getElementById(id);
+const norm=s=>String(s??"").toLowerCase().replace(/\s+/g," ").trim();
+const clean=v=>v==null?"":String(v).replace(/\r\n/g,"\n").replace(/\r/g,"\n").trim();
+let subjects=[],chapters=[],plan=[];
+
+async function pageAll(build){
+  const out=[];
+  for(let f=0;;f+=1000){const r=await build().range(f,f+999);if(r.error)throw r.error;out.push(...(r.data||[]));if(!r.data||r.data.length<1000)break}
+  return out;
+}
+async function init(){
+  try{
+    [subjects,chapters]=await Promise.all([pageAll(()=>db.from("subjects").select("id,name").order("id")),pageAll(()=>db.from("chapters").select("id,name").order("id"))]);
+    $("subj").innerHTML='<option value="">All subjects</option>'+subjects.map(s=>`<option value="${s.id}">${s.name}</option>`).join("");
+  }catch(e){$("dlmsg").textContent="Could not load subjects: "+e.message}
+}
+async function loadQuestions(sid){
+  return pageAll(()=>{let q=db.from("questions").select("id,subject_id,chapter_id,question_text,explanation,solution_video_url").order("id");if(sid)q=q.eq("subject_id",sid);return q});
+}
+async function downloadSheet(){
+  $("dl").disabled=true;$("dlmsg").textContent="Preparing…";
+  try{
+    const sid=$("subj").value,qs=await loadQuestions(sid);
+    const sn=new Map(subjects.map(s=>[String(s.id),s.name])),cn=new Map(chapters.map(c=>[String(c.id),c.name]));
+    const rows=qs.map(q=>({"Question ID":q.id,"Subject":sn.get(String(q.subject_id))||"","Chapter":cn.get(String(q.chapter_id))||"","Question English":q.question_text||"","Explanation":q.explanation||"","Video Link":q.solution_video_url||""}));
+    const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,"Solutions");
+    XLSX.writeFile(wb,"SSC_EDGE_Solutions_Sheet.xlsx");
+    $("dlmsg").textContent=rows.length+" questions downloaded.";
+  }catch(e){$("dlmsg").textContent="Failed: "+e.message}
+  $("dl").disabled=false;
+}
+function col(row,names){
+  for(const k of Object.keys(row)){const nk=norm(k).replace(/[_-]+/g," ");if(names.includes(nk))return clean(row[k])}
+  return "";
+}
+async function handleFile(ev){
+  plan=[];$("go").style.display="none";$("log").style.display="none";$("sum").innerHTML="";
+  const f=ev.target.files[0];if(!f)return;
+  try{
+    $("sum").innerHTML='<div>Reading file…</div>';
+    const buf=await f.arrayBuffer();
+    const wb=XLSX.read(f.name.toLowerCase().endsWith(".csv")?new TextDecoder("utf-8").decode(buf):buf,{type:f.name.toLowerCase().endsWith(".csv")?"string":"array"});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:"",raw:false});
+    if(!rows.length){$("sum").innerHTML='<div>The file is empty.</div>';return}
+    $("sum").innerHTML='<div>Matching with your questions…</div>';
+    const qs=await loadQuestions("");
+    const byId=new Map(qs.map(q=>[String(q.id),q])),byText=new Map();
+    qs.forEach(q=>{const k=norm(q.question_text);if(!k)return;if(!byText.has(k))byText.set(k,[]);byText.get(k).push(q)});
+    const sid=new Map(subjects.map(s=>[norm(s.name),String(s.id)]));
+    const keep=$("keep").checked,all=$("allcopies").checked;
+    let noContent=0,notFound=[],ambiguous=[],skippedHas=0;const targets=new Map();
+    rows.forEach((r,i)=>{
+      const expl=col(r,["explanation","solution","common solution"]),vid=col(r,["video link","video","solution video","solution video url"]);
+      if(!expl&&!vid){noContent++;return}
+      const qid=col(r,["question id","id","qid"]),qt=col(r,["question english","question","question text"]),subName=col(r,["subject"]);
+      let found=[];
+      if(qid&&byId.has(String(qid)))found=[byId.get(String(qid))];
+      else if(qt){
+        found=byText.get(norm(qt))||[];
+        if(subName&&sid.has(norm(subName)))found=found.filter(q=>String(q.subject_id)===sid.get(norm(subName)));
+      }
+      if(!found.length){notFound.push("Row "+(i+2)+": "+(qid?"ID "+qid+" not found":(qt||"").slice(0,70)));return}
+      if(found.length>1&&!all){ambiguous.push("Row "+(i+2)+": "+found.length+" questions have this text — "+(qt||"").slice(0,60));return}
+      found.forEach(q=>{
+        if(keep&&clean(q.explanation)){skippedHas++;return}
+        const u={};if(expl)u.explanation=expl;if(vid)u.solution_video_url=vid;
+        targets.set(String(q.id),u);
+      });
+    });
+    plan=[...targets.entries()];
+    $("sum").innerHTML=`<div><b class="ok">${plan.length}</b>questions will be updated</div><div><b class="bad">${notFound.length}</b>rows not found</div><div><b class="warn">${ambiguous.length}</b>skipped (duplicate text)</div><div><b>${skippedHas}</b>skipped (already had solution)</div><div><b>${noContent}</b>rows with no solution/video</div>`;
+    const lines=[...notFound.slice(0,100).map(x=>"✕ "+x),...ambiguous.slice(0,50).map(x=>"⚠ "+x)];
+    if(lines.length){$("log").style.display="block";$("log").textContent=lines.join("\n")+(notFound.length>100?"\n… and "+(notFound.length-100)+" more not found":"")}
+    if(plan.length)$("go").style.display="inline-block";
+  }catch(e){console.error(e);$("sum").innerHTML='<div class="bad">Could not read the file: '+e.message+'</div>'}
+}
+async function run(){
+  if(!plan.length)return;
+  if(!confirm("Update the solution of "+plan.length+" questions?"))return;
+  $("go").disabled=true;$("log").style.display="block";
+  let done=0,failed=[],i=0;
+  async function worker(){
+    while(i<plan.length){
+      const [id,u]=plan[i++];
+      const r=await db.from("questions").update(u).eq("id",id);
+      if(r.error)failed.push("Question "+id+": "+r.error.message);else done++;
+      if((done+failed.length)%20===0)$("log").textContent="Updating… "+(done+failed.length)+" / "+plan.length;
+    }
+  }
+  await Promise.all(Array.from({length:8},worker));
+  $("log").innerHTML='<span class="ok">✓ '+done+' solutions updated.</span>'+(failed.length?'\n<span class="bad">'+failed.length+' failed:\n'+failed.slice(0,30).join("\n")+'</span>':"");
+  $("go").disabled=false;$("go").style.display="none";plan=[];
+}
+init();
+</script></body></html>
