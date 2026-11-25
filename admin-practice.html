@@ -4736,100 +4736,75 @@ error.message
    SAVE MOCK SECTIONS
 ========================================================= */
 
-async function saveMockSections(
-testId,
-sections
-){
+async function saveMockSections(testId,sections){
+const table=()=>db.from("mock_test_sections");
+const check=r=>{ if(r.error) throw r.error; return r; };
 
-try{
+const old=check(await table().select("*")
+.eq("mock_test_id",testId).order("section_order"));
+const unused=[...(old.data||[])];
+const clean=v=>String(v||"").trim().toLowerCase();
 
-const deleteResponse=
-await db
-.from("mock_test_sections")
-.delete()
-.eq("mock_test_id",testId);
+/* Match by name first, then by subject, so existing IDs are kept */
+const items=(sections||[]).map(s=>({s,match:null}));
+const take=(item,test)=>{
+if(item.match)return;
+const i=unused.findIndex(test);
+if(i>=0)item.match=unused.splice(i,1)[0];
+};
+items.forEach(x=>take(x,o=>clean(o.section_name)===clean(x.s.name)));
+items.forEach(x=>{
+if(x.s.subject_id)take(x,o=>String(o.subject_id)===String(x.s.subject_id));
+});
 
-if(deleteResponse.error){
-
-throw new Error(
-deleteResponse.error.message
-);
-
+const plan=[];
+items.forEach(({s,match})=>{
+const subjectId=s.subject_id||match?.subject_id;
+if(!subjectId){
+if(match)unused.push(match);
+return;
 }
-
-if(
-!sections||
-!sections.length
-){
-
-return true;
-
-}
-
-const rows=
-sections
-.filter(section=>
-section.subject_id
-)
-.map((section,index)=>({
-
+plan.push({id:match?.id,row:{
 mock_test_id:testId,
+subject_id:subjectId,
+section_name:s.name||"",
+duration_minutes:Number(s.duration||0),
+question_count:Number(s.questions||0),
+section_order:plan.length+1
+}});
+});
 
-subject_id:
-section.subject_id,
-
-section_name:
-section.name||"",
-
-duration_minutes:
-Number(
-section.duration||0
-),
-
-question_count:
-Number(
-section.questions||0
-),
-
-section_order:
-index+1
-
-}));
-
-if(!rows.length){
-
-throw new Error(
-"No valid subject found. Section names must match subjects table."
-);
-
+if(!plan.length){
+throw new Error("No valid subject found. Section names must match subjects table.");
 }
 
-const insertResponse=
-await db
-.from("mock_test_sections")
-.insert(rows);
+/* Never delete a section that still has questions */
+const removeIds=unused.map(o=>o.id);
+if(removeIds.length){
+const used=check(await db.from("mock_test_questions")
+.select("id",{count:"exact",head:true})
+.in("section_id",removeIds));
+if(used.count>0){
+throw new Error("Sections not changed: a removed section still has questions.");
+}
+}
 
-if(insertResponse.error){
+for(const p of plan){
+if(p.id){
+const r=check(await table().update(p.row).eq("id",p.id).select("id"));
+if(!r.data.length){
+throw new Error("Section update blocked. Check Supabase UPDATE policy.");
+}
+}else{
+check(await table().insert(p.row));
+}
+}
 
-throw new Error(
-insertResponse.error.message
-);
-
+if(removeIds.length){
+check(await table().delete().in("id",removeIds));
 }
 
 return true;
-
-}catch(error){
-
-console.error(
-"Sections save failed:",
-error
-);
-
-throw error;
-
-}
-
 }
 
 /* =========================================================
