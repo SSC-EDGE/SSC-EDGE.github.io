@@ -463,10 +463,31 @@ async function syncGuestAttempts(user){
    GO HOME
 ========================================= */
 
+function getSafeReturnUrl(){
+
+  let url = "";
+
+  try{
+    url = localStorage.getItem("ssc-edge-return-url") || "";
+  }catch(e){}
+
+  /* only allow same-site relative pages like test.html?id=1 */
+  if(/^[A-Za-z0-9_\-]+\.html(\?[^#\s]*)?(#\S*)?$/.test(url)){
+    return url;
+  }
+
+  return "";
+
+}
+
 function goHome(){
 
+  const back = getSafeReturnUrl();
+
+  try{ localStorage.removeItem("ssc-edge-return-url"); }catch(e){}
+
   window.location.replace(
-    "home.html"
+    back || "home.html"
   );
 
 }
@@ -665,6 +686,9 @@ async function loginWithGoogle(){
 
 function continueAsGuest(){
 
+  /* guest goes to home, not back to the test that needs login */
+  try{ localStorage.removeItem("ssc-edge-return-url"); }catch(e){}
+
   localStorage.setItem(
     "ssc-edge-guest",
     "true"
@@ -828,11 +852,51 @@ supabaseClient.auth.onAuthStateChange(
    START
 ========================================= */
 
-handleGoogleReturn();
+(function(){
 
-if(new URLSearchParams(window.location.search).get("signup") === "1"){
-  showSignup();
-}
+  const params = new URLSearchParams(window.location.search);
+  const redirectParam = params.get("redirect");
+
+  if(redirectParam){
+    try{ localStorage.setItem("ssc-edge-return-url", redirectParam); }catch(e){}
+  }
+
+  const wantsLogin =
+    params.has("signup") ||
+    params.has("redirect") ||
+    params.get("login") === "1";
+
+  const oauthReturn =
+    window.location.hash.includes("access_token") ||
+    window.location.hash.includes("refresh_token") ||
+    window.location.search.includes("code=");
+
+  /* Normal app open (no login intent): do not ask for login, open home */
+  if(!wantsLogin && !oauthReturn){
+
+    supabaseClient.auth.getSession().then(({ data:{ session } }) => {
+
+      if(!session){
+        try{
+          localStorage.setItem("ssc-edge-guest","true");
+          localStorage.setItem("ssc-edge-user-name","Guest");
+        }catch(e){}
+      }
+
+      window.location.replace("home.html");
+
+    }).catch(() => window.location.replace("home.html"));
+
+    return;
+  }
+
+  handleGoogleReturn();
+
+  if(params.get("signup") === "1"){
+    showSignup();
+  }
+
+})();
 
 </script>
   <script>

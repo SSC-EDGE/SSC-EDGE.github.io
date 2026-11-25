@@ -3548,7 +3548,39 @@ function restoreProgress(progress){
    START / RESUME TEST
    ================================================== */
 
+function showLoginRequiredPopup(){
+
+  let overlay = document.getElementById("loginRequiredOverlay");
+
+  if(!overlay){
+    overlay = document.createElement("div");
+    overlay.id = "loginRequiredOverlay";
+    overlay.className = "language-popup-overlay show";
+    overlay.innerHTML = `
+      <div class="language-popup">
+        <h3>Sign up to start this mock</h3>
+        <p>Before attempting a mock test, please create a free account or login.</p>
+        <div class="language-popup-actions">
+          <button type="button" class="language-popup-btn active" onclick="goCreateAccount()">Sign Up</button>
+          <button type="button" class="language-popup-btn" onclick="goLogin()">Login</button>
+        </div>
+        <button type="button" class="language-popup-close"
+          onclick="document.getElementById('loginRequiredOverlay').classList.remove('show')">Cancel</button>
+      </div>`;
+    document.body.appendChild(overlay);
+  }else{
+    overlay.classList.add("show");
+  }
+
+}
+
 function startOrResumeTest(){
+
+  /* Guests must sign up / login before attempting the mock */
+  if(!currentUser){
+    showLoginRequiredPopup();
+    return;
+  }
 
   const progress = getLocalProgress();
 
@@ -4783,7 +4815,11 @@ function setupEventListeners(){
   $("questionLanguageBtn")
     ?.addEventListener(
       "click",
-      openLanguagePopup
+      () => changeQuestionLanguage(
+        normalizeLanguage(currentQuestionLanguage) === "hindi"
+          ? "english"
+          : "hindi"
+      )
     );
 
   $("popupHindiBtn")
@@ -5287,12 +5323,18 @@ function storeGuestAttempt(payload, resultData){
 
 }
 
+function rememberReturnUrl(){
+  const back = window.location.pathname.split("/").pop() + window.location.search;
+  try{ localStorage.setItem("ssc-edge-return-url", back); }catch(e){}
+  return encodeURIComponent(back);
+}
+
 function goCreateAccount(){
-  window.location.href = "index.html?signup=1";
+  window.location.href = "index.html?signup=1&redirect=" + rememberReturnUrl();
 }
 
 function goLogin(){
-  window.location.href = "index.html";
+  window.location.href = "index.html?redirect=" + rememberReturnUrl();
 }
 
 async function saveTestAttempt(resultData){
