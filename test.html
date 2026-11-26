@@ -1546,6 +1546,7 @@ body{
    DESKTOP UI (>=901px) - mobile is untouched
    ================================================== */
 .header-center{ display:none; }
+.desk-only{ display:none; }
 
 @media(min-width:901px){
 
@@ -1609,15 +1610,50 @@ body{
   .question-text{ font-size:17px; }
   .option-text,.option-label{ font-size:15px; }
 
+
   .navigation-row{
-    right:var(--palette-w);
-    padding-left:24px;
-    padding-right:24px;
-    grid-template-columns:repeat(3,minmax(140px,200px));
+    position:fixed;
+    top:var(--nav-top,var(--header-h));
+    bottom:auto;
+    left:50%;
+    right:auto;
+    transform:translateX(-50%);
+    width:auto;
+    height:var(--nav-h,48px);
+    z-index:55;
+    display:flex;
+    align-items:center;
     justify-content:center;
-    transition:right .2s ease;
+    gap:12px;
+    padding:0;
+    background:transparent;
+    border:0;
+    backdrop-filter:none;
   }
-  body.palette-collapsed .navigation-row{ right:0; }
+
+  .navigation-row .nav-btn,
+  .navigation-row .save-next-btn,
+  .navigation-row .review-btn,
+  .navigation-row .previous-btn{
+    width:auto;
+    min-width:112px;
+    min-height:0;
+    height:34px;
+    margin:0;
+    padding:0 18px;
+    border:0;
+    border-radius:6px;
+    background:var(--purple);
+    color:#fff;
+    font-size:12px;
+    font-weight:800;
+    white-space:nowrap;
+  }
+  .navigation-row .review-btn.marked{
+    background:#6d3fd1;
+  }
+  #testArea{ padding-top:56px; padding-bottom:20px; }
+  body.nav-inline #testArea{ padding-top:0; }
 
   .grid-overlay{
     display:none;
@@ -6100,9 +6136,28 @@ async function setHeaderUsername(){
   const hdr = document.querySelector(".test-header");
   function syncHeaderHeight(){
     if(!hdr) return;
-    document.documentElement.style.setProperty(
-      "--header-h", hdr.offsetHeight + "px"
-    );
+    const root = document.documentElement.style;
+    const H = hdr.offsetHeight;
+    root.setProperty("--header-h", H + "px");
+
+    const bar = document.getElementById("sectionBar");
+    const barVisible = false;
+
+    if(barVisible){
+      const h = bar.offsetHeight;
+      root.setProperty("--nav-h", h + "px");
+      root.setProperty("--nav-top", (H - 10 - h) + "px");
+      document.body.classList.add("nav-inline");
+    }else{
+      root.setProperty("--nav-h", "48px");
+      root.setProperty("--nav-top", H + "px");
+      document.body.classList.remove("nav-inline");
+    }
+  }
+  if(window.MutationObserver){
+    const sb = document.getElementById("sectionBar");
+    if(sb) new MutationObserver(syncHeaderHeight)
+      .observe(sb,{attributes:true,attributeFilter:["class"],childList:true});
   }
   if(window.ResizeObserver && hdr){
     new ResizeObserver(syncHeaderHeight).observe(hdr);

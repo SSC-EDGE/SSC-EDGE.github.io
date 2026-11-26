@@ -480,7 +480,20 @@ function getSafeReturnUrl(){
 
 }
 
+/*
+  goHome() can be triggered more than once after signup/login:
+  createAccount() -> goHome(), onAuthStateChange(SIGNED_IN) -> goHome(),
+  handleGoogleReturn() polling -> goHome().
+  The first call used to delete the saved return URL, so a second call
+  found nothing and sent the user to home.html instead of back to the test.
+  Fix: only the first call is allowed to navigate.
+*/
+let goingHome = false;
+
 function goHome(){
+
+  if(goingHome) return;
+  goingHome = true;
 
   const back = getSafeReturnUrl();
 
