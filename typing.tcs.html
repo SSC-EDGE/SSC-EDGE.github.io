@@ -105,11 +105,68 @@ async function init(){
  $("typingInput").focus();
 }
 function updateTimer(){const m=Math.floor(secondsLeft/60),s=secondsLeft%60;const label="Time Left: "+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");$("timer").textContent=label;if($("tcsTimer"))$("tcsTimer").textContent=label;}
+function tokens(s){const re=/\S+/g,out=[];let m,last=0;while((m=re.exec(s))){out.push({v:m[0],start:m.index,end:re.lastIndex,sep:s.slice(last,m.index)});last=re.lastIndex;}return {items:out,tail:s.slice(last)};}
+function core(w){return w.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu,"");}
+function punctuation(w){return w.replace(/[\p{L}\p{N}]/gu,"");}
+function compareText(source,typed){
+ const A=tokens(source),B=tokens(typed),a=A.items,b=B.items,n=a.length,m=b.length;
+ const dp=Array.from({length:n+1},()=>Array(m+1).fill(0)),op=Array.from({length:n+1},()=>Array(m+1).fill(""));
+ for(let i=0;i<=n;i++){dp[i][0]=i;op[i][0]="del";}
+ for(let j=0;j<=m;j++){dp[0][j]=j;op[0][j]="ins";}
+ for(let i=1;i<=n;i++)for(let j=1;j<=m;j++){
+  const same=core(a[i-1].v)===core(b[j-1].v)&&core(a[i-1].v)!=="";
+  const cost=same?0:1;
+  let best=dp[i-1][j-1]+cost,act=same?"match":"sub";
+  if(dp[i-1][j]+1<best){best=dp[i-1][j]+1;act="del";}
+  if(dp[i][j-1]+1<best){best=dp[i][j-1]+1;act="ins";}
+  if(i>1&&j>1&&core(a[i-1].v)===core(b[j-2].v)&&core(a[i-2].v)===core(b[j-1].v)&&core(a[i-1].v)!==core(a[i-2].v)&&dp[i-2][j-2]+0.5<best){best=dp[i-2][j-2]+0.5;act="swap";}
+  dp[i][j]=best;op[i][j]=act;
+ }
+ let i=n,j=m,marks=Array(m).fill("full"),full=0,half=0,matched=[];
+ while(i||j){
+  const act=op[i][j];
+  if(act==="match"||act==="sub"){
+   const x=a[i-1].v,y=b[j-1].v;
+   if(act==="sub"){marks[j-1]="full";full++;}
+   else if(x!==y||punctuation(x)!==punctuation(y)){marks[j-1]="half";half++;}
+   else marks[j-1]="ok";
+   matched.push([i-1,j-1]);i--;j--;
+  }else if(act==="swap"){
+   marks[j-1]="half";marks[j-2]="half";half++;matched.push([i-1,j-2],[i-2,j-1]);i-=2;j-=2;
+  }else if(act==="del"){full++;i--;}
+  else if(act==="ins"){marks[j-1]="full";full++;j--;}
+  else break;
+ }
+ matched.reverse();
+ // Incomplete last word is always one full mistake, even if it resembles the source token.
+ if(b.length&&typed.length&& !/\s$/.test(typed)){
+  const last=b[b.length-1],lastCore=core(last.v);
+  const sourceWord=a.find(x=>core(x.v).startsWith(lastCore)&&lastCore.length>0);
+  if(sourceWord&&lastCore.length<core(sourceWord.v).length&&marks[b.length-1]!=="full"){if(marks[b.length-1]==="half")half=Math.max(0,half-1);marks[b.length-1]="full";full++;}
+ }
+ // Wrong spacing between aligned neighbouring words is a half mistake.
+ for(let k=1;k<matched.length;k++){
+  const [ai,bi]=matched[k-1],[aj,bj]=matched[k];
+  if(aj===ai+1&&bj===bi+1){
+   const srcSep=source.slice(a[ai].end,a[aj].start),typSep=typed.slice(b[bi].end,b[bj].start);
+   if(srcSep!==typSep&&marks[bi]!=="full"&&marks[bj]!=="full"){marks[bi]="half";half++;}
+  }
+ }
+ let html="";
+ b.forEach((t,k)=>{const cls=marks[k]==="full"?"full":marks[k]==="half"?"half":"";html+=esc(t.sep)+`<span${cls?` class="${cls}"`:""}>${esc(t.v)}</span>`;});
+ html+=esc(B.tail);
+ return {html,full,half,typedCount:b.length,sourceCount:n,remaining:source.slice(typed.length)};
+}
 function getMetrics(){
- const typed=$("typingInput").value,limit=Math.min(typed.length,passageText.length);
- let correct=0;for(let i=0;i<limit;i++)if(typed[i]===passageText[i])correct++;
- const wrong=limit-correct,elapsed=Math.max(1,(Number(mock.duration_minutes)*60)-secondsLeft);
- const accuracy=typed.length?correct/typed.length*100:0;
+ const typed=$("typingInput").value,elapsed=Math.max(1,(Number(mock.duration_minutes)*60)-secondsLeft);
+ // Same word-based logic as typinganalysis.html so DB and Result page always match
+ const cmp=compareText(passageText,typed);
+ const weighted=cmp.full+cmp.half/2;
+ const totalWords=Math.max(1,tokens(passageText).items.length);
+ const errorPercent=passageText.trim()?Math.min(100,weighted/totalWords*100):0;
+ const accuracy=Math.max(0,100-errorPercent);
+ const wrong=Math.min(typed.length,Math.round(typed.length*errorPercent/100));
+ const correct=typed.length-wrong;
  const wpm=(typed.length/5)/(elapsed/60);
  return {typed,correct,wrong,accuracy,wpm,typedCount:typed.length};
 }
