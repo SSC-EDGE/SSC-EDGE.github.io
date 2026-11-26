@@ -1542,6 +1542,137 @@ body{
   }
 }
 
+/* ==================================================
+   DESKTOP UI (>=901px) - mobile is untouched
+   ================================================== */
+.header-center{ display:none; }
+
+@media(min-width:901px){
+
+  :root{ --header-h:64px; --palette-w:320px; }
+
+  .test-header-top{
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
+    align-items:center;
+    gap:16px;
+  }
+  .brand{ font-size:24px; }
+  .header-actions{ justify-self:end; }
+  .timer::before{
+    content:"Time Left";
+    margin-right:8px;
+    color:var(--muted);
+    font-size:11px;
+    font-weight:800;
+  }
+  .timer{ min-width:150px; font-size:15px; }
+  .pause-btn{ width:44px; height:40px; }
+  .submit-section{ padding:11px 16px; font-size:12px; }
+
+  .header-center{
+    display:block;
+    text-align:center;
+    min-width:0;
+    max-width:46vw;
+  }
+  .header-center-title{
+    color:var(--text);
+    font-size:17px;
+    font-weight:900;
+    line-height:1.25;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .header-center-user{
+    margin-top:3px;
+    color:var(--purple2);
+    font-size:12px;
+    font-weight:800;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .test-info{ display:none; }
+
+  .test-container{
+    max-width:none;
+    margin:0 var(--palette-w) 0 0;
+    padding:18px 28px 30px;
+    transition:margin-right .2s ease;
+  }
+  body.palette-collapsed .test-container{ margin-right:0; }
+
+  .question-card{ max-width:1000px; }
+  .question-text{ font-size:17px; }
+  .option-text,.option-label{ font-size:15px; }
+
+  .navigation-row{
+    right:var(--palette-w);
+    padding-left:24px;
+    padding-right:24px;
+    grid-template-columns:repeat(3,minmax(140px,200px));
+    justify-content:center;
+    transition:right .2s ease;
+  }
+  body.palette-collapsed .navigation-row{ right:0; }
+
+  .grid-overlay{
+    display:none;
+    position:fixed;
+    inset:var(--header-h) 0 0 auto;
+    width:var(--palette-w);
+    z-index:60;
+    background:transparent;
+    pointer-events:none;
+    align-items:stretch;
+    justify-content:flex-end;
+    transition:transform .2s ease;
+  }
+  body:has(#testArea:not(.hidden)) .grid-overlay{ display:flex; }
+  body.palette-collapsed .grid-overlay{ transform:translateX(100%); }
+
+  .grid-popup{
+    pointer-events:auto;
+    width:100%;
+    max-width:none;
+    max-height:none;
+    height:100%;
+    border:0;
+    border-left:1px solid var(--border);
+    border-radius:0;
+    padding:14px 14px 64px;
+    background:var(--card);
+  }
+  .grid-timer,.grid-close,.grid-submit-section{ display:none; }
+
+  .grid-button-row{ height:0; margin:0; }
+  .grid-btn{
+    position:fixed;
+    top:calc(var(--header-h) + 14px);
+    right:var(--palette-w);
+    width:26px;
+    height:54px;
+    z-index:70;
+    border-radius:10px 0 0 10px;
+    border-right:0;
+    font-size:0;
+    background:var(--purple);
+    border-color:var(--purple);
+    transition:right .2s ease;
+  }
+  .grid-btn::before{
+    content:"\203A";
+    color:#fff;
+    font-size:26px;
+    line-height:1;
+  }
+  body.palette-collapsed .grid-btn{ right:0; }
+  body.palette-collapsed .grid-btn::before{ content:"\2039"; }
+}
+
 </style>
 
 <script src="live-guard.js"></script>
@@ -1562,6 +1693,10 @@ body{
       <span class="brand-ssc">SSC</span>
       <span class="brand-edge">EDGE</span>
 
+    </div>
+    <div class="header-center" id="headerCenter">
+      <div class="header-center-title" id="headerCenterTitle">Mock Test</div>
+      <div class="header-center-user" id="headerCenterUser"></div>
     </div>
 
     <div class="header-actions">
@@ -2664,6 +2799,7 @@ async function initializeTest(){
     ]);
 
     if(liveBlocked) return;
+    setHeaderUsername();
 
     buildResumeKey();
 
@@ -2800,6 +2936,8 @@ async function loadTestData(){
       `;
 
     }
+
+    setText("headerCenterTitle", headerTitle.main);
 
     const mockNumberEl = $("testNumber");
     if(mockNumberEl){
@@ -4569,9 +4707,7 @@ function renderQuestionGrid(){
             index;
 
           resetQuestionClock();
-
-          closeGrid();
-
+          if(!isDesktopUI()) closeGrid();
           renderCurrentQuestion();
 
           saveLocalProgress();
@@ -4590,9 +4726,18 @@ function renderQuestionGrid(){
    GRID OPEN / CLOSE
    ================================================== */
 
+function isDesktopUI(){
+  return window.matchMedia("(min-width:901px)").matches;
+}
+
 function openGrid(){
 
   renderQuestionGrid();
+
+  if(isDesktopUI()){
+    document.body.classList.remove("palette-collapsed");
+    return;
+  }
 
   $("gridOverlay")
     ?.classList.add("show");
@@ -4601,9 +4746,22 @@ function openGrid(){
 
 function closeGrid(){
 
+  if(isDesktopUI()){
+    document.body.classList.add("palette-collapsed");
+    return;
+  }
+
   $("gridOverlay")
     ?.classList.remove("show");
 
+}
+
+function toggleGridDesktop(){
+  if(document.body.classList.contains("palette-collapsed")){
+    openGrid();
+  }else{
+    closeGrid();
+  }
 }
 
 /* ==================================================
@@ -4786,7 +4944,7 @@ function setupEventListeners(){
   $("gridBtn")
     ?.addEventListener(
       "click",
-      openGrid
+      () => isDesktopUI() ? toggleGridDesktop() : openGrid()
     );
 
   $("gridClose")
@@ -5909,3 +6067,69 @@ window.openAnalysisPage =
   openAnalysisPage;
 
 </script>
+
+<script>
+/* ==================================================
+   DESKTOP UI HELPERS (palette live refresh, username, header height)
+   ================================================== */
+async function setHeaderUsername(){
+  const el = $("headerCenterUser");
+  if(!el) return;
+
+  const u = currentUser;
+  const meta = u?.user_metadata || {};
+  let name =
+    meta.username || meta.user_name || meta.full_name || meta.name ||
+    (u?.email ? u.email.split("@")[0] : "");
+
+  el.textContent = name || (u ? "" : "Guest");
+
+  if(!u) return;
+  try{
+    const { data } = await supabaseClient
+      .from("profiles")
+      .select("username, full_name")
+      .eq("id", u.id)
+      .maybeSingle();
+    const better = data?.username || data?.full_name;
+    if(better) el.textContent = better;
+  }catch(e){ /* profiles table optional */ }
+}
+
+(function(){
+  const hdr = document.querySelector(".test-header");
+  function syncHeaderHeight(){
+    if(!hdr) return;
+    document.documentElement.style.setProperty(
+      "--header-h", hdr.offsetHeight + "px"
+    );
+  }
+  if(window.ResizeObserver && hdr){
+    new ResizeObserver(syncHeaderHeight).observe(hdr);
+  }
+  window.addEventListener("resize", syncHeaderHeight);
+  syncHeaderHeight();
+
+  function refreshPalette(){
+    if(isDesktopUI() && typeof renderQuestionGrid === "function"){
+      try{ renderQuestionGrid(); }catch(e){}
+    }
+  }
+
+  const baseRender = window.renderCurrentQuestion;
+  if(typeof baseRender === "function"){
+    window.renderCurrentQuestion = function(){
+      const r = baseRender.apply(this, arguments);
+      refreshPalette();
+      return r;
+    };
+  }
+
+  document.addEventListener("click", function(e){
+    if(e.target.closest("#questionCard, #reviewBtn, #saveNextBtn, #previousBtn")){
+      setTimeout(refreshPalette, 0);
+    }
+  });
+})();
+</script>
+
