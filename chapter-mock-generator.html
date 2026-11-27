@@ -45,10 +45,10 @@ input[type=checkbox]{accent-color:var(--p);width:17px;height:17px}
 <div id="app" style="display:none">
 <section class="panel">
   <h2 style="margin:0 0 6px">Chapter-wise mocks from existing questions</h2>
-  <p class="muted">Pick a subject and chapters. For each chapter, its questions (that are not already in a mock of that chapter's Practice Drill folder) are split into sets of about 25 and shown in <b>Practice Drill → Subject → Group → Chapter</b>. A mock always has <b>20+ questions</b>: chapters with fewer than 20 free questions get no mock. Maths, English and Reasoning mocks go into their own group folder automatically. Nothing is imported again, so no duplicate questions are created.</p>
+  <p class="muted">Pick a subject and chapters. For each chapter, its questions (that are not already in a mock of that chapter's Practice Drill folder) are split into sets of about 25 and shown in <b>Practice Drill → Subject → Group → Chapter</b>. Mocks are made in sets of 25. Extra questions go into the last mock (up to 30) or form a 20+ mock (52 = 25+27, 49 = 25+24, 45 = 25+20, 41 = 20+21, 62 = 25+30 and 7 stay free). Chapters with fewer than 20 free questions get no mock. Maths, English and Reasoning mocks go into their own group folder automatically. Nothing is imported again, so no duplicate questions are created.</p>
   <div class="grid">
     <div class="field"><label>Subject</label><select id="subject" onchange="loadSubject()"><option value="">Select Subject</option></select></div>
-    <div class="field"><label>Questions per set (min 20)</label><input id="setSize" type="number" min="20" value="25" oninput="renderTable()"></div>
+    <div class="field"><label>Questions per set (20–30, default 25)</label><input id="setSize" type="number" min="20" max="30" value="25" oninput="renderTable()"></div>
     <div class="field"><label>Minutes per question (0.6 – 0.8)</label><input id="minPerQ" type="number" min="0.6" max="0.8" step="0.05" value="0.8" onchange="this.value=clampPerQ(this.value)"></div>
   </div>
 </section>
@@ -68,7 +68,7 @@ input[type=checkbox]{accent-color:var(--p);width:17px;height:17px}
 
 <section class="panel" id="fixPanel">
   <h3 style="margin:0 0 6px">Fix existing chapter mocks</h3>
-  <p class="muted">Scans mocks already inside Practice Drill chapter folders. <b>1)</b> Time is set to <b>0.8 min per question</b> (uses the field above) and total questions / section counts are corrected. <b>2)</b> A mock with fewer than <b>20 questions</b> is merged into the smallest other mock of the same chapter; the emptied mock is turned <b>inactive</b> (not deleted, so student attempts stay). If a whole chapter has fewer than 20 questions, its mock is turned inactive. Nothing is changed until you press Apply.</p>
+  <p class="muted">Scans mocks already inside Practice Drill chapter folders. <b>1)</b> Time is set to <b>0.8 min per question</b> (uses the field above) and total questions / section counts are corrected. <b>2)</b> Every mock must have <b>20 to 30 questions</b>. If a chapter has a mock outside that range, its questions are re-balanced across that chapter's mocks (sets of 25, extra questions into the last mock up to 30): extra mocks are created when a mock is too big, and mocks that are no longer needed are turned <b>inactive</b> (not deleted, so student attempts stay). Mocks already within 20–30 are left alone. Questions that do not fit are taken out of the mocks and stay free in the question bank (Chapter Mock Generator picks them up later). A chapter with fewer than 20 questions in total is turned inactive. Nothing is changed until you press Apply.</p>
   <div class="grid">
     <div class="field"><label>Subject</label><select id="fixSubject"><option value="">All subjects</option></select></div>
   </div>
@@ -88,7 +88,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm=s=>String(s||"").trim().toLowerCase().replace(/\s+/g," ");
 
-const MIN_Q_PER_MOCK=20;
+const MIN_Q_PER_MOCK=20,MAX_Q_PER_MOCK=30;
 const MIN_PER_Q=0.6,MAX_PER_Q=0.8;
 const clampPerQ=v=>{const n=parseFloat(v);return Math.min(MAX_PER_Q,Math.max(MIN_PER_Q,Number.isFinite(n)?n:0.8))};
 /* ===== Practice Drill groups (same block is used in all Practice Drill pages) ===== */
@@ -111,15 +111,23 @@ function drillGroupFor(subjectName,chapterName){
   for(const [g,re] of cfg.rules)if(re.test(n))return g;
   return cfg.fallback;
 }
-/* Split `total` questions into mocks of about `size`, never below 20. Returns the size of each mock ([] = no mock). */
+/* Mocks are made in sets of `size` (default 25). What is left over goes into the last mock (up to 30),
+   or becomes its own mock when it has 20+, or (leftover 15-19) the last 25 becomes 20 and the rest forms a 20+ mock.
+   Whatever still does not fit stays free (blank) for later. Examples: 52 = 25+27, 49 = 25+24, 45 = 25+20,
+   41 = 20+21, 62 = 25+30 (7 free). Returns the size of each mock ([] = no mock). */
 function planSets(total,size){
-  size=Math.max(MIN_Q_PER_MOCK,parseInt(size)||25);
-  let n=Math.floor(total/size);
-  if(total-n*size>=MIN_Q_PER_MOCK)n++;
-  if(n===0&&total>=MIN_Q_PER_MOCK)n=1;
-  if(!n)return [];
-  const base=Math.floor(total/n),extra=total%n;
-  return Array.from({length:n},(_,i)=>base+(i<extra?1:0));
+  const S=Math.min(MAX_Q_PER_MOCK,Math.max(MIN_Q_PER_MOCK,parseInt(size)||25));
+  if(total<MIN_Q_PER_MOCK)return [];
+  const k=Math.floor(total/S);
+  if(k===0)return [total];
+  const L=total-k*S;
+  const sizes=Array(k).fill(S);
+  if(L===0)return sizes;
+  if(L>=MIN_Q_PER_MOCK){sizes.push(L);return sizes}
+  if(L<=MAX_Q_PER_MOCK-S){sizes[k-1]+=L;return sizes}
+  if(L>=2*MIN_Q_PER_MOCK-S){sizes[k-1]=MIN_Q_PER_MOCK;sizes.push(S+L-MIN_Q_PER_MOCK);return sizes}
+  sizes[k-1]=MAX_Q_PER_MOCK;
+  return sizes;
 }
 
 let subjects=[],chapters=[],stats=new Map(); // chapterId -> {freeIds:[],total,assigned}
@@ -196,14 +204,15 @@ async function loadSubject(keepMsg){
   }catch(e){$("rows").innerHTML="";say(`<span class="err">Could not load data: ${esc(e.message)}</span>`)}
 }
 
-function size(){return Math.max(MIN_Q_PER_MOCK,parseInt($("setSize").value)||25)}
+function size(){return Math.min(MAX_Q_PER_MOCK,Math.max(MIN_Q_PER_MOCK,parseInt($("setSize").value)||25))}
 function mockPlan(s){return planSets(s.freeIds.length,size())}
 
 function renderTable(){
   const list=[...stats.values()].filter(s=>s.total>0).sort((a,b)=>a.group.localeCompare(b.group)||a.ch.name.localeCompare(b.ch.name));
   $("rows").innerHTML=list.map(s=>{
     const plan=mockPlan(s);
-    const cell=plan.length?plan.length:(s.freeIds.length?`– <span class="warn">(${s.freeIds.length} &lt; ${MIN_Q_PER_MOCK})</span>`:"–");
+    const left=s.freeIds.length-plan.reduce((a,b)=>a+b,0);
+    const cell=plan.length?`${plan.length}${left>0?` <span class="warn">(+${left} left)</span>`:""}`:(s.freeIds.length?`– <span class="warn">(${s.freeIds.length} &lt; ${MIN_Q_PER_MOCK})</span>`:"–");
     return `<tr><td><input type="checkbox" ${s.checked?"checked":""} ${plan.length?"":"disabled"} onchange="stats.get('${esc(s.ch.id)}').checked=this.checked"></td>
       <td>${esc(s.ch.name)}</td><td class="muted">${esc(s.group)}</td><td class="n">${s.total}</td><td class="n">${s.assigned}</td><td class="n">${cell}</td></tr>`;
   }).join("")||'<tr><td colspan="6" class="muted">No chapters with questions for this subject.</td></tr>';
@@ -306,7 +315,7 @@ async function generate(){
 }
 
 
-/* ===== FIX EXISTING CHAPTER MOCKS (timer + minimum 20 questions) ===== */
+/* ===== FIX EXISTING CHAPTER MOCKS (timer + 20-30 questions per mock) ===== */
 let fixPlan=null;
 function fmsg(html,show=true){const m=$("fixMsg");m.style.display=show?"block":"none";m.innerHTML=html}
 async function inQuery(table,cols,col,ids){
@@ -329,7 +338,7 @@ async function scanFix(){
     const isCh=f=>String(f.folder_type||"").toUpperCase().includes("CHAPTER");
     const rootIds=new Set(folders.filter(f=>!f.parent_id&&isCh(f)).map(f=>String(f.id)));
     const chFolders=folders.filter(f=>f.parent_id&&rootIds.has(String(f.parent_id)));
-    const mocks=await inQuery("mock_tests","id,title,folder_id,duration_minutes,total_questions,sort_order,is_active","folder_id",chFolders.map(f=>f.id));
+    const mocks=await inQuery("mock_tests","id,title,folder_id,exam_id,description,duration_minutes,total_questions,sort_order,is_active,marks_per_question,negative_marks_per_question,unattempted_marks_per_question,test_type","folder_id",chFolders.map(f=>f.id));
     const ids=mocks.map(m=>m.id);
     const qrows=await inQuery("mock_test_questions","id,mock_test_id,question_id,section_id,question_order","mock_test_id",ids);
     const secs=await inQuery("mock_test_sections","id,mock_test_id,duration_minutes,question_count,section_order","mock_test_id",ids);
@@ -339,85 +348,122 @@ async function scanFix(){
     const secsOf=m=>(secBy.get(String(m.id))||[]).sort((a,b)=>(a.section_order||0)-(b.section_order||0));
     const nameOf=f=>f.display_name||f.name;
     const subjOf=id=>(subs.find(x=>String(x.id)===String(id))||{}).name||"";
+    const dur=n=>Math.max(1,Math.round(n*perQ));
 
-    const plan={folders:[],scanned:0,timer:0,merged:0,hidden:0};
+    const plan={folders:[],scanned:0,timer:0,rebalanced:0,created:0,dropped:0,hidden:0,freed:0};
     const lines=[];
     for(const f of chFolders){
-      const live0=mocks.filter(m=>String(m.folder_id)===String(f.id)&&m.is_active!==false)
+      const all=mocks.filter(m=>String(m.folder_id)===String(f.id));
+      const live0=all.filter(m=>m.is_active!==false)
         .sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0))
-        .map(m=>({m,rows:[...(rowsBy.get(String(m.id))||[])].sort((a,b)=>(a.question_order||0)-(b.question_order||0))}));
+        .map(m=>({m,secs:secsOf(m),rows:[...(rowsBy.get(String(m.id))||[])].sort((a,b)=>(a.question_order||0)-(b.question_order||0))}));
       if(!live0.length)continue;
       plan.scanned+=live0.length;
       const label=`${subjOf(f.subject_id)} › ${nameOf(f)}`;
-      const fp={label,moves:[],deact:[],finals:[]};
-      let live=live0.slice();
-      while(live.length&&live.some(x=>x.rows.length<MIN_Q_PER_MOCK)){
-        const small=live.filter(x=>x.rows.length<MIN_Q_PER_MOCK).sort((a,b)=>a.rows.length-b.rows.length)[0];
-        const others=live.filter(x=>x!==small).sort((a,b)=>a.rows.length-b.rows.length);
-        if(!others.length){
-          fp.deact.push(small.m);plan.hidden++;
-          lines.push(`✕ ${label}: only ${small.rows.length} question(s) in total → "${small.m.title}" turned inactive`);
-          live=[];break;
-        }
-        const target=others[0];
-        const have=new Set(target.rows.map(r=>String(r.question_id)));
-        let order=Math.max(0,...target.rows.map(r=>Number(r.question_order)||0));
-        const moveRows=[],dupRows=[];
-        small.rows.forEach(r=>{
-          if(have.has(String(r.question_id))){dupRows.push(r.id);return}
-          have.add(String(r.question_id));order++;
-          moveRows.push({id:r.id,order});
-          target.rows.push({...r,question_order:order});
-        });
-        const tsec=secsOf(target.m)[0];
-        fp.moves.push({to:target.m.id,toSection:tsec?tsec.id:null,moveRows,dupRows});
-        fp.deact.push(small.m);plan.merged++;
-        lines.push(`↦ ${label}: "${small.m.title}" (${small.rows.length} q) merged into "${target.m.title}"`);
-        small.rows=[];
-        live=live.filter(x=>x!==small);
+      const T=live0.reduce((a,x)=>a+x.rows.length,0);
+      const bad=live0.some(x=>x.rows.length<MIN_Q_PER_MOCK||x.rows.length>MAX_Q_PER_MOCK);
+      const fp={label,f,template:live0[0].m,allCount:all.length,maxSort:Math.max(0,...all.map(m=>Number(m.sort_order)||0)),containers:[],moves:[],dropped:[],remove:[],hide:false};
+
+      if(bad&&T<MIN_Q_PER_MOCK){
+        fp.hide=true;fp.dropped=live0.map(x=>x.m);plan.hidden++;
+        lines.push(`✕ ${label}: only ${T} question(s) in total → ${live0.length} mock(s) turned inactive`);
+        plan.folders.push(fp);continue;
       }
-      live.forEach(x=>{
-        const n=x.rows.length,dur=Math.max(1,Math.round(n*perQ));
-        const sc=secsOf(x.m);
-        const touched=fp.moves.some(mv=>String(mv.to)===String(x.m.id));
-        const secBad=sc.length===1&&(Number(sc[0].duration_minutes)!==dur||Number(sc[0].question_count)!==n);
-        if(touched||Number(x.m.duration_minutes)!==dur||Number(x.m.total_questions)!==n||secBad){
-          fp.finals.push({m:x.m,n,dur,sec:sc.length===1?sc[0]:null});
-          if(Number(x.m.duration_minutes)!==dur)plan.timer++;
-          if(Number(x.m.duration_minutes)!==dur||Number(x.m.total_questions)!==n)lines.push(`⏱ ${label}: "${x.m.title}" ${x.m.duration_minutes} min → ${dur} min, ${n} questions`);
+
+      let conts=live0.map(x=>({m:x.m,secs:x.secs,rows:x.rows,keep:[...x.rows],isNew:false}));
+      if(bad){
+        let sizes=planSets(T,size());
+        const n=sizes.length,szDesc=[...sizes].sort((a,b)=>b-a);
+        const sorted=[...live0].sort((a,b)=>b.rows.length-a.rows.length);
+        const keepC=sorted.slice(0,n),dropC=sorted.slice(n);
+        const c2=keepC.map((x,i)=>({m:x.m,secs:x.secs,rows:x.rows,size:szDesc[i],isNew:false}));
+        while(c2.length<n)c2.push({m:null,secs:[],rows:[],size:szDesc[c2.length],isNew:true});
+        const free=[];
+        dropC.forEach(x=>free.push(...x.rows));
+        c2.forEach(c=>{if(c.rows.length>c.size){free.push(...c.rows.slice(c.size));c.keep=c.rows.slice(0,c.size)}else c.keep=[...c.rows]});
+        const moves=[];
+        c2.forEach((c,idx)=>{
+          let order=Math.max(0,...c.keep.map(r=>Number(r.question_order)||0));
+          while(c.keep.length<c.size&&free.length){const r=free.shift();order++;c.keep.push(r);moves.push({rowId:r.id,to:idx,order})}
+        });
+        const leftoverRows=free.slice();
+        const changed=moves.length||dropC.length||leftoverRows.length||c2.some(c=>c.isNew);
+        if(changed){
+          conts=c2;fp.moves=moves;fp.dropped=dropC.map(x=>x.m);fp.remove=leftoverRows.map(r=>r.id);plan.freed+=leftoverRows.length;
+          plan.rebalanced++;plan.created+=c2.filter(c=>c.isNew).length;plan.dropped+=dropC.length;
+          lines.push(`↦ ${label}: ${live0.map(x=>x.rows.length).join(" + ")} → ${c2.map(c=>c.size).join(" + ")} questions${c2.some(c=>c.isNew)?" (new mock(s) created)":""}${leftoverRows.length?` (${leftoverRows.length} left free)`:""}`);
+        }else{
+          lines.push(`ℹ ${label}: ${T} questions cannot be split into 20–30 mocks, kept as is`);
         }
+      }
+      conts.forEach((c,idx)=>{
+        const nq=c.keep.length,d=dur(nq);
+        if(c.isNew){fp.containers.push(c);return}
+        const secBad=c.secs.length===1&&(Number(c.secs[0].duration_minutes)!==d||Number(c.secs[0].question_count)!==nq);
+        const touched=fp.moves.some(mv=>mv.to===idx)||fp.containers.length&&false;
+        if(Number(c.m.duration_minutes)!==d||Number(c.m.total_questions)!==nq||secBad||fp.moves.length||fp.dropped.length){
+          if(Number(c.m.duration_minutes)!==d){plan.timer++;lines.push(`⏱ ${label}: "${c.m.title}" ${c.m.duration_minutes} min → ${d} min, ${nq} questions`)}
+        }
+        c.needFix=Number(c.m.duration_minutes)!==d||Number(c.m.total_questions)!==nq||secBad||fp.moves.length>0||fp.remove.length>0;
+        fp.containers.push(c);
       });
-      if(fp.moves.length||fp.deact.length||fp.finals.length)plan.folders.push(fp);
+      if(fp.moves.length||fp.dropped.length||fp.remove.length||fp.containers.some(c=>c.isNew||c.needFix))plan.folders.push(fp);
     }
-    fixPlan=plan;
+    fixPlan={...plan,perQ};
     const shown=lines.slice(0,300);
-    fmsg(`<b>${plan.scanned} active chapter mock(s) scanned.</b>\n⏱ ${plan.timer} timer fix(es) · ↦ ${plan.merged} merge(s) · ✕ ${plan.hidden} chapter(s) under 20 questions hidden\n\n${esc(shown.join("\n")||"Everything is already correct.")}${lines.length>shown.length?"\n… and "+(lines.length-shown.length)+" more":""}`);
+    fmsg(`<b>${plan.scanned} active chapter mock(s) scanned.</b>\n⏱ ${plan.timer} timer fix(es) · ↦ ${plan.rebalanced} chapter(s) re-balanced to 20–30 · + ${plan.created} new mock(s) · ${plan.dropped} mock(s) no longer needed (inactive) · ${plan.freed} question(s) left free · ✕ ${plan.hidden} chapter(s) under 20 questions hidden\n\n${esc(shown.join("\n")||"Everything is already correct.")}${lines.length>shown.length?"\n… and "+(lines.length-shown.length)+" more":""}`);
     applyBtn.disabled=!plan.folders.length;
   }catch(e){fmsg(`<span class="err">Scan failed: ${esc(e.message)}</span>`)}
   finally{scanBtn.disabled=false}
 }
 async function applyFix(){
   if(!fixPlan||!fixPlan.folders.length)return;
-  if(!confirm(`Apply fixes?\n\n${fixPlan.timer} timer fix(es), ${fixPlan.merged} merge(s), ${fixPlan.hidden} hidden.\n\nNote: a mock that receives questions from a merged mock gets a longer question list, so older attempts of that mock may show fewer questions than the mock now has.`))return;
+  if(!confirm(`Apply fixes?\n\n${fixPlan.timer} timer fix(es), ${fixPlan.rebalanced} chapter(s) re-balanced, ${fixPlan.created} new mock(s), ${fixPlan.hidden} hidden.\n\nNote: a mock whose question list changes may show older attempts with a different question count.`))return;
   const scanBtn=$("scanBtn"),applyBtn=$("applyFixBtn");
   scanBtn.disabled=true;applyBtn.disabled=true;
+  const perQ=fixPlan.perQ,dur=n=>Math.max(1,Math.round(n*perQ));
   const out=[];let ok=0;
   try{
     for(const fp of fixPlan.folders){
       fmsg(`Applying… ${ok}/${fixPlan.folders.length}\n${esc(out.join("\n"))}`);
       try{
-        for(const mv of fp.moves){
-          const tasks=mv.moveRows.map(r=>db.from("mock_test_questions").update({mock_test_id:mv.to,section_id:mv.toSection,question_order:r.order}).eq("id",r.id));
-          if(mv.dupRows.length)tasks.push(db.from("mock_test_questions").delete().in("id",mv.dupRows));
-          const res=await Promise.all(tasks);
-          const bad=res.find(x=>x.error);if(bad)throw bad.error;
+        if(!fp.hide){
+          let newNo=0;
+          for(const c of fp.containers){
+            if(c.isNew){
+              newNo++;
+              const t=fp.template,n=c.size,d=dur(n);
+              const title=`${fp.f.display_name||fp.f.name} Set ${fp.allCount+newNo}`;
+              const {data:m,error:mErr}=await db.from("mock_tests").insert({exam_id:t.exam_id,folder_id:fp.f.id,title,description:t.description||"Chapter-wise practice mock",duration_minutes:d,total_questions:n,marks_per_question:t.marks_per_question??2,negative_marks_per_question:t.negative_marks_per_question??0.5,unattempted_marks_per_question:t.unattempted_marks_per_question??0,is_active:true,test_type:t.test_type||"FULL",sort_order:fp.maxSort+newNo}).select("id").single();
+              if(mErr)throw mErr;
+              c.id=m.id;
+              const {data:sec,error:sErr}=await db.from("mock_test_sections").insert({mock_test_id:m.id,subject_id:fp.f.subject_id,section_name:"Chapter Questions",duration_minutes:d,question_count:n,section_order:1}).select("id").single();
+              if(sErr)throw sErr;
+              c.secId=sec.id;
+            }else{
+              c.id=c.m.id;c.secId=c.secs[0]?c.secs[0].id:null;
+            }
+          }
+          for(let i=0;i<fp.moves.length;i+=20){
+            const res=await Promise.all(fp.moves.slice(i,i+20).map(mv=>{
+              const c=fp.containers[mv.to];
+              return db.from("mock_test_questions").update({mock_test_id:c.id,section_id:c.secId,question_order:mv.order}).eq("id",mv.rowId);
+            }));
+            const bad=res.find(x=>x.error);if(bad)throw bad.error;
+          }
+          for(let i=0;i<fp.remove.length;i+=100){
+            const r=await db.from("mock_test_questions").delete().in("id",fp.remove.slice(i,i+100));
+            if(r.error)throw r.error;
+          }
+          for(const c of fp.containers){
+            if(c.isNew||!c.needFix)continue;
+            const n=c.keep.length,d=dur(n);
+            const r1=await db.from("mock_tests").update({duration_minutes:d,total_questions:n}).eq("id",c.m.id);
+            if(r1.error)throw r1.error;
+            if(c.secs.length===1){const r2=await db.from("mock_test_sections").update({duration_minutes:d,question_count:n}).eq("id",c.secs[0].id);if(r2.error)throw r2.error}
+          }
         }
-        for(const f of fp.finals){
-          const r1=await db.from("mock_tests").update({duration_minutes:f.dur,total_questions:f.n}).eq("id",f.m.id);
-          if(r1.error)throw r1.error;
-          if(f.sec){const r2=await db.from("mock_test_sections").update({duration_minutes:f.dur,question_count:f.n}).eq("id",f.sec.id);if(r2.error)throw r2.error}
-        }
-        for(const m of fp.deact){
+        for(const m of fp.dropped){
           const r1=await db.from("mock_tests").update({is_active:false,total_questions:0}).eq("id",m.id);
           if(r1.error)throw r1.error;
           await db.from("mock_test_sections").update({question_count:0}).eq("mock_test_id",m.id);

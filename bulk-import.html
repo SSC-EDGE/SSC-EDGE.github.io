@@ -479,7 +479,7 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
           <b>Two ways to import:</b><br>
           <b>Shift-wise:</b> fill Date and Shift (goes to Subject → Date → Shift folder).<br>
           <b>Both:</b> fill Date, Shift <u>and</u> Chapter — the question goes to its shift folder <u>and</u> into chapter mocks.<br>
-          <b>Chapter-wise:</b> fill <b>Chapter</b> (Date/Shift can be blank) (chapter must already exist). The questions are saved to that Subject → Chapter and also split automatically into mocks of about 25 questions (each mock always has 20+ questions, e.g. 65 questions → 3 mocks of 22/22/21; a chapter with fewer than 20 new questions gets no mock). Time is 0.8 min per question. The mock goes straight into its own folder: <b>Maths</b> → Arithmetic Maths / Advance Maths / Number System (e.g. Time &amp; Distance → Arithmetic Maths), <b>English</b> → Grammar / Vocabulary / Reading Comprehension, <b>Reasoning</b> → Verbal / Non Verbal / Statement Based Questions.<br><br>
+          <b>Chapter-wise:</b> fill <b>Chapter</b> (Date/Shift can be blank) (chapter must already exist). The questions are saved to that Subject → Chapter and also split automatically into mocks of 25; the extra questions go into the last mock (up to 30) or form a 20+ mock (e.g. 52 → 25 + 27, 49 → 25 + 24, 45 → 25 + 20, 41 → 20 + 21, 62 → 25 + 30 and 7 stay free). A chapter with fewer than 20 new questions gets no mock. Time is 0.8 min per question. The mock goes straight into its own folder: <b>Maths</b> → Arithmetic Maths / Advance Maths / Number System (e.g. Time &amp; Distance → Arithmetic Maths), <b>English</b> → Grammar / Vocabulary / Reading Comprehension, <b>Reasoning</b> → Verbal / Non Verbal / Statement Based Questions.<br><br>
 
           <b>Required columns:</b><br>
 
@@ -1483,7 +1483,8 @@ async function assignToExistingMocks(rows,summary,examId){
 
 /* CHAPTER-WISE MOCKS (Practice Drill) */
 const CHAPTER_SET_SIZE = 25;   /* target questions per mock */
-const MIN_Q_PER_MOCK   = 20;   /* a chapter mock must have 20+ questions */
+const MIN_Q_PER_MOCK   = 20;   /* a chapter mock has 20 to 30 questions */
+const MAX_Q_PER_MOCK   = 30;
 const MIN_PER_Q = 0.6, MAX_PER_Q = 0.8;   /* minutes per question: fixed between 0.6 and 0.8 */
 
 /* ===== Practice Drill groups (same block is used in all Practice Drill pages) ===== */
@@ -1506,15 +1507,23 @@ function drillGroupFor(subjectName,chapterName){
   for(const [g,re] of cfg.rules)if(re.test(n))return g;
   return cfg.fallback;
 }
-/* Split `total` questions into mocks of about `size`, never below MIN_Q_PER_MOCK. Returns the size of each mock ([] = no mock). */
+/* Mocks are made in sets of `size` (default 25). What is left over goes into the last mock (up to 30),
+   or becomes its own mock when it has 20+, or (leftover 15-19) the last 25 becomes 20 and the rest forms a 20+ mock.
+   Whatever still does not fit stays free (blank) for later. Examples: 52 = 25+27, 49 = 25+24, 45 = 25+20,
+   41 = 20+21, 62 = 25+30 (7 free). Returns the size of each mock ([] = no mock). */
 function planSets(total,size){
-  size=Math.max(MIN_Q_PER_MOCK,parseInt(size)||CHAPTER_SET_SIZE);
-  let n=Math.floor(total/size);
-  if(total-n*size>=MIN_Q_PER_MOCK)n++;
-  if(n===0&&total>=MIN_Q_PER_MOCK)n=1;
-  if(!n)return [];
-  const base=Math.floor(total/n),extra=total%n;
-  return Array.from({length:n},(_,i)=>base+(i<extra?1:0));
+  const S=Math.min(MAX_Q_PER_MOCK,Math.max(MIN_Q_PER_MOCK,parseInt(size)||25));
+  if(total<MIN_Q_PER_MOCK)return [];
+  const k=Math.floor(total/S);
+  if(k===0)return [total];
+  const L=total-k*S;
+  const sizes=Array(k).fill(S);
+  if(L===0)return sizes;
+  if(L>=MIN_Q_PER_MOCK){sizes.push(L);return sizes}
+  if(L<=MAX_Q_PER_MOCK-S){sizes[k-1]+=L;return sizes}
+  if(L>=2*MIN_Q_PER_MOCK-S){sizes[k-1]=MIN_Q_PER_MOCK;sizes.push(S+L-MIN_Q_PER_MOCK);return sizes}
+  sizes[k-1]=MAX_Q_PER_MOCK;
+  return sizes;
 }
 const drillPerQ=()=>Math.min(MAX_PER_Q,Math.max(MIN_PER_Q,0.8));
 
@@ -1579,7 +1588,7 @@ async function createChapterWiseMocks(rows,summary){
     try{
       const sizes=planSets(g.rows.length,CHAPTER_SET_SIZE);
       if(!sizes.length){
-        summary.warnings.push(`${g.chapterName}: only ${g.rows.length} new question(s). A chapter mock needs ${MIN_Q_PER_MOCK}+ questions, so no mock was made. Run Chapter Mock Generator once the chapter has ${MIN_Q_PER_MOCK}+ free questions.`);
+        summary.warnings.push(`${g.chapterName}: only ${g.rows.length} new question(s). A chapter mock needs ${MIN_Q_PER_MOCK}-${MAX_Q_PER_MOCK} questions, so no mock was made. Run Chapter Mock Generator once the chapter has ${MIN_Q_PER_MOCK}+ free questions.`);
         continue;
       }
       const subjectName=subjects.find(s=>String(s.id)===String(g.subjectId))?.name||"";
@@ -1591,6 +1600,8 @@ async function createChapterWiseMocks(rows,summary){
       let sortOrder=Math.max(0,...(existing||[]).map(m=>Number(m.sort_order)||0))+1;
       g.rows.sort((a,b)=>a.rowNumber-b.rowNumber);
       let pos=0;
+      const leftover=g.rows.length-sizes.reduce((a,b)=>a+b,0);
+      if(leftover>0)summary.warnings.push(`${g.chapterName}: ${leftover} question(s) did not fit into the 20-30 mocks, so they stay free. Run Chapter Mock Generator when the chapter has more questions.`);
       for(const n of sizes){
         const chunk=g.rows.slice(pos,pos+n);pos+=n;
         const title=`${g.chapterName} Set ${setNo}`;
