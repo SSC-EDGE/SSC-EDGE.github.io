@@ -5,7 +5,7 @@
 
 <script>
 document.documentElement.dataset.theme =
-  localStorage.getItem("ssc-edge-theme") || "dark";
+  localStorage.getItem("ssc-edge-theme") || "light";
 </script>
 
 <meta charset="UTF-8">
@@ -150,6 +150,48 @@ document.documentElement.dataset.theme =
   line-height:1;
 }
 
+
+.ssc-back{display:inline-block; margin-bottom:14px; font-size:14px; font-weight:800; color:var(--purple,#8b45ee); text-decoration:none;}
+header.ssc-head:where(:not(.keep)), .header-tagline, .home-footer{display:none;}
+
+/* ==================================================
+   DESKTOP LAYOUT (960px and wider only)
+   ================================================== */
+@media(min-width:960px){
+body{display:flex; flex-direction:column; min-height:100vh; margin:0; padding:0;}
+body header.ssc-head{
+  position:sticky; top:0; z-index:98; width:100%; max-width:none; height:96px; margin:0; padding:0 max(32px, calc((100% - max(1200px, 83.333%)) / 2));
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:center;
+  box-sizing:border-box; background:var(--header); border:0; border-bottom:1px solid var(--border);
+}
+body .ssc-head .brand{display:block; margin:0; padding:0;}
+body .ssc-head .brand strong{display:block; font-size:44px; line-height:1; font-weight:900; color:var(--text);}
+body .ssc-head .brand span{color:#9b5cff;}
+body .ssc-head .header-tagline{display:block; margin-top:6px; font-size:17px; font-weight:700; line-height:1; color:var(--muted);}
+body .container{flex:1 0 auto; box-sizing:border-box; width:100%; max-width:max(1264px, calc(83.333% + 64px)); margin:0 auto; padding:32px 32px 56px;}
+.ssc-back{align-self:flex-start; font-size:15px; margin-bottom:20px;}
+.page-title{font-size:38px; margin-bottom:8px;}
+.page-subtitle{font-size:16px; margin-bottom:32px;}
+.pdf-list,.material-list{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px;}
+.pdf-card,.material-card{display:flex; flex-direction:column; border-radius:18px;}
+.pdf-content,.material-content{flex:1; display:flex; flex-direction:column; padding:22px;}
+.material-subject{display:block;}
+.pdf-title,.material-title{font-size:20px; overflow-wrap:anywhere;}
+.pdf-subject,.material-subject{font-size:14px;}
+.pdf-description,.material-description{font-size:15px;}
+.pdf-actions,.material-actions{margin-top:auto; padding-top:6px; gap:12px;}
+.open,.download{min-height:48px; font-size:15px;}
+.empty{grid-column:1 / -1; font-size:15px;}
+.bottom-nav{display:none !important;}
+.home-footer{display:block; text-align:center; padding:32px 20px; border-top:1px solid var(--border); background:var(--bg);}
+.home-footer h2{margin:0; font-size:19px; font-weight:800; color:var(--text);}
+.home-footer h2 span{color:#9b5cff;}
+.home-footer p{margin:6px 0 0; font-size:11px; color:var(--muted);}
+}
+@media(min-width:1280px){
+.pdf-list,.material-list{grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+
 </style>
 
 </head>
@@ -160,11 +202,13 @@ document.documentElement.dataset.theme =
      HEADER
 ========================= -->
 
-<header class="top-header">
+<header class="top-header ssc-head keep">
 
   <div class="brand">
     <strong>SSC <span>EDGE</span></strong>
   </div>
+
+  <div class="header-tagline">Learn • Practice • Improve</div>
 
 </header>
 
@@ -174,6 +218,8 @@ document.documentElement.dataset.theme =
 ========================= -->
 
 <main class="container">
+
+<a class="ssc-back" href="study.html">← Back</a>
 
   <div class="page-title">
     Quantitative Aptitude
@@ -197,6 +243,11 @@ document.documentElement.dataset.theme =
 <!-- =========================
      BOTTOM NAV
 ========================= -->
+
+<footer class="home-footer">
+  <h2>SSC <span>EDGE</span></h2>
+  <p>Learn • Practice • Improve</p>
+</footer>
 
 <nav class="bottom-nav">
 
