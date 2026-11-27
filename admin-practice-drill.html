@@ -831,9 +831,7 @@ function renderFolders(){
           >
 
             <div class="folder-icon">
-              ${firstLetter(
-                f.display_name || f.name
-              )}
+              ${iconOf(f)}
             </div>
 
             <div>
@@ -1074,9 +1072,7 @@ function renderContents(){
           >
 
             <div class="folder-icon">
-              ${firstLetter(
-                c.display_name || c.name
-              )}
+              ${iconOf(c)}
             </div>
 
             <div>
@@ -1534,6 +1530,9 @@ function showModal(title,body,fn){
 
   $("modalTitle").textContent = title;
   $("modalBody").innerHTML = body;
+  if((mode === "folder" || mode === "child") && $("modalBody").querySelector(".form")){
+    $("modalBody").querySelector(".form").insertAdjacentHTML("beforeend",iconField(editing && editing.icon));
+  }
 
   $("modal").classList.add("show");
 
@@ -1583,6 +1582,8 @@ async function saveFolder(){
 
   };
 
+  const iconVal = ($("fIcon") ? $("fIcon").value : "").trim();
+  if(iconVal || (editing && editing.icon)) payload.icon = iconVal || null;
   let r;
 
   if(editing){
@@ -1602,7 +1603,7 @@ async function saveFolder(){
   }
 
   if(r.error){
-    return toast(r.error.message);
+    return toast(folderSaveError(r.error));
   }
 
   closeModal();
@@ -1657,6 +1658,8 @@ async function saveChild(){
 
   };
 
+  const iconVal = ($("fIcon") ? $("fIcon").value : "").trim();
+  if(iconVal || (editing && editing.icon)) payload.icon = iconVal || null;
   let r;
 
   if(editing){
@@ -1676,7 +1679,7 @@ async function saveChild(){
   }
 
   if(r.error){
-    return toast(r.error.message);
+    return toast(folderSaveError(r.error));
   }
 
   closeModal();
@@ -1809,6 +1812,36 @@ function drillGroupFor(subjectName,chapterName){
   const n=gnorm(chapterName);
   for(const [g,re] of cfg.rules)if(re.test(n))return g;
   return cfg.fallback;
+}
+
+
+/* ===== Folder icons (admin editable; saved in mock_folders.icon) ===== */
+const DEFAULT_FOLDER_ICONS={
+  "grammar":"✍️","vocabulary":"📖","reading comprehension":"📄",
+  "arithmetic maths":"➗","advance maths":"📐","number system":"🔢",
+  "verbal reasoning":"💬","non verbal reasoning":"🔷","statement based questions":"📝"
+};
+const ICON_CHOICES=["📚","📖","✍️","📄","➗","📐","🔢","💬","🔷","📝","🧠","🧩","🚀","🔥","⭐","🎯","📁"];
+function iconOf(f){
+  const custom=String(f.icon||"").trim();
+  if(custom)return esc(custom);
+  const d=DEFAULT_FOLDER_ICONS[gnorm(f.display_name||f.name)];
+  return d||firstLetter(f.display_name||f.name);
+}
+function iconField(value){
+  return `<div class="field full">
+    <label>Icon (shown to students instead of the first letter)</label>
+    <input id="fIcon" maxlength="8" placeholder="Type or paste an emoji, leave empty for default" value="${esc(value||"")}">
+    <div class="actions" style="margin-top:2px">
+      ${ICON_CHOICES.map(i=>`<button type="button" class="btn secondary" style="padding:6px 9px;font-size:16px" onclick="document.getElementById('fIcon').value='${i}'">${i}</button>`).join("")}
+      <button type="button" class="btn secondary" style="padding:6px 9px" onclick="document.getElementById('fIcon').value=''">Clear</button>
+    </div>
+  </div>`;
+}
+function folderSaveError(e){
+  const m=String(e&&e.message||e);
+  if(/icon/i.test(m))return "Icon column missing. Run once in Supabase SQL editor: alter table mock_folders add column if not exists icon text;";
+  return m;
 }
 
 /* ===== MOVE a chapter/child folder (with all its mocks) or a single mock =====

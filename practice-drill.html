@@ -740,8 +740,24 @@ function iconFor(n){
    FOLDER LOGO
    ================================================== */
 
+const DEFAULT_FOLDER_ICONS = {
+  "grammar":"✍️","vocabulary":"📖","reading comprehension":"📄",
+  "arithmetic maths":"➗","advance maths":"📐","number system":"🔢",
+  "verbal reasoning":"💬","non verbal reasoning":"🔷","statement based questions":"📝"
+};
+function folderKey(f){
+  return String(f.display_name || f.name || "").toLowerCase().replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim();
+}
+/* Icon chosen by the admin (mock_folders.icon), else a default for the known group folders */
+function customIcon(f){
+  const c = String(f.icon || "").trim();
+  return c || DEFAULT_FOLDER_ICONS[folderKey(f)] || "";
+}
 function folderLogo(f){
-
+  const custom = customIcon(f);
+  if(custom){
+    return { icon:custom, cls:"chapter" };
+  }
   if(f.virtualIcon){
     return { icon:f.virtualIcon, cls:"chapter" };
   }
@@ -1440,6 +1456,16 @@ function applyEnglishGroups(){
 
     if(!roots.length) return;
 
+    /* Real Grammar / Vocabulary / Reading Comprehension folders (created from the admin side)
+       replace this virtual grouping, so admin and students see the same folders. */
+    const groupNames = new Set(ENGLISH_GROUPS.map(g => g.name.toLowerCase()));
+    const hasRealGroups = folders.some(f =>
+      String(f.subject_id || "") === String(sub.id) &&
+      !f.parent_id &&
+      groupNames.has(String(f.display_name || f.name || "").trim().toLowerCase())
+    );
+    if(hasRealGroups) return;
+
     const rootIds = new Set(roots.map(r => String(r.id)));
     const chapterFolders = folders.filter(f => rootIds.has(String(f.parent_id || "")));
 
@@ -1827,16 +1853,7 @@ async function renderFolderContents(){
                     "
                   >
 
-                    ${
-                      String(
-                        c.display_name ||
-                        c.name ||
-                        "F"
-                      )
-                      .trim()
-                      .charAt(0)
-                      .toUpperCase()
-                    }
+                    ${ customIcon(c) || String(c.display_name || c.name || "F").trim().charAt(0).toUpperCase() }
 
                   </div>
 
