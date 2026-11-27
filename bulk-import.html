@@ -479,7 +479,7 @@ body.tool-bank #manualCard,body.tool-bank #bulkCard{display:none!important}
           <b>Two ways to import:</b><br>
           <b>Shift-wise:</b> fill Date and Shift (goes to Subject → Date → Shift folder).<br>
           <b>Both:</b> fill Date, Shift <u>and</u> Chapter — the question goes to its shift folder <u>and</u> into chapter mocks.<br>
-          <b>Chapter-wise:</b> fill <b>Chapter</b> (Date/Shift can be blank) (chapter must already exist). The questions are saved to that Subject → Chapter and also split automatically into mocks of 25 (e.g. 65 questions → Percentage Set 1 = 25, Set 2 = 25, Set 3 = 15) inside <b>Practice Drill → Subject → Chapter</b>.<br><br>
+          <b>Chapter-wise:</b> fill <b>Chapter</b> (Date/Shift can be blank) (chapter must already exist). The questions are saved to that Subject → Chapter and also split automatically into mocks of about 25 questions (each mock always has 20+ questions, e.g. 65 questions → 3 mocks of 22/22/21; a chapter with fewer than 20 new questions gets no mock). Time is 0.8 min per question. The mock goes straight into its own folder: <b>Maths</b> → Arithmetic Maths / Advance Maths / Number System (e.g. Time &amp; Distance → Arithmetic Maths), <b>English</b> → Grammar / Vocabulary / Reading Comprehension, <b>Reasoning</b> → Verbal / Non Verbal / Statement Based Questions.<br><br>
 
           <b>Required columns:</b><br>
 
@@ -1482,8 +1482,41 @@ async function assignToExistingMocks(rows,summary,examId){
 }
 
 /* CHAPTER-WISE MOCKS (Practice Drill) */
+const CHAPTER_SET_SIZE = 25;   /* target questions per mock */
+const MIN_Q_PER_MOCK   = 20;   /* a chapter mock must have 20+ questions */
+const MIN_PER_Q = 0.6, MAX_PER_Q = 0.8;   /* minutes per question: fixed between 0.6 and 0.8 */
 
-const CHAPTER_SET_SIZE = 25;
+/* ===== Practice Drill groups (same block is used in all Practice Drill pages) ===== */
+const DRILL_GROUP_SETS=[
+  {subject:/english/i,groups:["Grammar","Vocabulary","Reading Comprehension"],fallback:"Grammar",rules:[
+    ["Reading Comprehension",/comprehension|cloze|passage|para ?jumble|sentence rearrange|pqrs/],
+    ["Vocabulary",/antonym|synonym|homonym|idiom|phrase|phrasal|one word|spelling|vocab|word/]]},
+  {subject:/math|quant/i,groups:["Arithmetic Maths","Advance Maths","Number System"],fallback:"Arithmetic Maths",rules:[
+    ["Number System",/number system|hcf|lcm|divisib|remainder|unit digit|surd|indices|square root|cube root|simplification|bodmas|decimal|fraction|prime|factor|number theory|approximation|digit/],
+    ["Advance Maths",/algebra|geometr|trigonometr|mensuration|coordinate|height|quadratic|polynomial|triangle|circle|quadrilateral|statistic|probability|permutation|combination|inequalit|progression|logarithm|linear equation|identit|maxima|minima|\b[23]d\b/]]},
+  {subject:/reasoning/i,groups:["Verbal Reasoning","Non Verbal Reasoning","Statement Based Questions"],fallback:"Verbal Reasoning",rules:[
+    ["Statement Based Questions",/syllogism|statement|assumption|argument|conclusion|course of action|inference|assertion|cause and effect|decision making/],
+    ["Non Verbal Reasoning",/non ?verbal|figure|image|mirror|water|paper fold|paper cut|embedded|hidden|dice|cube|pattern|visual|shape|dot situation|rotation/]]}
+];
+const gnorm=s=>String(s||"").toLowerCase().replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim();
+function drillGroupCfg(subjectName){return DRILL_GROUP_SETS.find(c=>c.subject.test(String(subjectName||"")))||null}
+function drillGroupFor(subjectName,chapterName){
+  const cfg=drillGroupCfg(subjectName);if(!cfg)return null;
+  const n=gnorm(chapterName);
+  for(const [g,re] of cfg.rules)if(re.test(n))return g;
+  return cfg.fallback;
+}
+/* Split `total` questions into mocks of about `size`, never below MIN_Q_PER_MOCK. Returns the size of each mock ([] = no mock). */
+function planSets(total,size){
+  size=Math.max(MIN_Q_PER_MOCK,parseInt(size)||CHAPTER_SET_SIZE);
+  let n=Math.floor(total/size);
+  if(total-n*size>=MIN_Q_PER_MOCK)n++;
+  if(n===0&&total>=MIN_Q_PER_MOCK)n=1;
+  if(!n)return [];
+  const base=Math.floor(total/n),extra=total%n;
+  return Array.from({length:n},(_,i)=>base+(i<extra?1:0));
+}
+const drillPerQ=()=>Math.min(MAX_PER_Q,Math.max(MIN_PER_Q,0.8));
 
 async function getDrillExamId(subjectId){
   const {data:exams,error}=await db.from("exams").select("id,name,mock_type,stage").order("name");
@@ -1497,62 +1530,71 @@ async function getDrillExamId(subjectId){
   if(!list.length)throw new Error("No exam found in the exams table.");
   return list[0].id;
 }
-
-async function getChapterWiseRootFolder(subjectId,examId){
-  const {data,error}=await db.from("mock_folders").select("id,name,folder_type,is_active").eq("subject_id",subjectId).is("parent_id",null);
+/* Finds the chapter's folder wherever it currently is (so folders the admin moved keep getting new mocks).
+   If there is none, creates it inside the right group folder (Maths/English/Reasoning) or "Chapter Wise". */
+async function getChapterFolder(subjectId,subjectName,chapterName,warnings,examId){
+  const {data,error}=await db.from("mock_folders").select("id,name,display_name,parent_id,folder_type,is_active,sort_order").eq("subject_id",subjectId);
   if(error)throw error;
-  const list=data||[];
-  const root=list.find(f=>f.is_active!==false && String(f.folder_type||"").toUpperCase().includes("CHAPTER"))
-    || list.find(f=>String(f.folder_type||"").toUpperCase().includes("CHAPTER"));
-  if(root)return root.id;
-  const {data:created,error:e2}=await db.from("mock_folders").insert({exam_id:examId,subject_id:subjectId,name:"Chapter Wise",display_name:"Chapter Wise",folder_type:"CHAPTER",parent_id:null,is_active:true,sort_order:list.length+1}).select("id").single();
-  if(e2)throw e2;
-  return created.id;
-}
-
-async function getChapterFolder(subjectId,rootId,chapterName,warnings,examId){
-  const {data,error}=await db.from("mock_folders").select("id,name,display_name,is_active,sort_order").eq("subject_id",subjectId).eq("parent_id",rootId);
-  if(error)throw error;
-  const target=normalizeHeader(chapterName);
-  const found=(data||[]).find(f=>normalizeHeader(f.display_name||f.name)===target||normalizeHeader(f.name)===target);
+  const all=data||[];
+  const isCh=f=>String(f.folder_type||"").toUpperCase().includes("CHAPTER");
+  const roots=all.filter(f=>!f.parent_id&&isCh(f));
+  const rootIds=new Set(roots.map(f=>String(f.id)));
+  const target=gnorm(chapterName);
+  const found=all.find(f=>f.parent_id&&rootIds.has(String(f.parent_id))&&(gnorm(f.display_name||f.name)===target||gnorm(f.name)===target));
   if(found){
     if(found.is_active===false)warnings.push(`Chapter folder "${chapterName}" is inactive, so its new mocks will not show in Practice Drill until you activate it.`);
     return found.id;
   }
-  const {data:created,error:e2}=await db.from("mock_folders").insert({exam_id:examId,subject_id:subjectId,name:chapterName,display_name:chapterName,folder_type:"CHAPTER",parent_id:rootId,is_active:true,sort_order:(data||[]).length+1}).select("id").single();
+  const gname=drillGroupFor(subjectName,chapterName);
+  let root=null;
+  if(gname){
+    root=roots.find(f=>gnorm(f.display_name||f.name)===gnorm(gname));
+    if(root&&root.is_active===false)warnings.push(`Folder "${gname}" is inactive, so its mocks will not show in Practice Drill until you activate it.`);
+  }else{
+    root=roots.find(f=>f.is_active!==false)||roots[0];
+  }
+  if(!root){
+    const rname=gname||"Chapter Wise";
+    const {data:created,error:e1}=await db.from("mock_folders").insert({exam_id:examId,subject_id:subjectId,name:rname,display_name:rname,folder_type:"CHAPTER",parent_id:null,is_active:true,sort_order:all.filter(f=>!f.parent_id).length+1}).select("id").single();
+    if(e1)throw e1;
+    root={id:created.id};
+  }
+  const sibs=all.filter(f=>String(f.parent_id||"")===String(root.id)).length;
+  const {data:created2,error:e2}=await db.from("mock_folders").insert({exam_id:examId,subject_id:subjectId,name:chapterName,display_name:chapterName,folder_type:"CHAPTER",parent_id:root.id,is_active:true,sort_order:sibs+1}).select("id").single();
   if(e2)throw e2;
-  return created.id;
+  return created2.id;
 }
-
-/* Splits each chapter's imported questions into sets of 25 and creates a mock for each. */
+/* Splits each chapter's imported questions into mocks (20+ questions each) and puts them in the chapter's folder. */
 async function createChapterWiseMocks(rows,summary){
   const done=rows.filter(r=>r.chapterWise && r._qid);
   if(!done.length)return;
-
   const groups=new Map();
   done.forEach(r=>{
     const key=`${r.subjectId}|${r.chapterId}`;
     if(!groups.has(key))groups.set(key,{subjectId:r.subjectId,chapterName:(chapters.find(c=>String(c.id)===String(r.chapterId))?.name)||r.chapterName,rows:[]});
     groups.get(key).rows.push(r);
   });
-
-  const rootCache=new Map();
+  const perQ=drillPerQ();
   for(const g of groups.values()){
     try{
+      const sizes=planSets(g.rows.length,CHAPTER_SET_SIZE);
+      if(!sizes.length){
+        summary.warnings.push(`${g.chapterName}: only ${g.rows.length} new question(s). A chapter mock needs ${MIN_Q_PER_MOCK}+ questions, so no mock was made. Run Chapter Mock Generator once the chapter has ${MIN_Q_PER_MOCK}+ free questions.`);
+        continue;
+      }
+      const subjectName=subjects.find(s=>String(s.id)===String(g.subjectId))?.name||"";
       const examId=await getDrillExamId(g.subjectId);
-      if(!rootCache.has(String(g.subjectId)))rootCache.set(String(g.subjectId),await getChapterWiseRootFolder(g.subjectId,examId));
-      const folderId=await getChapterFolder(g.subjectId,rootCache.get(String(g.subjectId)),g.chapterName,summary.warnings,examId);
-
+      const folderId=await getChapterFolder(g.subjectId,subjectName,g.chapterName,summary.warnings,examId);
       const {data:existing,error:exError}=await db.from("mock_tests").select("id,sort_order").eq("folder_id",folderId);
       if(exError)throw exError;
       let setNo=(existing?.length||0)+1;
       let sortOrder=Math.max(0,...(existing||[]).map(m=>Number(m.sort_order)||0))+1;
-
       g.rows.sort((a,b)=>a.rowNumber-b.rowNumber);
-      for(let i=0;i<g.rows.length;i+=CHAPTER_SET_SIZE){
-        const chunk=g.rows.slice(i,i+CHAPTER_SET_SIZE);
+      let pos=0;
+      for(const n of sizes){
+        const chunk=g.rows.slice(pos,pos+n);pos+=n;
         const title=`${g.chapterName} Set ${setNo}`;
-        const duration=Math.max(1,Math.round(chunk.length*0.6));
+        const duration=Math.max(1,Math.round(chunk.length*perQ));
         let mockId=null;
         try{
           const {data:mock,error:mErr}=await db.from("mock_tests").insert({
@@ -1563,18 +1605,15 @@ async function createChapterWiseMocks(rows,summary){
           }).select("id").single();
           if(mErr)throw mErr;
           mockId=mock.id;
-
           const {data:sec,error:sErr}=await db.from("mock_test_sections").insert({
             mock_test_id:mockId,subject_id:g.subjectId,section_name:"Chapter Questions",
             duration_minutes:duration,question_count:chunk.length,section_order:1
           }).select("id").single();
           if(sErr)throw sErr;
-
           const {error:qErr}=await db.from("mock_test_questions").insert(
             chunk.map((r,idx)=>({mock_test_id:mockId,question_id:r._qid,section_id:sec.id,question_order:idx+1}))
           );
           if(qErr)throw qErr;
-
           summary.mocks.push(`${title} (${chunk.length} questions)`);
           setNo++;sortOrder++;
         }catch(err){
@@ -1591,7 +1630,6 @@ async function createChapterWiseMocks(rows,summary){
     }
   }
 }
-
 /* BULK IMPORT DATABASE — optimized batched inserts; UI unchanged */
 
 async function importAllQuestions(){

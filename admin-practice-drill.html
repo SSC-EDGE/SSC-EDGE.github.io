@@ -420,12 +420,10 @@ button{
         </div>
       </div>
 
-      <button
-        class="btn primary"
-        onclick="openFolderModal()"
-      >
-        ＋ Folder
-      </button>
+      <div class="actions">
+        <button class="btn secondary" id="organizeBtn" style="display:none" onclick="openOrganizeModal()">⚙ Auto-Organize</button>
+        <button class="btn primary" onclick="openFolderModal()">＋ Folder</button>
+      </div>
     </div>
 
     <div class="list" id="folderList"></div>
@@ -802,7 +800,8 @@ function subjectFolders(){
 }
 
 function renderFolders(){
-
+  const ob = $("organizeBtn");
+  if(ob) ob.style.display = (selectedSubject && drillGroupCfg(selectedSubject.name)) ? "inline-block" : "none";
   const fs = subjectFolders();
 
   $("folderList").innerHTML =
@@ -1110,6 +1109,9 @@ function renderContents(){
               Open
             </button>
 
+            <button class="btn secondary" onclick="moveChild('${c.id}',-1)">↑</button>
+            <button class="btn secondary" onclick="moveChild('${c.id}',1)">↓</button>
+            <button class="btn secondary" onclick="openMoveFolder('${c.id}')">Move</button>
             <button
               class="btn secondary"
               onclick="editChild('${c.id}')"
@@ -1168,6 +1170,7 @@ function renderContents(){
 
           <div class="actions">
 
+            <button class="btn secondary" onclick="openMoveTest('${t.id}')">Move</button>
             <button
               class="btn secondary"
               onclick="editTest('${t.id}')"
@@ -1769,45 +1772,239 @@ async function deleteFolder(id){
   toast("Folder deleted");
 }
 
-/* MOVE ROOT FOLDER */
-
-async function moveFolder(id,dir){
-
-  const fs = subjectFolders();
-
-  const i =
-    fs.findIndex(
-      x => String(x.id) === String(id)
-    );
-
+/* REORDER (siblings are re-numbered 1..n so equal sort_order values never block a move) */
+async function reorderSiblings(list,id,dir){
+  const i = list.findIndex(x => String(x.id) === String(id));
   const j = i + dir;
-
-  if(
-    i < 0 ||
-    j < 0 ||
-    j >= fs.length
-  ){
-    return;
-  }
-
-  const a = fs[i];
-  const b = fs[j];
-
-  await db
-    .from("mock_folders")
-    .update({
-      sort_order:b.sort_order ?? j
-    })
-    .eq("id",a.id);
-
-  await db
-    .from("mock_folders")
-    .update({
-      sort_order:a.sort_order ?? i
-    })
-    .eq("id",b.id);
-
+  if(i < 0 || j < 0 || j >= list.length) return;
+  const arr = [...list];
+  [arr[i],arr[j]] = [arr[j],arr[i]];
+  const jobs = arr.map((f,k) => (Number(f.sort_order) === k + 1)
+    ? null
+    : db.from("mock_folders").update({sort_order:k + 1}).eq("id",f.id)).filter(Boolean);
+  const res = await Promise.all(jobs);
+  const bad = res.find(r => r.error);
+  if(bad) return toast(bad.error.message);
   await reload();
+}
+function moveFolder(id,dir){ return reorderSiblings(subjectFolders(),id,dir); }
+function moveChild(id,dir){ return reorderSiblings(children(),id,dir); }
+
+/* ===== Practice Drill groups (same block is used in all Practice Drill pages) ===== */
+const DRILL_GROUP_SETS=[
+  {subject:/english/i,groups:["Grammar","Vocabulary","Reading Comprehension"],fallback:"Grammar",rules:[
+    ["Reading Comprehension",/comprehension|cloze|passage|para ?jumble|sentence rearrange|pqrs/],
+    ["Vocabulary",/antonym|synonym|homonym|idiom|phrase|phrasal|one word|spelling|vocab|word/]]},
+  {subject:/math|quant/i,groups:["Arithmetic Maths","Advance Maths","Number System"],fallback:"Arithmetic Maths",rules:[
+    ["Number System",/number system|hcf|lcm|divisib|remainder|unit digit|surd|indices|square root|cube root|simplification|bodmas|decimal|fraction|prime|factor|number theory|approximation|digit/],
+    ["Advance Maths",/algebra|geometr|trigonometr|mensuration|coordinate|height|quadratic|polynomial|triangle|circle|quadrilateral|statistic|probability|permutation|combination|inequalit|progression|logarithm|linear equation|identit|maxima|minima|\b[23]d\b/]]},
+  {subject:/reasoning/i,groups:["Verbal Reasoning","Non Verbal Reasoning","Statement Based Questions"],fallback:"Verbal Reasoning",rules:[
+    ["Statement Based Questions",/syllogism|statement|assumption|argument|conclusion|course of action|inference|assertion|cause and effect|decision making/],
+    ["Non Verbal Reasoning",/non ?verbal|figure|image|mirror|water|paper fold|paper cut|embedded|hidden|dice|cube|pattern|visual|shape|dot situation|rotation/]]}
+];
+const gnorm=s=>String(s||"").toLowerCase().replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim();
+function drillGroupCfg(subjectName){return DRILL_GROUP_SETS.find(c=>c.subject.test(String(subjectName||"")))||null}
+function drillGroupFor(subjectName,chapterName){
+  const cfg=drillGroupCfg(subjectName);if(!cfg)return null;
+  const n=gnorm(chapterName);
+  for(const [g,re] of cfg.rules)if(re.test(n))return g;
+  return cfg.fallback;
+}
+
+/* ===== MOVE a chapter/child folder (with all its mocks) or a single mock =====
+   Only parent_id / folder_id changes. Mocks, questions and attempts are never touched. */
+let moving = null;
+const nameOf = f => f.display_name || f.name;
+function scopeFolders(){
+  return folders.filter(f =>
+    String(f.exam_id) === String(selectedExam.id) &&
+    String(f.subject_id || "") === String(selectedSubject.id));
+}
+function pathLabel(f){
+  const parts = [];
+  let cur = f, guard = 0;
+  while(cur && guard++ < 20){
+    parts.unshift(nameOf(cur));
+    cur = folders.find(x => String(x.id) === String(cur.parent_id || ""));
+  }
+  return parts.join(" › ");
+}
+function descendantIds(id){
+  const out = new Set([String(id)]);
+  let grew = true;
+  while(grew){
+    grew = false;
+    folders.forEach(f => {
+      if(f.parent_id && out.has(String(f.parent_id)) && !out.has(String(f.id))){
+        out.add(String(f.id));
+        grew = true;
+      }
+    });
+  }
+  return out;
+}
+function openMoveFolder(id){
+  const f = folders.find(x => String(x.id) === String(id));
+  if(!f) return;
+  moving = {kind:"folder", id:f.id};
+  const banned = descendantIds(f.id);
+  const opts = scopeFolders()
+    .filter(x => !banned.has(String(x.id)))
+    .sort((a,b) => pathLabel(a).localeCompare(pathLabel(b)))
+    .map(x => `<option value="${esc(x.id)}" ${String(x.id) === String(f.parent_id || "") ? "selected" : ""}>${esc(pathLabel(x))}</option>`)
+    .join("");
+  showModal("Move Folder", `
+    <div class="form">
+      <div class="field full"><label>Folder</label><input value="${esc(nameOf(f))}" disabled></div>
+      <div class="field full">
+        <label>Move into</label>
+        <select id="mvTarget">
+          <option value="">— Top level of ${esc(selectedSubject.name)} —</option>
+          ${opts}
+        </select>
+      </div>
+      <div class="field full muted">All mocks and child folders inside this folder move with it. Nothing is deleted or re-created.</div>
+    </div>`, saveMove);
+}
+function openMoveTest(id){
+  const t = tests.find(x => String(x.id) === String(id));
+  if(!t) return;
+  moving = {kind:"test", id:t.id};
+  const opts = scopeFolders()
+    .sort((a,b) => pathLabel(a).localeCompare(pathLabel(b)))
+    .map(x => `<option value="${esc(x.id)}" ${String(x.id) === String(t.folder_id || "") ? "selected" : ""}>${esc(pathLabel(x))}</option>`)
+    .join("");
+  showModal("Move Mock", `
+    <div class="form">
+      <div class="field full"><label>Mock</label><input value="${esc(t.title)}" disabled></div>
+      <div class="field full"><label>Move into folder</label><select id="mvTarget">${opts}</select></div>
+      <div class="field full muted">Only the folder changes. Questions and student attempts stay as they are.</div>
+    </div>`, saveMove);
+}
+async function saveMove(){
+  if(!moving) return;
+  const target = $("mvTarget").value || null;
+  let r;
+  if(moving.kind === "folder"){
+    if(target && descendantIds(moving.id).has(String(target))) return toast("Cannot move a folder into itself");
+    const sibs = folders.filter(x => String(x.parent_id || "") === String(target || "") &&
+      String(x.subject_id || "") === String(selectedSubject.id) &&
+      String(x.exam_id) === String(selectedExam.id)).length;
+    r = await db.from("mock_folders").update({parent_id:target,sort_order:sibs + 1}).eq("id",moving.id);
+  }else{
+    if(!target) return toast("Select a folder");
+    r = await db.from("mock_tests").update({folder_id:target}).eq("id",moving.id);
+  }
+  if(r.error) return toast(r.error.message);
+  const kind = moving.kind;
+  closeModal();
+  moving = null;
+  await reload();
+  toast(kind === "folder" ? "Folder moved" : "Mock moved");
+}
+
+/* ===== AUTO-ORGANIZE: put chapter folders into their group folders (Maths / English / Reasoning) =====
+   Chapter folders (with their mocks) are only re-parented, so no mock breaks. Every chapter can be
+   changed in the preview before applying, and any folder can be moved later with the Move button. */
+function organizePlan(){
+  const cfg = drillGroupCfg(selectedSubject.name);
+  if(!cfg) return null;
+  const scope = scopeFolders();
+  const isCh = f => String(f.folder_type || "").toUpperCase().includes("CHAPTER");
+  const groupKeys = new Set(cfg.groups.map(gnorm));
+  const oldRoots = scope.filter(f => !f.parent_id && isCh(f) && !groupKeys.has(gnorm(nameOf(f))));
+  const rootIds = new Set(oldRoots.map(f => String(f.id)));
+  const items = scope
+    .filter(f => f.parent_id && rootIds.has(String(f.parent_id)))
+    .map(f => ({f, target:drillGroupFor(selectedSubject.name,nameOf(f))}))
+    .sort((a,b) => cfg.groups.indexOf(a.target) - cfg.groups.indexOf(b.target) || nameOf(a.f).localeCompare(nameOf(b.f)));
+  return {cfg, scope, oldRoots, items};
+}
+function openOrganizeModal(){
+  const plan = organizePlan();
+  if(!plan) return toast("Groups are defined for English, Maths and Reasoning only");
+  if(!plan.items.length) return toast("Nothing to organize — chapters are already inside group folders");
+  mode = "organize";
+  showModal("Auto-Organize " + selectedSubject.name, `
+    <div class="muted" style="margin-bottom:10px">
+      ${plan.items.length} chapter folder(s) will move into: <b>${esc(plan.cfg.groups.join(", "))}</b>.
+      Each folder gets only its own chapters' mocks (they are divided, not copied):
+      ${plan.cfg.groups.map(g => {
+        const its = plan.items.filter(x => x.target === g);
+        const m = its.reduce((a,x) => a + tests.filter(t => String(t.folder_id || "") === String(x.f.id)).length, 0);
+        return `<br>• <b>${esc(g)}</b>: ${its.length} chapters, ${m} mocks`;
+      }).join("")}
+      <br>Change any chapter below if it was placed wrongly.
+    </div>
+    <div class="list">
+      ${plan.items.map(x => `
+        <div class="item"><div class="row">
+          <div style="flex:1"><b>${esc(nameOf(x.f))}</b><small>${tests.filter(t => String(t.folder_id || "") === String(x.f.id)).length} mocks</small></div>
+          <select data-org="${esc(x.f.id)}" style="padding:8px;border-radius:8px;border:1px solid var(--a-border);background:var(--a-card2);color:var(--a-text)">
+            ${plan.cfg.groups.map(g => `<option ${g === x.target ? "selected" : ""}>${esc(g)}</option>`).join("")}
+          </select>
+        </div></div>`).join("")}
+    </div>`, applyOrganize);
+}
+async function applyOrganize(){
+  const plan = organizePlan();
+  if(!plan) return;
+  const chosen = new Map();
+  document.querySelectorAll("#modalBody select[data-org]").forEach(el => chosen.set(String(el.dataset.org), el.value));
+  const btn = $("saveBtn");
+  btn.disabled = true;
+  try{
+    const isCh = f => String(f.folder_type || "").toUpperCase().includes("CHAPTER");
+    const needed = [...new Set(plan.items.map(x => chosen.get(String(x.f.id)) || x.target))];
+    const groupId = {};
+    for(const g of plan.cfg.groups){
+      if(!needed.includes(g)) continue;
+      let root = plan.scope.find(f => !f.parent_id && isCh(f) && gnorm(nameOf(f)) === gnorm(g));
+      if(!root){
+        const r = await db.from("mock_folders").insert({
+          exam_id:selectedExam.id, subject_id:selectedSubject.id, name:g, display_name:g,
+          folder_type:"CHAPTER", parent_id:null, is_active:true,
+          sort_order:plan.cfg.groups.indexOf(g) + 1
+        }).select("id").single();
+        if(r.error) throw r.error;
+        root = r.data;
+      }else if(root.is_active === false){
+        const r = await db.from("mock_folders").update({is_active:true}).eq("id",root.id);
+        if(r.error) throw r.error;
+      }
+      groupId[g] = root.id;
+    }
+    for(const g of needed){
+      const ids = plan.items.filter(x => (chosen.get(String(x.f.id)) || x.target) === g).map(x => x.f.id);
+      if(!ids.length) continue;
+      const r = await db.from("mock_folders").update({parent_id:groupId[g]}).in("id",ids);
+      if(r.error) throw r.error;
+    }
+    // same rename the student page used to do virtually
+    for(const x of plan.items){
+      if(gnorm(x.f.name).includes("mc sentence rearrange") && !x.f.display_name){
+        await db.from("mock_folders").update({display_name:"Para Jumble [PQRS]"}).eq("id",x.f.id);
+      }
+    }
+    // remove the old "Chapter Wise" root only if it is now completely empty
+    for(const root of plan.oldRoots){
+      const hasTests = tests.some(t => String(t.folder_id || "") === String(root.id));
+      const hasOtherKids = folders.some(f => String(f.parent_id || "") === String(root.id) &&
+        !plan.items.some(x => String(x.f.id) === String(f.id)));
+      if(!hasTests && !hasOtherKids){
+        await db.from("mock_folders").delete().eq("id",root.id);
+      }
+    }
+    closeModal();
+    selectedFolder = null;
+    $("contentPanel").style.display = "none";
+    await reload();
+    toast("Organized into group folders");
+  }catch(e){
+    toast(e.message || "Could not organize");
+  }finally{
+    btn.disabled = false;
+  }
 }
 
 /* ADD TEST IN ANY SELECTED FOLDER
