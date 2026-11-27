@@ -537,6 +537,54 @@ body{
 
 }
 
+.header-tagline{display:none;}
+.home-footer{display:none;}
+
+/* ==================================================
+   DESKTOP LAYOUT (1024px and wider only)
+   ================================================== */
+@media(min-width:1024px){
+.pd-head{
+  position:sticky; top:0; height:96px; padding:0 max(32px, calc((100% - max(1200px, 83.333%)) / 2));
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:center;
+}
+.pd-head .pd-brand{font-size:44px; line-height:1; font-weight:900; color:var(--pd-text);}
+.pd-head .header-tagline{display:block; margin-top:6px; font-size:17px; font-weight:700; line-height:1; color:var(--pd-muted);}
+.pd-head{z-index:98;}
+body{display:flex; flex-direction:column; min-height:100vh;}
+.home-footer{display:block; text-align:center; padding:32px 20px; border-top:1px solid var(--pd-border); background:var(--pd-bg);}
+.home-footer h2{margin:0; font-size:19px; font-weight:800; color:var(--pd-text);}
+.home-footer h2 span{color:#9b5cff;}
+.home-footer p{margin:6px 0 0; font-size:11px; color:var(--pd-muted);}
+body{padding-bottom:0;}
+/* no footer on the test list screen (same rule as the mocks page) */
+body:has(.pd-test-card) .home-footer{display:none;}
+.pd-top-back, .pd-wrap{width:100%; max-width:max(1264px, calc(83.333% + 64px)); margin:0 auto;}
+.pd-top-back{padding:32px 32px 0;}
+.pd-top-back .practice-back{font-size:15px;}
+.pd-wrap{flex:1 0 auto; padding:20px 32px 56px;}
+.pd-title{font-size:38px; margin-bottom:8px;}
+.pd-muted{font-size:16px;}
+.pd-breadcrumb{font-size:14px; margin-bottom:16px;}
+.pd-subjects{grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin-top:30px;}
+.pd-subject-card{min-height:140px; padding:24px 16px; border-radius:18px;}
+.pd-subject-name{font-size:20px;}
+.pd-list{grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:22px;}
+.pd-panel{padding:24px; margin-top:22px; border-radius:18px;}
+.pd-panel h2{font-size:20px;}
+.pd-row{min-height:84px; padding:18px 22px; border-radius:15px;}
+.pd-row strong{font-size:18px;}
+.pd-row small{font-size:13px;}
+.pd-folder-logo{width:50px; height:50px; font-size:26px;}
+.pd-arrow{font-size:28px;}
+.pd-test-card{height:100%;}
+.pd-test-title{font-size:18px;}
+.pd-test-details,.pd-attempt-info{font-size:13px;}
+.pd-actions{margin-top:auto; padding-top:6px;}
+.pd-action{min-height:42px; padding:0 20px; font-size:13px;}
+.pd-empty{grid-column:1 / -1; font-size:15px;}
+}
+
 </style>
 
 </head>
@@ -552,6 +600,8 @@ body{
   <div class="pd-brand">
     SSC <span>EDGE</span>
   </div>
+
+  <div class="header-tagline">Learn • Practice • Improve</div>
 
 
 </header>
@@ -587,6 +637,11 @@ body{
 
 </main>
 
+
+<footer class="home-footer">
+  <h2>SSC <span>EDGE</span></h2>
+  <p>Learn • Practice • Improve</p>
+</footer>
 
 <!-- =========================
      SUPABASE

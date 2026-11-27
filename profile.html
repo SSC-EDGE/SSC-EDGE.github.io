@@ -698,6 +698,78 @@ body{
   }
 }
 
+.header-tagline{display:none;}
+
+/* ==================================================
+   DESKTOP LAYOUT (1024px and wider only)
+   ================================================== */
+@media(min-width:1024px){
+body .profile-header{
+  position:sticky; top:0; height:96px; padding:0 max(32px, calc((100% - max(1200px, 83.333%)) / 2));
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:center;
+}
+body .profile-header .profile-brand{font-size:44px; line-height:1; font-weight:900; color:var(--text);}
+body .profile-header .header-tagline{display:block; margin-top:6px; font-size:17px; font-weight:700; line-height:1; color:var(--muted);}
+body .profile-header{z-index:98; border-bottom-color:transparent; margin-bottom:54px;}
+body .bottom-nav{
+  position:fixed; top:96px; bottom:auto; left:0; right:0; z-index:99;
+  height:54px; display:flex; align-items:stretch; gap:28px;
+  padding:0 max(16px, calc((100% - max(1200px, 83.333%)) / 2 - 16px));
+  background:var(--header); border:0; border-bottom:1px solid var(--border);
+}
+body .bottom-nav .nav-icon{display:none;}
+body .bottom-nav a{position:relative; flex-direction:row; padding:0 16px;}
+body .bottom-nav a small, body .bottom-nav a span:not(.nav-icon){
+  font-size:16px; font-weight:800; white-space:nowrap; text-transform:uppercase; letter-spacing:.6px;
+}
+body .bottom-nav a .nav-extra{display:none;}
+body .bottom-nav a::after{content:""; position:absolute; left:16px; right:16px; bottom:0; height:3px; border-radius:3px 3px 0 0;}
+body .bottom-nav a.active::after{background:#9b5cff;}
+body .bottom-nav a:hover{color:#9b5cff;}
+body{display:flex; flex-direction:column; min-height:100vh; padding:0;}
+body .profile-container{
+  flex:1 0 auto; width:100%; max-width:max(1264px, calc(83.333% + 64px)); padding:32px 32px 56px;
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:24px;
+  grid-template-rows:auto auto auto; align-content:start;
+}
+.profile-top{
+  grid-column:1 / -1; padding:32px 40px; text-align:left;
+  display:grid; grid-template-columns:auto minmax(0,1fr); grid-template-rows:auto auto;
+  column-gap:28px; align-content:center;
+  border:1px solid var(--border); border-radius:22px;
+  background:linear-gradient(135deg,rgba(155,92,255,.22),rgba(155,92,255,.06)),var(--card);
+}
+.avatar-wrap{grid-row:1 / span 2; width:104px; height:104px; margin:0;}
+.avatar{width:104px; height:104px; font-size:48px; background:var(--card);}
+.avatar-edit{width:36px; height:36px; font-size:16px;}
+.profile-name{align-self:end; font-size:30px; overflow-wrap:anywhere;}
+.profile-email{align-self:start; font-size:15px; margin-top:8px; overflow-wrap:anywhere;}
+.profile-container>.section-title:nth-of-type(1){grid-area:2 / 1;}
+.profile-container>.section-title:nth-of-type(2){grid-area:2 / 2;}
+.profile-container>.menu-card{display:flex; flex-direction:column; grid-row:3;}
+.profile-container>.menu-card .menu-item{flex:1 0 auto;}
+.profile-top + .section-title + .menu-card{grid-column:1;}
+.profile-container>.menu-card:last-child{grid-column:2;}
+.section-title{font-size:14px; margin:28px 3px 12px;}
+.menu-card{border-radius:18px;}
+.menu-item{min-height:78px; padding:16px 22px; gap:18px;}
+.menu-item:hover{background:var(--card2);}
+.menu-icon{width:46px; height:46px; flex-basis:46px; font-size:22px;}
+.menu-label{font-size:17px;}
+.menu-sub{font-size:13px; margin-top:4px;}
+.menu-arrow{font-size:24px;}
+.theme-chip{font-size:12px; padding:7px 12px;}
+body .footer-brand{width:100%; padding:32px 20px; border-top:1px solid var(--border);}
+.footer-main{font-size:19px;}
+.footer-motto{font-size:11px; margin-top:6px;}
+.popup-overlay{align-items:center; padding:24px;}
+.popup{border-bottom:1px solid var(--border); border-radius:20px; padding:24px;}
+.popup-title{font-size:20px;}
+.popup-text,.form-input{font-size:15px;}
+.form-label{font-size:12px;}
+.popup-button,.about-close{font-size:14px;}
+}
+
 </style>
 </head>
 
@@ -707,6 +779,8 @@ body{
   <div class="profile-brand">
     SSC <span class="edge">EDGE</span>
   </div>
+
+  <div class="header-tagline">Learn • Practice • Improve</div>
 </header>
 
 <main class="profile-container">
@@ -1011,7 +1085,7 @@ body{
 
   <a href="study.html">
     <span class="nav-icon">📚</span>
-    <span>Study Material</span>
+    <span>Study<span class="nav-extra"> Material</span></span>
   </a>
 
   <a href="practice.html">

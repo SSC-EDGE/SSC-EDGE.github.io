@@ -154,6 +154,60 @@ height:46px;
 :root[data-theme="light"] .study-option-icon,
 :root[data-theme="light"] .subject-icon{background:#f0e5ff;}
 
+.header-tagline{display:none;}
+.home-footer{display:none;}
+
+/* ==================================================
+   DESKTOP LAYOUT (1024px and wider only)
+   ================================================== */
+@media(min-width:1024px){
+body .simple-header{
+  position:sticky; top:0; height:96px; padding:0 max(32px, calc((100% - max(1200px, 83.333%)) / 2));
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:center;
+}
+body .simple-header .header-brand{font-size:44px; line-height:1; font-weight:900; color:var(--text);}
+body .simple-header .header-tagline{display:block; margin-top:6px; font-size:17px; font-weight:700; line-height:1; color:var(--muted);}
+body .simple-header{z-index:98; border-bottom-color:transparent; margin:0 0 54px; width:100%; max-width:none; background:var(--header);}
+body .bottom-nav{
+  position:fixed; top:96px; bottom:auto; left:0; right:0; z-index:99;
+  height:54px; display:flex; align-items:stretch; gap:28px;
+  padding:0 max(16px, calc((100% - max(1200px, 83.333%)) / 2 - 16px));
+  background:var(--header); border:0; border-bottom:1px solid var(--border);
+}
+body .bottom-nav .nav-icon{display:none;}
+body .bottom-nav a{position:relative; flex-direction:row; padding:0 16px;}
+body .bottom-nav a small, body .bottom-nav a span:not(.nav-icon){
+  font-size:16px; font-weight:800; white-space:nowrap; text-transform:uppercase; letter-spacing:.6px;
+}
+body .bottom-nav a .nav-extra{display:none;}
+body .bottom-nav a::after{content:""; position:absolute; left:16px; right:16px; bottom:0; height:3px; border-radius:3px 3px 0 0;}
+body .bottom-nav a.active::after{background:#9b5cff;}
+body .bottom-nav a:hover{color:#9b5cff;}
+body{display:flex; flex-direction:column; min-height:100vh;}
+.home-footer{display:block; text-align:center; padding:32px 20px; border-top:1px solid var(--border); background:var(--bg);}
+.home-footer h2{margin:0; font-size:19px; font-weight:800; color:var(--text);}
+.home-footer h2 span{color:#9b5cff;}
+.home-footer p{margin:6px 0 0; font-size:11px; color:var(--muted);}
+body{padding:0;}
+body .page-container{flex:1 0 auto; width:100%; max-width:max(1264px, calc(83.333% + 64px)); margin:0 auto; padding:40px 32px 56px;}
+body .page-title{font-size:38px; margin:0 0 8px;}
+body .page-subtitle{font-size:16px; margin:0 0 32px;}
+.study-options{gap:22px;}
+.study-option-card{min-height:200px; padding:28px;}
+.study-option-card h3{font-size:20px;}
+.study-option-card span{font-size:14px;}
+body .study-divider{margin:40px 0 36px;}
+body .study-section-title{font-size:20px; margin:0 0 18px;}
+.subject-grid{grid-template-columns:repeat(4,minmax(0,1fr)); gap:22px;}
+.subject-card{min-height:220px; padding:24px;}
+.subject-card h3{font-size:18px;}
+.subject-card span{font-size:14px; margin-top:8px;}
+.study-option-icon,.subject-icon{width:62px; height:62px; border-radius:17px; margin-bottom:16px;}
+.study-option-icon svg,.subject-icon svg{width:32px; height:32px;}
+.study-option-card,.subject-card{transition:transform .15s;}
+.study-option-card:hover,.subject-card:hover{transform:translateY(-3px);}
+}
+
 </style>
 
 </head>
@@ -171,6 +225,8 @@ height:46px;
   <div class="header-brand">
     SSC <span class="edge">EDGE</span>
   </div>
+
+  <div class="header-tagline">Learn • Practice • Improve</div>
 
 </header>
 
@@ -354,6 +410,11 @@ height:46px;
      UNCHANGED
      ========================================= -->
 
+<footer class="home-footer">
+  <h2>SSC <span>EDGE</span></h2>
+  <p>Learn • Practice • Improve</p>
+</footer>
+
 <nav class="bottom-nav">
 
 
@@ -378,7 +439,7 @@ height:46px;
     </span>
 
     <small>
-      Study Material
+      Study<span class="nav-extra"> Material</span>
     </small>
 
   </a>
