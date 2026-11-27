@@ -65,6 +65,19 @@ input[type=checkbox]{accent-color:var(--p);width:17px;height:17px}
   <div class="actions"><button class="btn" id="go" onclick="generate()">Create Chapter Mocks</button></div>
   <div id="msg" class="msg" style="display:none"></div>
 </section>
+
+<section class="panel" id="fixPanel">
+  <h3 style="margin:0 0 6px">Fix existing chapter mocks</h3>
+  <p class="muted">Scans mocks already inside Practice Drill chapter folders. <b>1)</b> Time is set to <b>0.8 min per question</b> (uses the field above) and total questions / section counts are corrected. <b>2)</b> A mock with fewer than <b>20 questions</b> is merged into the smallest other mock of the same chapter; the emptied mock is turned <b>inactive</b> (not deleted, so student attempts stay). If a whole chapter has fewer than 20 questions, its mock is turned inactive. Nothing is changed until you press Apply.</p>
+  <div class="grid">
+    <div class="field"><label>Subject</label><select id="fixSubject"><option value="">All subjects</option></select></div>
+  </div>
+  <div class="actions">
+    <button class="btn secondary" id="scanBtn" onclick="scanFix()">Scan</button>
+    <button class="btn" id="applyFixBtn" onclick="applyFix()" disabled>Apply Fixes</button>
+  </div>
+  <div id="fixMsg" class="msg" style="display:none"></div>
+</section>
 </div>
 
 </main>
@@ -138,6 +151,7 @@ async function init(){
     subjects=(await fetchAll(()=>db.from("subjects").select("id,name").order("id"))).filter(s=>norm(s.name)!=="bulk import");
     subjects.sort((a,b)=>String(a.name).localeCompare(String(b.name)));
     $("subject").innerHTML='<option value="">Select Subject</option>'+subjects.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+    $("fixSubject").innerHTML='<option value="">All subjects</option>'+subjects.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
   }catch(e){alert("Could not load subjects: "+e.message)}
 }
 
@@ -288,6 +302,132 @@ async function generate(){
   }finally{
     btn.disabled=false;
     await loadSubject(true);
+  }
+}
+
+
+/* ===== FIX EXISTING CHAPTER MOCKS (timer + minimum 20 questions) ===== */
+let fixPlan=null;
+function fmsg(html,show=true){const m=$("fixMsg");m.style.display=show?"block":"none";m.innerHTML=html}
+async function inQuery(table,cols,col,ids){
+  let out=[];
+  for(let i=0;i<ids.length;i+=100){
+    const part=ids.slice(i,i+100);
+    out=out.concat(await fetchAll(()=>db.from(table).select(cols).in(col,part).order("id")));
+  }
+  return out;
+}
+async function scanFix(){
+  const scanBtn=$("scanBtn"),applyBtn=$("applyFixBtn");
+  scanBtn.disabled=true;applyBtn.disabled=true;fixPlan=null;
+  fmsg("Scanning mocks…");
+  try{
+    const perQ=clampPerQ($("minPerQ").value);
+    const sidSel=$("fixSubject").value;
+    const subs=sidSel?subjects.filter(x=>String(x.id)===String(sidSel)):subjects;
+    const folders=await inQuery("mock_folders","id,name,display_name,parent_id,folder_type,subject_id","subject_id",subs.map(x=>x.id));
+    const isCh=f=>String(f.folder_type||"").toUpperCase().includes("CHAPTER");
+    const rootIds=new Set(folders.filter(f=>!f.parent_id&&isCh(f)).map(f=>String(f.id)));
+    const chFolders=folders.filter(f=>f.parent_id&&rootIds.has(String(f.parent_id)));
+    const mocks=await inQuery("mock_tests","id,title,folder_id,duration_minutes,total_questions,sort_order,is_active","folder_id",chFolders.map(f=>f.id));
+    const ids=mocks.map(m=>m.id);
+    const qrows=await inQuery("mock_test_questions","id,mock_test_id,question_id,section_id,question_order","mock_test_id",ids);
+    const secs=await inQuery("mock_test_sections","id,mock_test_id,duration_minutes,question_count,section_order","mock_test_id",ids);
+    const rowsBy=new Map(),secBy=new Map();
+    qrows.forEach(r=>{const k=String(r.mock_test_id);if(!rowsBy.has(k))rowsBy.set(k,[]);rowsBy.get(k).push(r)});
+    secs.forEach(r=>{const k=String(r.mock_test_id);if(!secBy.has(k))secBy.set(k,[]);secBy.get(k).push(r)});
+    const secsOf=m=>(secBy.get(String(m.id))||[]).sort((a,b)=>(a.section_order||0)-(b.section_order||0));
+    const nameOf=f=>f.display_name||f.name;
+    const subjOf=id=>(subs.find(x=>String(x.id)===String(id))||{}).name||"";
+
+    const plan={folders:[],scanned:0,timer:0,merged:0,hidden:0};
+    const lines=[];
+    for(const f of chFolders){
+      const live0=mocks.filter(m=>String(m.folder_id)===String(f.id)&&m.is_active!==false)
+        .sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0))
+        .map(m=>({m,rows:[...(rowsBy.get(String(m.id))||[])].sort((a,b)=>(a.question_order||0)-(b.question_order||0))}));
+      if(!live0.length)continue;
+      plan.scanned+=live0.length;
+      const label=`${subjOf(f.subject_id)} › ${nameOf(f)}`;
+      const fp={label,moves:[],deact:[],finals:[]};
+      let live=live0.slice();
+      while(live.length&&live.some(x=>x.rows.length<MIN_Q_PER_MOCK)){
+        const small=live.filter(x=>x.rows.length<MIN_Q_PER_MOCK).sort((a,b)=>a.rows.length-b.rows.length)[0];
+        const others=live.filter(x=>x!==small).sort((a,b)=>a.rows.length-b.rows.length);
+        if(!others.length){
+          fp.deact.push(small.m);plan.hidden++;
+          lines.push(`✕ ${label}: only ${small.rows.length} question(s) in total → "${small.m.title}" turned inactive`);
+          live=[];break;
+        }
+        const target=others[0];
+        const have=new Set(target.rows.map(r=>String(r.question_id)));
+        let order=Math.max(0,...target.rows.map(r=>Number(r.question_order)||0));
+        const moveRows=[],dupRows=[];
+        small.rows.forEach(r=>{
+          if(have.has(String(r.question_id))){dupRows.push(r.id);return}
+          have.add(String(r.question_id));order++;
+          moveRows.push({id:r.id,order});
+          target.rows.push({...r,question_order:order});
+        });
+        const tsec=secsOf(target.m)[0];
+        fp.moves.push({to:target.m.id,toSection:tsec?tsec.id:null,moveRows,dupRows});
+        fp.deact.push(small.m);plan.merged++;
+        lines.push(`↦ ${label}: "${small.m.title}" (${small.rows.length} q) merged into "${target.m.title}"`);
+        small.rows=[];
+        live=live.filter(x=>x!==small);
+      }
+      live.forEach(x=>{
+        const n=x.rows.length,dur=Math.max(1,Math.round(n*perQ));
+        const sc=secsOf(x.m);
+        const touched=fp.moves.some(mv=>String(mv.to)===String(x.m.id));
+        const secBad=sc.length===1&&(Number(sc[0].duration_minutes)!==dur||Number(sc[0].question_count)!==n);
+        if(touched||Number(x.m.duration_minutes)!==dur||Number(x.m.total_questions)!==n||secBad){
+          fp.finals.push({m:x.m,n,dur,sec:sc.length===1?sc[0]:null});
+          if(Number(x.m.duration_minutes)!==dur)plan.timer++;
+          if(Number(x.m.duration_minutes)!==dur||Number(x.m.total_questions)!==n)lines.push(`⏱ ${label}: "${x.m.title}" ${x.m.duration_minutes} min → ${dur} min, ${n} questions`);
+        }
+      });
+      if(fp.moves.length||fp.deact.length||fp.finals.length)plan.folders.push(fp);
+    }
+    fixPlan=plan;
+    const shown=lines.slice(0,300);
+    fmsg(`<b>${plan.scanned} active chapter mock(s) scanned.</b>\n⏱ ${plan.timer} timer fix(es) · ↦ ${plan.merged} merge(s) · ✕ ${plan.hidden} chapter(s) under 20 questions hidden\n\n${esc(shown.join("\n")||"Everything is already correct.")}${lines.length>shown.length?"\n… and "+(lines.length-shown.length)+" more":""}`);
+    applyBtn.disabled=!plan.folders.length;
+  }catch(e){fmsg(`<span class="err">Scan failed: ${esc(e.message)}</span>`)}
+  finally{scanBtn.disabled=false}
+}
+async function applyFix(){
+  if(!fixPlan||!fixPlan.folders.length)return;
+  if(!confirm(`Apply fixes?\n\n${fixPlan.timer} timer fix(es), ${fixPlan.merged} merge(s), ${fixPlan.hidden} hidden.\n\nNote: a mock that receives questions from a merged mock gets a longer question list, so older attempts of that mock may show fewer questions than the mock now has.`))return;
+  const scanBtn=$("scanBtn"),applyBtn=$("applyFixBtn");
+  scanBtn.disabled=true;applyBtn.disabled=true;
+  const out=[];let ok=0;
+  try{
+    for(const fp of fixPlan.folders){
+      fmsg(`Applying… ${ok}/${fixPlan.folders.length}\n${esc(out.join("\n"))}`);
+      try{
+        for(const mv of fp.moves){
+          const tasks=mv.moveRows.map(r=>db.from("mock_test_questions").update({mock_test_id:mv.to,section_id:mv.toSection,question_order:r.order}).eq("id",r.id));
+          if(mv.dupRows.length)tasks.push(db.from("mock_test_questions").delete().in("id",mv.dupRows));
+          const res=await Promise.all(tasks);
+          const bad=res.find(x=>x.error);if(bad)throw bad.error;
+        }
+        for(const f of fp.finals){
+          const r1=await db.from("mock_tests").update({duration_minutes:f.dur,total_questions:f.n}).eq("id",f.m.id);
+          if(r1.error)throw r1.error;
+          if(f.sec){const r2=await db.from("mock_test_sections").update({duration_minutes:f.dur,question_count:f.n}).eq("id",f.sec.id);if(r2.error)throw r2.error}
+        }
+        for(const m of fp.deact){
+          const r1=await db.from("mock_tests").update({is_active:false,total_questions:0}).eq("id",m.id);
+          if(r1.error)throw r1.error;
+          await db.from("mock_test_sections").update({question_count:0}).eq("mock_test_id",m.id);
+        }
+        ok++;
+      }catch(err){out.push(`✕ ${fp.label}: ${err.message} (run Scan again to retry)`)}
+    }
+    fmsg(`<b class="ok">${ok} of ${fixPlan.folders.length} chapter folder(s) fixed.</b>\n${esc(out.join("\n"))}`);
+  }finally{
+    fixPlan=null;scanBtn.disabled=false;
   }
 }
 
