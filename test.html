@@ -1615,9 +1615,9 @@ body{
     position:fixed;
     top:var(--nav-top,var(--header-h));
     bottom:auto;
-    left:50%;
-    right:auto;
-    transform:translateX(-50%);
+    left:0;
+    right:var(--palette-w);
+    transform:none;
     width:auto;
     height:var(--nav-h,48px);
     z-index:55;
@@ -1626,10 +1626,12 @@ body{
     justify-content:center;
     gap:12px;
     padding:0;
-    background:transparent;
+    background:var(--bg);
     border:0;
     backdrop-filter:none;
+    transition:right .2s ease;
   }
+  body.palette-collapsed .navigation-row{ right:0; }
 
   .navigation-row .nav-btn,
   .navigation-row .save-next-btn,

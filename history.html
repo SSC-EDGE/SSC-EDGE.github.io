@@ -10,7 +10,7 @@
 
 <script>
 document.documentElement.dataset.theme =
-localStorage.getItem("ssc-edge-theme") || "dark";
+localStorage.getItem("ssc-edge-theme") || "light";
 </script>
 
 <link rel="stylesheet" href="css/style.css">
@@ -201,10 +201,70 @@ body{
 
 }
 
+
+/* ===== Back button (mobile + desktop) ===== */
+.ssc-back{display:inline-block; margin:0 0 14px; font-size:14px; font-weight:800; color:var(--purple,#8b45ee); text-decoration:none;}
+.d-top,.d-foot{display:none;}
+@media(min-width:960px){
+.d-top{display:block; position:sticky; top:0; z-index:100; width:100%; flex-shrink:0;
+  --d-bg:linear-gradient(100deg,#21152f,#17111f); --d-text:#f7f4fa; --d-muted:#aaa4b3; --d-line:#30303c;}
+:root[data-theme="light"] .d-top{--d-bg:linear-gradient(100deg,#eee3ff,#f8f4ff); --d-text:#211d27; --d-muted:#716a7b; --d-line:#ddd6e8;}
+.d-head{height:96px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; background:var(--d-bg); padding:0 max(32px, calc((100% - max(1200px, 83.333%)) / 2));}
+.d-brand{font-size:44px; line-height:1; font-weight:900; color:var(--d-text);}
+.d-brand span{color:#9b5cff;}
+.d-tag{margin-top:6px; font-size:17px; font-weight:700; line-height:1; color:var(--d-muted);}
+.d-nav{height:54px; display:flex; align-items:stretch; gap:28px; background:var(--d-bg); border-bottom:1px solid var(--d-line);
+  padding:0 max(16px, calc((100% - max(1200px, 83.333%)) / 2 - 16px));}
+.d-nav a{position:relative; display:flex; align-items:center; padding:0 16px; text-decoration:none; color:var(--d-muted);
+  font-size:16px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; white-space:nowrap;}
+.d-nav a::after{content:""; position:absolute; left:16px; right:16px; bottom:0; height:3px; border-radius:3px 3px 0 0;}
+.d-nav a.active,.d-nav a:hover{color:#9b5cff;}
+.d-nav a.active::after{background:#9b5cff;}
+.d-foot{display:block; flex-shrink:0; text-align:center; padding:32px 20px; border-top:1px solid var(--border,var(--p-border,#ddd6e8));}
+.d-foot h2{margin:0; font-size:19px; font-weight:800;}
+.d-foot h2 span{color:#9b5cff;}
+.d-foot p{margin:6px 0 0; font-size:11px; color:var(--muted,var(--p-muted,#716a7b));}
+body{display:flex; flex-direction:column; min-height:100vh; padding:0 !important;}
+.ssc-back{align-self:flex-start; font-size:15px; margin-bottom:20px;}
+}
+:where(:root[data-theme="light"]){--bg:#f7f5fa;--card:#fff;--card2:#f0ebf7;--border:#ddd6e8;--text:#211d27;--muted:#716a7b;--header:#f1e9ff;--purple:#8b45ee;--purple2:#7834db;}
+@media(min-width:960px){
+.simple-header,.bottom-nav{display:none;}
+.page-container{flex:1 0 auto; width:100%; max-width:max(1264px, calc(83.333% + 64px)); margin:0 auto; padding:36px 32px 56px;}
+.page-title{font-size:38px;}
+.page-subtitle{font-size:16px; margin:8px 0 28px;}
+#historyList{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px;}
+#historyList > .empty,#historyList > .loading{grid-column:1/-1;}
+.history-card{margin:0; padding:26px; display:flex; flex-direction:column;}
+.test-name{font-size:20px;}
+.test-date{font-size:14px; margin-bottom:20px;}
+.stats{gap:12px; margin:auto 0 20px;}
+.stat{padding:15px 6px;}
+.stat strong{font-size:22px;}
+.stat span{font-size:12.5px; margin-top:6px;}
+.btn{font-size:15px; font-weight:700; padding:13px 8px;}
+.empty{font-size:16px; padding:70px 20px;}
+}
+
 </style>
 </head>
 
 <body>
+
+<div class="d-top">
+  <div class="d-head">
+    <div class="d-brand">SSC <span>EDGE</span></div>
+    <div class="d-tag">Learn • Practice • Improve</div>
+  </div>
+  <nav class="d-nav">
+    <a href="home.html">Home</a>
+    <a href="study.html">Study</a>
+    <a href="practice.html">Practice</a>
+    <a href="typing.html">Typing</a>
+    <a href="profile.html" class="active">Profile</a>
+  </nav>
+</div>
+
 
 <header class="simple-header">
   <h2>
@@ -214,6 +274,8 @@ body{
 
 
 <main class="page-container">
+
+  <a class="ssc-back" href="profile.html" onclick="return sscBack()">← Back</a>
 
   <h1 class="page-title">
     Test History
@@ -258,6 +320,26 @@ body{
 
 </nav>
 
+
+<footer class="d-foot">
+  <h2>SSC <span>EDGE</span></h2>
+  <p>Learn • Practice • Improve</p>
+</footer>
+
+<script>
+/* one step back inside the site; otherwise follow the link */
+function sscBack(){
+  try{
+    const r = document.referrer && new URL(document.referrer);
+    if(r && history.length > 1 && r.origin === location.origin &&
+       !/(^|\/)(index(\.html)?)?$/.test(r.pathname)){
+      history.back();
+      return false;
+    }
+  }catch(e){}
+  return true;
+}
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 

@@ -5,7 +5,7 @@
 
 <script>
 document.documentElement.dataset.theme =
-  localStorage.getItem("ssc-edge-theme") || "dark";
+  localStorage.getItem("ssc-edge-theme") || "light";
 </script>
 
 <meta charset="UTF-8">
@@ -816,12 +816,95 @@ body{
 
 }
 
+
+/* ===== Back button (mobile + desktop) ===== */
+.ssc-back{display:inline-block; margin:0 0 14px; font-size:14px; font-weight:800; color:var(--purple,#8b45ee); text-decoration:none;}
+.d-top,.d-foot{display:none;}
+@media(min-width:960px){
+.d-top{display:block; position:sticky; top:0; z-index:100; width:100%; flex-shrink:0;
+  --d-bg:linear-gradient(100deg,#21152f,#17111f); --d-text:#f7f4fa; --d-muted:#aaa4b3; --d-line:#30303c;}
+:root[data-theme="light"] .d-top{--d-bg:linear-gradient(100deg,#eee3ff,#f8f4ff); --d-text:#211d27; --d-muted:#716a7b; --d-line:#ddd6e8;}
+.d-head{height:96px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; background:var(--d-bg); padding:0 max(32px, calc((100% - max(1200px, 83.333%)) / 2));}
+.d-brand{font-size:44px; line-height:1; font-weight:900; color:var(--d-text);}
+.d-brand span{color:#9b5cff;}
+.d-tag{margin-top:6px; font-size:17px; font-weight:700; line-height:1; color:var(--d-muted);}
+.d-nav{height:54px; display:flex; align-items:stretch; gap:28px; background:var(--d-bg); border-bottom:1px solid var(--d-line);
+  padding:0 max(16px, calc((100% - max(1200px, 83.333%)) / 2 - 16px));}
+.d-nav a{position:relative; display:flex; align-items:center; padding:0 16px; text-decoration:none; color:var(--d-muted);
+  font-size:16px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; white-space:nowrap;}
+.d-nav a::after{content:""; position:absolute; left:16px; right:16px; bottom:0; height:3px; border-radius:3px 3px 0 0;}
+.d-nav a.active,.d-nav a:hover{color:#9b5cff;}
+.d-nav a.active::after{background:#9b5cff;}
+.d-foot{display:block; flex-shrink:0; text-align:center; padding:32px 20px; border-top:1px solid var(--border,var(--p-border,#ddd6e8));}
+.d-foot h2{margin:0; font-size:19px; font-weight:800;}
+.d-foot h2 span{color:#9b5cff;}
+.d-foot p{margin:6px 0 0; font-size:11px; color:var(--muted,var(--p-muted,#716a7b));}
+body{display:flex; flex-direction:column; min-height:100vh; padding:0 !important;}
+.ssc-back{align-self:flex-start; font-size:15px; margin-bottom:20px;}
+}
+@media(min-width:960px){
+.top-header,.bottom-nav{display:none;}
+.container{flex:1 0 auto; width:100%; max-width:max(1264px, calc(83.333% + 64px)); margin:0 auto; padding:36px 32px 56px;}
+.task-page:not(.hide){display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:22px; align-content:start;}
+.task-page > *{grid-column:1/-1;}
+.task-page > .ssc-back{justify-self:start;}
+.task-page > .schedule-card{grid-column:1; margin-bottom:34px; padding:26px;}
+.task-page > .progress-card{grid-column:2; margin-bottom:34px; padding:26px; display:flex; flex-direction:column; justify-content:center;}
+.page-title,.schedule-page-title{font-size:38px; margin-bottom:8px;}
+.page-subtitle,.schedule-page-subtitle{font-size:16px; margin-bottom:28px;}
+.schedule-icon{width:60px; height:60px; font-size:30px;}
+.schedule-title{font-size:20px;}
+.schedule-subtitle{font-size:14px;}
+.progress-title{font-size:19px;}
+.progress-count{font-size:16px;}
+.progress-bar{height:11px; margin-top:18px;}
+.section-title{font-size:22px; margin-bottom:18px;}
+.task-list{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px;}
+.task-list > .status-box{grid-column:1/-1;}
+.task-card{padding:24px; display:flex; flex-direction:column;}
+.task-bottom{margin-top:auto; padding-top:18px;}
+.task-icon{width:54px; height:54px; font-size:28px;}
+.task-subject{font-size:13px;}
+.task-title,.task-detail-card .task-title{font-size:19px;}
+.task-description{font-size:14.5px;}
+.task-type{font-size:14px;}
+.task-btn{font-size:15px; padding:12px 22px;}
+.mock-title{font-size:15px;}
+.mock-id{font-size:12px;}
+.mock-start-btn{font-size:13.5px; padding:10px 18px; margin-top:0;}
+.schedule-page.show .day-list{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px;}
+.day-list > .status-box{grid-column:1/-1;}
+.day-card{padding:22px;}
+.day-name{font-size:18px;}
+.container > .back-btn{align-self:flex-start; font-size:15px;}
+.message-card,.task-detail-card{width:100%; max-width:900px; padding:30px;}
+.message-content,.task-detail-content{font-size:16px;}
+.detail-action{max-width:320px; font-size:15px;}
+.status-title{font-size:19px;}
+.status-text{font-size:15px;}
+}
+
 </style>
 
 </head>
 
 
 <body>
+
+<div class="d-top">
+  <div class="d-head">
+    <div class="d-brand">SSC <span>EDGE</span></div>
+    <div class="d-tag">Learn • Practice • Improve</div>
+  </div>
+  <nav class="d-nav">
+    <a href="home.html" class="active">Home</a>
+    <a href="study.html">Study</a>
+    <a href="practice.html">Practice</a>
+    <a href="typing.html">Typing</a>
+    <a href="profile.html">Profile</a>
+  </nav>
+</div>
+
 
 
 <!-- =========================
@@ -844,6 +927,8 @@ body{
 <main
   class="container task-page"
   id="taskPage">
+
+  <a class="ssc-back" href="home.html" onclick="return sscBack()">← Back</a>
 
   <h1 class="page-title">
     Daily Task
@@ -1047,6 +1132,26 @@ body{
 
 </main>
 
+
+<footer class="d-foot">
+  <h2>SSC <span>EDGE</span></h2>
+  <p>Learn • Practice • Improve</p>
+</footer>
+
+<script>
+/* one step back inside the site; otherwise follow the link */
+function sscBack(){
+  try{
+    const r = document.referrer && new URL(document.referrer);
+    if(r && history.length > 1 && r.origin === location.origin &&
+       !/(^|\/)(index(\.html)?)?$/.test(r.pathname)){
+      history.back();
+      return false;
+    }
+  }catch(e){}
+  return true;
+}
+</script>
 
 <!-- =========================
      BOTTOM NAV

@@ -13,7 +13,7 @@
 <!-- THEME -->
 <script>
 document.documentElement.dataset.theme =
-  localStorage.getItem("ssc-edge-theme") || "dark";
+  localStorage.getItem("ssc-edge-theme") || "light";
 </script>
 
 <style>
@@ -214,6 +214,24 @@ button{
   font-size:16px;
   margin-bottom:3px;
 }
+.d-tagline{display:none;}
+@media(min-width:960px){
+body{padding:40px 32px;}
+.container{max-width:1120px; display:grid; grid-template-columns:minmax(0,1fr) 480px; grid-template-rows:1fr auto auto auto 1fr; column-gap:80px; align-items:center;}
+.welcome{grid-column:1; grid-row:2; text-align:left; font-size:26px; margin-bottom:10px;}
+.logo{grid-column:1; grid-row:3; text-align:left; font-size:clamp(52px,6vw,76px); line-height:1.05; margin:0; white-space:nowrap;}
+.d-tagline{display:block; grid-column:1; grid-row:4; margin-top:16px; font-size:22px; font-weight:700; color:var(--muted);}
+.card{grid-column:2; grid-row:1 / span 5; padding:36px;}
+h2{font-size:28px; margin-bottom:20px;}
+label{font-size:15px; margin-top:16px;}
+input{font-size:16px; padding:15px 16px;}
+button{font-size:16px; padding:15px;}
+button:hover{filter:brightness(1.05);}
+.switch-link,.switch-link button{font-size:15px;}
+.switch-link button{padding:0;}
+.small{font-size:13px;}
+}
+
 </style>
 
 </head>
@@ -231,6 +249,7 @@ button{
   <div class="logo">
     SSC <span class="edge">EDGE</span>
   </div>
+  <div class="d-tagline">Learn • Practice • Improve</div>
 
   <div class="card" id="loginBox">
 
@@ -471,12 +490,34 @@ function getSafeReturnUrl(){
     url = localStorage.getItem("ssc-edge-return-url") || "";
   }catch(e){}
 
-  /* only allow same-site relative pages like test.html?id=1 */
-  if(/^[A-Za-z0-9_\-]+\.html(\?[^#\s]*)?(#\S*)?$/.test(url)){
-    return url;
-  }
+  return toSafePage(url);
 
-  return "";
+}
+
+/*
+  Returns the full address only for a page of this same site (not the
+  login page itself). Works with "test.html?id=1" and also with the
+  short address "test?id=1" that the hosting shows without ".html".
+*/
+function toSafePage(url){
+
+  if(!url) return "";
+
+  try{
+
+    const page = new URL(url, window.location.href);
+
+    if(page.protocol !== window.location.protocol) return "";
+    if(page.host !== window.location.host) return "";
+
+    /* never send the user back to the login page */
+    if(/(^|\/)(index(\.html)?)?$/i.test(page.pathname)) return "";
+
+    return page.href;
+
+  }catch(e){
+    return "";
+  }
 
 }
 
@@ -870,10 +911,6 @@ supabaseClient.auth.onAuthStateChange(
   const params = new URLSearchParams(window.location.search);
   const redirectParam = params.get("redirect");
 
-  if(redirectParam){
-    try{ localStorage.setItem("ssc-edge-return-url", redirectParam); }catch(e){}
-  }
-
   const wantsLogin =
     params.has("signup") ||
     params.has("redirect") ||
@@ -883,6 +920,21 @@ supabaseClient.auth.onAuthStateChange(
     window.location.hash.includes("access_token") ||
     window.location.hash.includes("refresh_token") ||
     window.location.search.includes("code=");
+
+  /*
+    Remember where the user came from: first the ?redirect= value,
+    otherwise the page of this site that opened the login page.
+    (After Google login the saved value is kept as it is.)
+  */
+  if(!oauthReturn){
+    try{
+      const from = wantsLogin
+        ? (toSafePage(redirectParam) || toSafePage(document.referrer))
+        : "";
+      if(from) localStorage.setItem("ssc-edge-return-url", from);
+      else localStorage.removeItem("ssc-edge-return-url");
+    }catch(e){}
+  }
 
   /* Normal app open (no login intent): do not ask for login, open home */
   if(!wantsLogin && !oauthReturn){

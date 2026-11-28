@@ -399,7 +399,7 @@ margin-top:20px;font-size:13px
   .grid-close{ display:none; }
   body:has(#solutionArea:not(.hidden)) .palette-tab{ display:flex; align-items:center; justify-content:center; position:fixed; top:calc(var(--header-h) + 14px); right:var(--palette-w); width:26px; height:54px; z-index:70; border:0; border-radius:10px 0 0 10px; background:var(--purple); color:#fff; font-size:26px; line-height:1; cursor:pointer; transition:right .2s ease; }
   .palette-tab::before{ content:"\203A"; }
-  body.palette-collapsed .palette-tab{ right:0; }
+  body.palette-collapsed:has(#solutionArea:not(.hidden)) .palette-tab{ right:0; }
   body.palette-collapsed .palette-tab::before{ content:"\2039"; }
 }
 </style>
