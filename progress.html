@@ -21,7 +21,7 @@
 <script>
 
 document.documentElement.dataset.theme =
-  localStorage.getItem("ssc-edge-theme") || "dark";
+  localStorage.getItem("ssc-edge-theme") || "light";
 
 </script>
 
@@ -641,12 +641,188 @@ body{
 
 }
 
+
+/* ===== Back button (mobile + desktop) ===== */
+.ssc-back{display:inline-block; margin:0 0 14px; font-size:14px; font-weight:800; color:var(--purple,#8b45ee); text-decoration:none;}
+.d-top,.d-foot{display:none;}
+@media(min-width:960px){
+.d-top{display:block; position:sticky; top:0; z-index:100; width:100%; flex-shrink:0;
+  --d-bg:linear-gradient(100deg,#21152f,#17111f); --d-text:#f7f4fa; --d-muted:#aaa4b3; --d-line:#30303c;}
+:root[data-theme="light"] .d-top{--d-bg:linear-gradient(100deg,#eee3ff,#f8f4ff); --d-text:#211d27; --d-muted:#716a7b; --d-line:#ddd6e8;}
+.d-head{height:96px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; background:var(--d-bg); padding:0 max(32px, calc((100% - max(1200px, 83.333%)) / 2));}
+.d-brand{font-size:44px; line-height:1; font-weight:900; color:var(--d-text);}
+.d-brand span{color:#9b5cff;}
+.d-tag{margin-top:6px; font-size:17px; font-weight:700; line-height:1; color:var(--d-muted);}
+.d-nav{height:54px; display:flex; align-items:stretch; gap:28px; background:var(--d-bg); border-bottom:1px solid var(--d-line);
+  padding:0 max(16px, calc((100% - max(1200px, 83.333%)) / 2 - 16px));}
+.d-nav a{position:relative; display:flex; align-items:center; padding:0 16px; text-decoration:none; color:var(--d-muted);
+  font-size:16px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; white-space:nowrap;}
+.d-nav a::after{content:""; position:absolute; left:16px; right:16px; bottom:0; height:3px; border-radius:3px 3px 0 0;}
+.d-nav a.active,.d-nav a:hover{color:#9b5cff;}
+.d-nav a.active::after{background:#9b5cff;}
+.d-foot{display:block; flex-shrink:0; text-align:center; padding:32px 20px; border-top:1px solid var(--border,var(--p-border,#ddd6e8));}
+.d-foot h2{margin:0; font-size:19px; font-weight:800;}
+.d-foot h2 span{color:#9b5cff;}
+.d-foot p{margin:6px 0 0; font-size:11px; color:var(--muted,var(--p-muted,#716a7b));}
+body{display:flex; flex-direction:column; min-height:100vh; padding:0 !important;}
+.ssc-back{align-self:flex-start; font-size:15px; margin-bottom:20px;}
+}
+:where(:root[data-theme="light"]){--bg:#f7f5fa;--card:#fff;--card2:#f0ebf7;--border:#ddd6e8;--text:#211d27;--muted:#716a7b;--header:#f1e9ff;--purple:#8b45ee;--purple2:#7834db}
+
+@media(min-width:960px){
+body{margin:0;}
+.progress-header,.bottom-nav{display:none;}
+.progress-container{flex:1 0 auto; width:100%; max-width:max(1264px, calc(83.333% + 64px)); margin:0 auto; padding:36px 32px 56px;}
+.page-title{font-size:38px;}
+.page-subtitle{font-size:16px; margin:8px 0 28px;}
+.overall-card{padding:30px 34px; margin-bottom:34px; border-radius:20px;}
+.overall-top{gap:28px;}
+.overall-circle{width:132px; height:132px; flex-basis:132px; border-width:4px;}
+.overall-percent{font-size:36px;}
+.overall-small{font-size:12px; margin-top:7px;}
+.overall-title{font-size:24px;}
+.overall-message{font-size:16px; margin-top:9px;}
+.progress-bar{height:14px; margin-top:26px;}
+.section-title{font-size:15px; margin:34px 3px 14px;}
+.stat-grid{grid-template-columns:repeat(4,minmax(0,1fr)); gap:22px;}
+.stat-grid.three{grid-template-columns:repeat(3,minmax(0,1fr));}
+.stat-card{min-height:178px; padding:24px; border-radius:18px;}
+.stat-card::after{width:110px; height:110px; right:-38px; bottom:-44px;}
+.stat-icon{font-size:30px; margin-bottom:14px;}
+.stat-label{font-size:13px;}
+.stat-value{font-size:36px; margin-top:9px;}
+.stat-note{font-size:13.5px; margin-top:10px;}
+.recent-card{padding:24px 28px; gap:20px; border-radius:18px;}
+.recent-card:hover{border-color:#9b5cff;}
+.recent-icon{width:60px; height:60px; flex-basis:60px; font-size:30px; border-radius:15px;}
+.recent-title{font-size:19px;}
+.recent-sub{font-size:14px; margin-top:7px;}
+.recent-arrow{font-size:32px;}
+}
+
+
+/* ===== goal, streak, trend, subject accuracy ===== */
+.panel{padding:16px; border:1px solid var(--border); border-radius:14px; background:var(--card);}
+.panel-note{margin:12px 0 0; color:var(--muted); font-size:11px; font-weight:700; line-height:1.5;}
+#trend.panel-note,#subjectStats.panel-note{margin:0;}
+.goal-top{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.goal-box{padding:12px 8px; border-radius:11px; background:var(--card2); text-align:center;}
+.goal-box strong{display:block; color:#9b5cff; font-size:23px; line-height:1.1;}
+.goal-box span{display:block; margin-top:5px; color:var(--muted); font-size:9px; font-weight:900; text-transform:uppercase;}
+.goal-form{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px;}
+.goal-form label{min-width:0; color:var(--muted); font-size:10px; font-weight:900; text-transform:uppercase;}
+.goal-form input{display:block; width:100%; min-width:0; height:40px; margin-top:6px; padding:0 10px; border:1px solid var(--border); border-radius:10px; background:var(--card2); color:var(--text); font:700 13px Arial,sans-serif;}
+:root[data-theme="dark"] .goal-form input{color-scheme:dark;}
+.goal-form button{grid-column:1/-1; height:42px; border:0; border-radius:10px; background:#8b45ee; color:#fff; font-size:13px; font-weight:900; cursor:pointer;}
+.calendar{display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-top:14px;}
+.cal-head{color:var(--muted); font-size:9px; font-weight:900; text-align:center;}
+.cal-day{height:28px; display:flex; align-items:center; justify-content:center; border-radius:7px; background:var(--card2); color:var(--muted); font-size:10px; font-weight:800;}
+.cal-day.done{background:#8b45ee; color:#fff;}
+.cal-day.today{outline:2px solid #9b5cff; outline-offset:1px;}
+.cal-day.future{opacity:.35;}
+.chart{display:flex; align-items:flex-end; gap:6px; height:180px; border-bottom:1px solid var(--border);}
+.col{position:relative; flex:1; max-width:56px; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; outline:0;}
+.col b{margin-bottom:4px; color:var(--text); font-size:9px; font-weight:800;}
+.col i{width:70%; max-width:28px; min-height:2px; border-radius:4px 4px 0 0; background:#9b5cff;}
+.col:hover i,.col:focus i{background:#7c32e0;}
+.col em{display:none; position:absolute; bottom:100%; z-index:5; width:max-content; max-width:190px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); box-shadow:0 8px 20px rgba(0,0,0,.18); font:normal 700 11px/1.5 Arial,sans-serif; text-align:left; pointer-events:none;}
+.col:nth-child(-n+3) em{left:0;}
+.col:nth-last-child(-n+3):not(:nth-child(-n+3)) em{right:0;}
+.col:hover em,.col:focus em{display:block;}
+.axis{display:flex; justify-content:space-between; margin-top:6px; font-size:10px;}
+.subject-row{margin-bottom:15px;}
+.subject-row:last-child{margin-bottom:0;}
+.subject-line{display:flex; justify-content:space-between; gap:10px; color:var(--text); font-size:12px; font-weight:900;}
+.subject-track{height:9px; margin:7px 0 5px; overflow:hidden; border-radius:20px; background:var(--card2);}
+.subject-track div{height:100%; border-radius:20px; background:#9b5cff;}
+.subject-row.weak .subject-track div{background:#d97706;}
+.subject-meta{color:var(--muted); font-size:10px; font-weight:700;}
+@media(min-width:960px){
+.duo{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px; align-items:stretch;}
+.duo{margin-top:34px;}
+.duo-item{display:flex; flex-direction:column;}
+.duo-item .section-title{margin-top:0;}
+#goalCard,.panel.streak-panel{padding:20px;}
+#goalCard{display:flex; flex-direction:column;}
+#goalCard .goal-box{padding:15px 10px;}
+#goalCard .goal-box strong,.streak-panel .goal-box strong{font-size:30px;}
+#goalCard .goal-box span,.streak-panel .goal-box span{font-size:11px; margin-top:6px;}
+#goalCard .progress-bar{height:10px; margin-top:18px; flex-shrink:0;}
+#goalCard .panel-note{font-size:13px; margin:12px 0 16px;}
+#goalCard .goal-form{margin-top:auto;}
+#goalCard .goal-form input,#goalCard .goal-form button{height:42px; font-size:14px;}
+#goalCard .goal-form label{font-size:11px;}
+.streak-panel{display:grid; grid-template-columns:minmax(120px,1fr) minmax(0,2fr); grid-template-rows:1fr auto; column-gap:18px;}
+.streak-panel .goal-top{grid-template-columns:1fr; grid-template-rows:1fr 1fr;}
+.streak-panel .goal-box{display:flex; flex-direction:column; justify-content:center; padding:8px;}
+.streak-panel .calendar{margin-top:0; gap:5px; align-content:center;}
+.streak-panel .cal-day{height:28px; font-size:11px;}
+.streak-panel .panel-note{grid-column:1/-1; font-size:13px; margin-top:14px;}
+.panel{flex:1; padding:26px; border-radius:18px;}
+.panel-note{font-size:14px; margin-top:16px;}
+.goal-box{padding:20px 10px;}
+.goal-box strong{font-size:36px;}
+.goal-box span{font-size:12px; margin-top:8px;}
+.goal-form{grid-template-columns:1fr 1fr auto; align-items:end; gap:14px; margin-top:22px;}
+.goal-form label{font-size:12px;}
+.goal-form input{height:46px; font-size:15px;}
+.goal-form button{grid-column:auto; height:46px; padding:0 30px; font-size:15px;}
+.calendar{gap:7px; margin-top:20px;}
+.cal-head{font-size:11px;}
+.cal-day{height:34px; font-size:12px;}
+.chart{height:250px; gap:12px;}
+.col b{font-size:12px;}
+.axis{font-size:12px;}
+.subject-row{margin-bottom:22px;}
+.subject-line{font-size:16px;}
+.subject-track{height:12px;}
+.subject-meta{font-size:13px;}
+}
+
+
+/* ===== mobile: compact streak + countdown with popups ===== */
+.streak-mini,.goal-open,.sheet-head,.sheet-backdrop{display:none;}
+@media(max-width:959.98px){
+.streak-mini{display:block; width:100%; text-align:left; color:var(--text); font-family:inherit; cursor:pointer;}
+.streak-mini span{display:block;}
+.streak-mini .stat-icon{line-height:normal;}
+#goalCard{cursor:pointer;}
+.goal-open{display:block; width:100%; margin-top:12px; padding:11px; border:1px solid var(--border); border-radius:10px; background:var(--card2); color:var(--text); font-family:inherit; font-size:12px; font-weight:900; cursor:pointer;}
+.goal-form,.streak-item{display:none;}
+body.goal-open-sheet .goal-form,body.streak-open-sheet .streak-item{position:fixed; left:14px; right:14px; top:50%; z-index:101; max-width:420px; max-height:calc(100vh - 28px); max-height:calc(100dvh - 28px); overflow-y:auto; margin:0 auto; padding:16px; transform:translateY(-50%); border:1px solid var(--border); border-radius:18px; background:var(--card); box-shadow:0 20px 50px rgba(0,0,0,.35); cursor:default;}
+body.goal-open-sheet .goal-form{display:grid;}
+body.streak-open-sheet .streak-item{display:block;}
+.streak-item .section-title{display:none;}
+.streak-item .panel{padding:0; border:0; background:transparent;}
+.sheet-head{display:flex; align-items:center; justify-content:space-between; gap:10px; grid-column:1/-1; margin-bottom:4px; color:var(--text); font-size:16px; font-weight:900;}
+.streak-item .sheet-head{margin-bottom:14px;}
+.sheet-close{width:34px; height:34px; border:0; border-radius:9px; background:var(--card2); color:var(--text); font-size:22px; line-height:1; cursor:pointer;}
+.goal-form .sheet-close{grid-column:auto; height:34px; background:var(--card2); color:var(--text); font-size:22px;}
+body.goal-open-sheet .sheet-backdrop,body.streak-open-sheet .sheet-backdrop{display:block; position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.6);}
+body.goal-open-sheet,body.streak-open-sheet{overflow:hidden;}
+}
+
 </style>
 
 </head>
 
 
 <body>
+
+<div class="d-top">
+  <div class="d-head">
+    <div class="d-brand">SSC <span>EDGE</span></div>
+    <div class="d-tag">Learn • Practice • Improve</div>
+  </div>
+  <nav class="d-nav">
+    <a href="home.html">Home</a>
+    <a href="study.html">Study</a>
+    <a href="practice.html">Practice</a>
+    <a href="typing.html">Typing</a>
+    <a href="profile.html" class="active">Profile</a>
+  </nav>
+</div>
+
 
 
 <!-- =========================================================
@@ -736,6 +912,86 @@ body{
 
 
   <!-- =======================================================
+       TARGET + COUNTDOWN  /  DAILY STREAK
+  ======================================================== -->
+
+  <div class="duo">
+
+    <div class="duo-item">
+
+      <div class="section-title">Target &amp; Exam Countdown</div>
+
+      <section id="goalCard" class="panel">
+
+        <div class="goal-top">
+          <div class="goal-box">
+            <strong id="daysLeft">—</strong>
+            <span id="daysLabel">Days left</span>
+          </div>
+          <div class="goal-box">
+            <strong id="goalScore">—</strong>
+            <span>Target score</span>
+          </div>
+        </div>
+
+        <div class="progress-bar"><div id="goalFill" class="progress-fill"></div></div>
+
+        <p id="goalNote" class="panel-note">Set your target score and exam date.</p>
+
+        <button id="goalOpen" class="goal-open" type="button" aria-haspopup="dialog">✏️ Set score &amp; date</button>
+
+        <form id="goalForm" class="goal-form" novalidate>
+          <div class="sheet-head">
+            <span>Target &amp; Exam Date</span>
+            <button class="sheet-close" type="button" aria-label="Close">×</button>
+          </div>
+          <label>Target score
+            <input id="goalInput" type="number" min="1" max="1000" step="0.5" inputmode="decimal" placeholder="e.g. 160">
+          </label>
+          <label>Exam date
+            <input id="dateInput" type="date">
+          </label>
+          <button type="submit">Save</button>
+        </form>
+
+      </section>
+
+    </div>
+
+    <div class="duo-item streak-item">
+
+      <div class="sheet-head">
+        <span>Daily Streak</span>
+        <button class="sheet-close" type="button" aria-label="Close">×</button>
+      </div>
+
+      <div class="section-title">Daily Streak</div>
+
+      <section class="panel streak-panel">
+
+        <div class="goal-top">
+          <div class="goal-box">
+            <strong id="streakNow">—</strong>
+            <span>🔥 Current streak (days)</span>
+          </div>
+          <div class="goal-box">
+            <strong id="streakBest">—</strong>
+            <span>🏅 Longest streak (days)</span>
+          </div>
+        </div>
+
+        <div id="calendar" class="calendar"></div>
+
+        <p id="streakNote" class="panel-note">Loading...</p>
+
+      </section>
+
+    </div>
+
+  </div>
+
+
+  <!-- =======================================================
        PREPARATION OVERVIEW
   ======================================================== -->
 
@@ -744,34 +1000,7 @@ body{
   </div>
 
 
-  <section class="stat-grid">
-
-
-    <!-- STUDY -->
-
-    <div class="stat-card">
-
-      <div class="stat-icon">
-        📚
-      </div>
-
-      <div class="stat-label">
-        Study Material
-      </div>
-
-      <div
-        id="studyProgress"
-        class="stat-value">
-        0%
-      </div>
-
-      <div
-        id="studyNote"
-        class="stat-note">
-        Loading...
-      </div>
-
-    </div>
+  <section class="stat-grid three">
 
 
     <!-- DAILY TASKS -->
@@ -851,6 +1080,18 @@ body{
       </div>
 
     </div>
+
+
+    <!-- STREAK (mobile) -->
+
+    <button id="streakOpen" class="stat-card streak-mini" type="button" aria-haspopup="dialog">
+
+      <span class="stat-icon">🔥</span>
+      <span class="stat-label">Daily Streak</span>
+      <span id="streakMini" class="stat-value">—</span>
+      <span class="stat-note">Tap to see calendar ›</span>
+
+    </button>
 
   </section>
 
@@ -970,6 +1211,35 @@ body{
 
 
   <!-- =======================================================
+       SCORE TREND  /  SUBJECT ACCURACY
+  ======================================================== -->
+
+  <div class="duo">
+
+    <div class="duo-item">
+
+      <div class="section-title">Score Trend (Last 10 Tests)</div>
+
+      <section class="panel">
+        <div id="trend" class="panel-note">Loading...</div>
+      </section>
+
+    </div>
+
+    <div class="duo-item">
+
+      <div class="section-title">Subject-wise Accuracy</div>
+
+      <section class="panel">
+        <div id="subjectStats" class="panel-note">Loading...</div>
+      </section>
+
+    </div>
+
+  </div>
+
+
+  <!-- =======================================================
        RECENT ATTEMPTS
   ======================================================== -->
 
@@ -1011,6 +1281,9 @@ body{
 <!-- =========================================================
      BOTTOM NAV
 ========================================================= -->
+
+<div id="sheetBackdrop" class="sheet-backdrop"></div>
+
 
 <nav class="bottom-nav">
 
@@ -1075,6 +1348,11 @@ body{
 <!-- =========================================================
      SUPABASE
 ========================================================= -->
+
+<footer class="d-foot">
+  <h2>SSC <span>EDGE</span></h2>
+  <p>Learn • Practice • Improve</p>
+</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -1398,165 +1676,14 @@ function testAttemptErrorFix(error){
 
 
 /* =========================================================
-   LOAD STUDY MATERIAL PROGRESS
-========================================================= */
-
-async function loadStudyProgress(user){
-
-  if(!user){
-
-    return {
-
-      progress:0,
-
-      completed:0,
-
-      total:0
-
-    };
-
-  }
-
-
-  /* =======================================================
-     GET ACTIVE PDF COUNT
-  ======================================================== */
-
-  const {
-    data:materials,
-    error:materialError
-  } =
-  await supabaseClient
-
-    .from("study_material")
-
-    .select(
-      "id",
-      {
-        count:"exact"
-      }
-    )
-
-    .eq(
-      "material_type",
-      "PDF"
-    )
-
-    .eq(
-      "is_active",
-      true
-    );
-
-
-  if(materialError){
-
-    throw materialError;
-
-  }
-
-
-  const total =
-    materials
-      ? materials.length
-      : 0;
-
-
-  if(total === 0){
-
-    return {
-
-      progress:0,
-
-      completed:0,
-
-      total:0
-
-    };
-
-  }
-
-
-  /* =======================================================
-     GET USER COMPLETED MATERIAL
-  ======================================================== */
-
-  const {
-    data:completedRows,
-    error:progressError
-  } =
-  await supabaseClient
-
-    .from("study_material_progress")
-
-    .select("material_id")
-
-    .eq(
-      "user_id",
-      user.id
-    )
-
-    .eq(
-      "completed",
-      true
-    );
-
-
-  if(progressError){
-
-    throw progressError;
-
-  }
-
-
-  const activeIds =
-    new Set(
-      materials.map(
-        item => String(item.id)
-      )
-    );
-
-
-  const completed =
-    new Set(
-      (completedRows || [])
-        .map(
-          item => String(item.material_id)
-        )
-        .filter(
-          id => activeIds.has(id)
-        )
-    ).size;
-
-
-  const progress =
-    Math.round(
-      (completed / total) * 100
-    );
-
-
-  return {
-
-    progress,
-
-    completed,
-
-    total
-
-  };
-
-}
-
-
-/* =========================================================
    LOAD DAILY TASK PROGRESS
 ========================================================= */
 
 async function loadDailyTaskProgress(){
 
+  /* device date, same as the Daily Task page */
   const today =
-    new Date()
-      .toISOString()
-      .slice(0,10);
+    dayKey(new Date());
 
 
   const {
@@ -1669,25 +1796,9 @@ async function loadDailyTaskProgress(){
 ========================================================= */
 
 function updateUI(
-  study,
   tasks,
   tests
 ){
-
-  /* =======================================================
-     STUDY
-  ======================================================== */
-
-  $("studyProgress").textContent =
-    study.progress + "%";
-
-
-  $("studyNote").textContent =
-    study.total > 0
-
-      ? `${study.completed} of ${study.total} PDFs completed`
-
-      : "No active PDFs";
 
 
   /* =======================================================
@@ -1754,16 +1865,15 @@ function updateUI(
      OVERALL
      
      Equal weight:
-     Study + Daily Tasks + Tests
+     Daily Tasks + Tests
   ======================================================== */
 
   const overall =
     Math.round(
       (
-        study.progress +
         tasks.progress +
         tests.testProgress
-      ) / 3
+      ) / 2
     );
 
 
@@ -1798,7 +1908,7 @@ function updateUI(
   else if(overall >= 40){
 
     message =
-      "Good start! Keep studying and complete your daily tasks.";
+      "Good start! Keep practicing and complete your daily tasks.";
 
   }
   else if(overall >= 20){
@@ -1822,6 +1932,707 @@ function updateUI(
 
 
 /* =========================================================
+   LOCAL DATE (device date)
+========================================================= */
+
+function dayKey(date){
+
+  return date.getFullYear() + "-" +
+    String(date.getMonth() + 1).padStart(2,"0") + "-" +
+    String(date.getDate()).padStart(2,"0");
+
+}
+
+function addDays(date,n){
+
+  const next = new Date(date);
+  next.setDate(next.getDate() + n);
+  return next;
+
+}
+
+function escapeHtml(value){
+
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+
+}
+
+
+/* =========================================================
+   FETCH ALL ROWS (Supabase returns max 1000 at a time)
+========================================================= */
+
+async function fetchAll(makeQuery){
+
+  let rows = [];
+
+  for(let from = 0; from < 20000; from += 1000){
+
+    const { data, error } =
+      await makeQuery().range(from,from + 999);
+
+    if(error) throw error;
+
+    rows = rows.concat(data || []);
+
+    if((data || []).length < 1000) break;
+
+  }
+
+  return rows;
+
+}
+
+async function fetchIn(table,columns,column,ids,order = ["id"]){
+
+  let rows = [];
+
+  for(let i = 0; i < ids.length; i += 100){
+
+    rows = rows.concat(
+      await fetchAll(() =>
+        order.reduce(
+          (query,name) => query.order(name),
+          supabaseClient
+            .from(table)
+            .select(columns)
+            .in(column,ids.slice(i,i + 100))
+        )
+      )
+    );
+
+  }
+
+  return rows;
+
+}
+
+
+/* =========================================================
+   TARGET SCORE + EXAM COUNTDOWN
+   (saved on this device)
+========================================================= */
+
+let goalKey = "ssc-edge-goal-guest";
+
+/* null = scores not loaded / not available */
+let goalScores = null;
+
+function readGoal(){
+
+  try{
+    return JSON.parse(localStorage.getItem(goalKey) || "{}") || {};
+  }
+  catch(error){
+    return {};
+  }
+
+}
+
+function renderGoal(){
+
+  const goal = readGoal();
+  const target = Number(goal.score) || 0;
+  const notes = [];
+
+  $("daysLeft").textContent = "—";
+  $("daysLabel").textContent = "Days left";
+
+  if(goal.date){
+
+    const days = Math.round(
+      (
+        new Date(goal.date + "T00:00:00") -
+        new Date(dayKey(new Date()) + "T00:00:00")
+      ) / 86400000
+    );
+
+    if(days >= 0){
+
+      $("daysLeft").textContent = days;
+      $("daysLabel").textContent =
+        days === 0 ? "Exam is today! All the best" :
+        days === 1 ? "Day left" : "Days left";
+
+    }
+    else{
+
+      notes.push("Exam date has passed. Set a new date.");
+
+    }
+
+  }
+
+  $("goalScore").textContent = target || "—";
+
+  let percent = 0;
+
+  if(target && goalScores && goalScores.length){
+
+    const best = Math.max(...goalScores);
+    const recent = goalScores.slice(0,5);
+    const average =
+      recent.reduce((sum,n) => sum + n,0) / recent.length;
+
+    percent = Math.max(0,Math.min(100,best / target * 100));
+
+    notes.push(
+      best >= target
+      ? `Target reached! Your best score is ${roundNumber(best)}.`
+      : `Best score ${roundNumber(best)}, ${roundNumber(target - best)} marks to go.`
+    );
+
+    notes.push(
+      `Average of last ${recent.length} test${recent.length > 1 ? "s" : ""}: ${roundNumber(average)}.`
+    );
+
+  }
+  else if(target && goalScores){
+
+    notes.push("Attempt a mock test to compare with your target.");
+
+  }
+
+  $("goalFill").style.width = percent + "%";
+
+  $("goalNote").textContent =
+    notes.join(" ") || "Set your target score and exam date.";
+
+}
+
+function setupGoal(user){
+
+  if(user){
+    goalKey = "ssc-edge-goal-" + user.id;
+  }
+
+  const goal = readGoal();
+
+  $("goalInput").value = goal.score || "";
+  $("dateInput").value = goal.date || "";
+
+  $("goalForm").addEventListener("submit",event => {
+
+    event.preventDefault();
+
+    const score = Number($("goalInput").value);
+
+    try{
+
+      localStorage.setItem(
+        goalKey,
+        JSON.stringify({
+          score: score > 0 ? Math.min(score,1000) : "",
+          date: $("dateInput").value
+        })
+      );
+
+      renderGoal();
+
+      closeSheet();
+
+    }
+    catch(error){
+
+      closeSheet();
+
+      $("goalNote").textContent =
+        "Could not save your target on this device.";
+
+    }
+
+  });
+
+  renderGoal();
+
+}
+
+
+/* =========================================================
+   DAILY STREAK
+   A day counts if a mock test was completed on it,
+   or a daily task of that date is marked done.
+========================================================= */
+
+function renderStreak(days){
+
+  const today = new Date();
+  today.setHours(12,0,0,0);
+
+  /* the streak stays alive until today is over */
+  let cursor =
+    days.has(dayKey(today)) ? today : addDays(today,-1);
+
+  let current = 0;
+
+  while(days.has(dayKey(cursor))){
+    current++;
+    cursor = addDays(cursor,-1);
+  }
+
+  let longest = 0;
+  let run = 0;
+  let previous = "";
+
+  [...days]
+    .filter(day => day <= dayKey(today))
+    .sort()
+    .forEach(day => {
+
+      run =
+        previous &&
+        dayKey(addDays(new Date(previous + "T12:00:00"),1)) === day
+        ? run + 1
+        : 1;
+
+      longest = Math.max(longest,run);
+      previous = day;
+
+    });
+
+  $("streakNow").textContent = current;
+  $("streakMini").textContent = current;
+  $("streakBest").textContent = longest;
+
+  /* last 5 weeks, Monday first */
+  const start =
+    addDays(today,-((today.getDay() + 6) % 7) - 28);
+
+  let html =
+    ["M","T","W","T","F","S","S"]
+      .map(d => `<div class="cal-head">${d}</div>`)
+      .join("");
+
+  for(let i = 0; i < 35; i++){
+
+    const date = addDays(start,i);
+    const key = dayKey(date);
+    const done = days.has(key) && key <= dayKey(today);
+
+    html += `<div class="cal-day${done ? " done" : ""}${
+      key === dayKey(today) ? " today" : ""
+    }${key > dayKey(today) ? " future" : ""}" title="${
+      date.toLocaleDateString("en-IN",{day:"numeric",month:"short"})
+    }${done ? ": practised" : ""}">${date.getDate()}</div>`;
+
+  }
+
+  $("calendar").innerHTML = html;
+
+  $("streakNote").textContent =
+    days.has(dayKey(today))
+    ? "Great, today is counted. Come back tomorrow!"
+    : "Complete a mock test or a daily task to count today.";
+
+}
+
+async function loadStreak(attempts){
+
+  const days = new Set(
+    attempts.map(a => dayKey(new Date(a.completed_at)))
+  );
+
+  let ids = [];
+
+  try{
+    ids = JSON.parse(
+      localStorage.getItem("ssc-edge-daily-completed") || "[]"
+    );
+  }
+  catch(error){
+    ids = [];
+  }
+
+  if(Array.isArray(ids) && ids.length){
+
+    try{
+      (await fetchIn("daily_tasks","id,task_date","id",ids))
+        .forEach(task => {
+          if(task.task_date){
+            days.add(String(task.task_date).slice(0,10));
+          }
+        });
+    }
+    catch(error){
+      console.warn("Could not load task dates:",error);
+    }
+
+  }
+
+  renderStreak(days);
+
+}
+
+
+/* =========================================================
+   SCORE TREND
+========================================================= */
+
+async function loadTrend(attempts){
+
+  if(!attempts.length){
+
+    $("trend").textContent =
+      "Attempt a mock test to see your score trend.";
+
+    return;
+
+  }
+
+  /* oldest on the left */
+  const last = attempts.slice(0,10).reverse();
+
+  const titles = {};
+
+  try{
+    (await fetchIn(
+      "mock_tests",
+      "id,title,marks_per_question",
+      "id",
+      [...new Set(last.map(a => a.mock_test_id))]
+    )).forEach(test => titles[String(test.id)] = test);
+  }
+  catch(error){
+    console.warn("Could not load test names:",error);
+  }
+
+  /* bar height = share of full marks, so different tests compare fairly */
+  const full = last.map(a => {
+    const test = titles[String(a.mock_test_id)] || {};
+    const questions =
+      Number(a.correct_answers || 0) +
+      Number(a.wrong_answers || 0) +
+      Number(a.unanswered || 0);
+    return questions * Number(test.marks_per_question || 0);
+  });
+
+  const useShare = full.every(n => n > 0);
+
+  const highest =
+    Math.max(1,...last.map(a => Number(a.score || 0)));
+
+  const when = a =>
+    new Date(a.completed_at)
+      .toLocaleDateString("en-IN",{day:"numeric",month:"short"});
+
+  const bars = last.map((a,i) => {
+
+    const score = roundNumber(a.score);
+    const share = score / (useShare ? full[i] : highest);
+    const title =
+      titles[String(a.mock_test_id)]?.title || "Mock Test";
+    const outOf = full[i] > 0 ? " / " + roundNumber(full[i]) : "";
+
+    return `<div class="col" tabindex="0" aria-label="${
+      escapeHtml(title)}, ${when(a)}, score ${score}${outOf}">
+      <em>${escapeHtml(title)}<br>${when(a)}<br>Score: ${score}${outOf}</em>
+      <b>${score}</b>
+      <i style="height:${Math.max(0,Math.min(1,share)) * 85}%"></i>
+    </div>`;
+
+  }).join("");
+
+  let message = "Attempt one more test to see your trend.";
+
+  if(last.length > 1){
+
+    const n = last.length - 1;
+    const value = i =>
+      useShare ? last[i].score / full[i] * 100 : Number(last[i].score);
+    const change = Math.round((value(n) - value(n - 1)) * 10) / 10;
+    const unit = useShare ? "%" : " marks";
+
+    message =
+      change > 0 ? `▲ Up ${change}${unit} from your previous test.` :
+      change < 0 ? `▼ Down ${-change}${unit} from your previous test.` :
+      "Same as your previous test.";
+
+  }
+
+  $("trend").className = "";
+  $("trend").innerHTML = `
+    <div class="chart">${bars}</div>
+    <div class="axis panel-meta subject-meta">
+      <span>${when(last[0])}</span>
+      <span>${last.length > 1 ? when(last[last.length - 1]) : ""}</span>
+    </div>
+    <p class="panel-note">${message}${
+      useShare ? " Bar height shows % of full marks." : ""
+    }</p>`;
+
+}
+
+
+/* =========================================================
+   SUBJECT-WISE ACCURACY
+========================================================= */
+
+async function loadSubjects(attempts){
+
+  const box = $("subjectStats");
+
+  const empty = () => {
+    box.textContent =
+      "Attempt a mock test to see your subject-wise accuracy.";
+  };
+
+  if(!attempts.length) return empty();
+
+  const testOf = {};
+  attempts.forEach(a => testOf[String(a.id)] = String(a.mock_test_id));
+
+  const testIds =
+    [...new Set(attempts.map(a => a.mock_test_id))];
+
+  const [answers,links,sections] = await Promise.all([
+
+    fetchIn(
+      "user_answers",
+      "attempt_id,question_id,selected_option_id,is_correct",
+      "attempt_id",
+      attempts.map(a => a.id),
+      ["attempt_id","question_id"]
+    ),
+
+    fetchIn(
+      "mock_test_questions",
+      "mock_test_id,question_id,section_id",
+      "mock_test_id",
+      testIds,
+      ["mock_test_id","question_id"]
+    ),
+
+    fetchIn(
+      "mock_test_sections",
+      "id,subject_id,section_name",
+      "mock_test_id",
+      testIds
+    )
+
+  ]);
+
+  const subjectIds =
+    [...new Set(sections.map(s => s.subject_id).filter(x => x != null))];
+
+  const subjects =
+    subjectIds.length
+    ? await fetchIn("subjects","id,name","id",subjectIds)
+    : [];
+
+  const names = {};
+  subjects.forEach(s => names[String(s.id)] = s.name);
+
+  const sectionName = {};
+  sections.forEach(s => {
+    sectionName[String(s.id)] =
+      names[String(s.subject_id)] || s.section_name || "Other";
+  });
+
+  const subjectOf = {};
+  links.forEach(l => {
+    subjectOf[l.mock_test_id + ":" + l.question_id] =
+      sectionName[String(l.section_id)];
+  });
+
+  const totals = new Map();
+
+  answers.forEach(a => {
+
+    const attempted =
+      a.is_correct === true ||
+      (a.selected_option_id != null && a.selected_option_id !== "");
+
+    const subject =
+      subjectOf[testOf[String(a.attempt_id)] + ":" + a.question_id];
+
+    if(!attempted || !subject) return;
+
+    const row = totals.get(subject) || {correct:0,attempted:0};
+
+    row.attempted++;
+    if(a.is_correct === true) row.correct++;
+
+    totals.set(subject,row);
+
+  });
+
+  if(!totals.size) return empty();
+
+  const rows =
+    [...totals]
+      .map(([name,r]) => ({
+        name,
+        ...r,
+        percent: Math.round(r.correct / r.attempted * 100)
+      }))
+      .sort((a,b) => b.percent - a.percent);
+
+  const weakest = rows[rows.length - 1];
+
+  /* only call a subject weak when it is really behind another one */
+  const mark =
+    rows.length > 1 && weakest.percent < rows[0].percent;
+
+  box.className = "";
+  box.innerHTML = rows.map(r => {
+    const weak = mark && r.percent === weakest.percent;
+    return `<div class="subject-row${weak ? " weak" : ""}">
+      <div class="subject-line">
+        <span>${escapeHtml(r.name)}</span>
+        <span>${r.percent}%</span>
+      </div>
+      <div class="subject-track"><div style="width:${r.percent}%"></div></div>
+      <div class="subject-meta">${r.correct} correct of ${r.attempted} attempted${
+        weak ? " • ⚠ Focus here" : ""
+      }</div>
+    </div>`;
+  }).join("");
+
+}
+
+
+/* =========================================================
+   LOAD THE NEW SECTIONS
+   (each one fails on its own, without breaking the rest)
+========================================================= */
+
+function showUnavailable(ids,text){
+
+  ids.forEach(id => $(id).textContent = text);
+
+}
+
+async function loadExtras(user){
+
+  let attempts;
+
+  try{
+
+    attempts = await fetchAll(() =>
+      supabaseClient
+        .from("test_attempts")
+        .select(
+          "id,mock_test_id,score,correct_answers,wrong_answers,unanswered,completed_at"
+        )
+        .eq("user_id",user.id)
+        .not("completed_at","is",null)
+        .order("completed_at",{ascending:false})
+    );
+
+  }
+  catch(error){
+
+    console.error("Attempt history error:",error);
+
+    showUnavailable(
+      ["trend","subjectStats","streakNote"],
+      "Unable to load this right now."
+    );
+
+    return;
+
+  }
+
+  goalScores = attempts.map(a => Number(a.score || 0));
+  renderGoal();
+
+  const run = (task,id) =>
+    task(attempts).catch(error => {
+      console.error(error);
+      showUnavailable([id],"Unable to load this right now.");
+    });
+
+  run(loadStreak,"streakNote");
+  run(loadTrend,"trend");
+  run(loadSubjects,"subjectStats");
+
+}
+
+
+/* =========================================================
+   MOBILE POPUPS (streak calendar, target + exam date)
+========================================================= */
+
+const SHEETS = ["goal-open-sheet","streak-open-sheet"];
+
+function sheetIsOpen(){
+
+  return SHEETS.some(name => document.body.classList.contains(name));
+
+}
+
+function hideSheets(){
+
+  document.body.classList.remove(...SHEETS);
+
+}
+
+function openSheet(name){
+
+  /* desktop shows everything on the page already */
+  if(window.matchMedia("(min-width:960px)").matches || sheetIsOpen()){
+    return;
+  }
+
+  if(name === "goal-open-sheet"){
+    const goal = readGoal();
+    $("goalInput").value = goal.score || "";
+    $("dateInput").value = goal.date || "";
+  }
+
+  document.body.classList.add(name);
+
+  /* so the phone's back button closes the popup */
+  history.pushState({sheet:true},"");
+
+}
+
+function closeSheet(){
+
+  if(!sheetIsOpen()){
+    return;
+  }
+
+  hideSheets();
+
+  if(history.state && history.state.sheet){
+    history.back();
+  }
+
+}
+
+$("goalCard").addEventListener("click",event => {
+
+  if(!event.target.closest("form")){
+    openSheet("goal-open-sheet");
+  }
+
+});
+
+$("streakOpen").addEventListener("click",
+  () => openSheet("streak-open-sheet"));
+
+$("sheetBackdrop").addEventListener("click",closeSheet);
+
+document.querySelectorAll(".sheet-close")
+  .forEach(button => button.addEventListener("click",closeSheet));
+
+document.addEventListener("keydown",event => {
+
+  if(event.key === "Escape"){
+    closeSheet();
+  }
+
+});
+
+window.addEventListener("popstate",hideSheets);
+
+
+/* =========================================================
    LOAD EVERYTHING
 ========================================================= */
 
@@ -1833,17 +2644,29 @@ async function loadProgress(){
       await getCurrentUser();
 
 
+    setupGoal(user);
+
+
+    if(user){
+
+      loadExtras(user);
+
+    }
+
+
     /* =====================================================
        GUEST
     ====================================================== */
 
     if(!user){
 
-      $("studyNote").textContent =
-        "Login required";
-
       $("taskNote").textContent =
         "Today's task status";
+
+      showUnavailable(
+        ["trend","subjectStats","streakNote"],
+        "Login to see this."
+      );
 
       $("testNote").textContent =
         "Login to track tests";
@@ -1863,13 +2686,10 @@ async function loadProgress(){
     ====================================================== */
 
     const [
-      study,
       tasks,
       tests
     ] =
     await Promise.all([
-
-      loadStudyProgress(user),
 
       loadDailyTaskProgress(),
 
@@ -1879,7 +2699,6 @@ async function loadProgress(){
 
 
     updateUI(
-      study,
       tasks,
       tests
     );

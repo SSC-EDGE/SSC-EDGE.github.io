@@ -12,7 +12,7 @@
 
 <script>
 document.documentElement.dataset.theme =
-    localStorage.getItem("ssc-edge-theme") || "dark";
+    localStorage.getItem("ssc-edge-theme") || "light";
 </script>
 
 <style>
@@ -411,10 +411,122 @@ body{
 
 }
 
+:where(:root[data-theme="light"]){--bg:#f7f5fa;--card:#fff;--card2:#f0ebf7;--border:#ddd6e8;--text:#211d27;--muted:#716a7b;--header:#f1e9ff;--purple:#8b45ee;--purple2:#7834db}
+
+.sv-view{display:none;}
+@media(min-width:960px){
+body{margin:0; background:var(--bg); color:var(--text);}
+.page{display:none;}
+body{--header-h:110px; --palette-w:320px;}
+.sv-view{display:block;}
+.sv-header{position:fixed; top:0; left:0; right:0; z-index:50; height:var(--header-h); padding:11px 14px 10px; background:var(--header); border-bottom:1px solid var(--border);}
+.sv-header-top{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; height:40px;}
+.sv-brand{font-size:24px; font-weight:900; letter-spacing:-.5px; color:var(--text);}
+.sv-brand span{color:#b98cff;}
+.sv-center{text-align:center;}
+.sv-center-title{font-size:17px; font-weight:900; line-height:1.25; color:var(--text);}
+.sv-center-sub{margin-top:3px; font-size:12px; font-weight:800; color:var(--purple2);}
+.sv-actions{justify-self:end; display:flex; gap:10px;}
+.sv-hbtn{height:40px; display:inline-flex; align-items:center; padding:0 18px; border:1px solid var(--border); border-radius:10px; background:var(--card2); color:var(--text); font-family:inherit; font-size:13px; font-weight:900; text-decoration:none; cursor:pointer;}
+.sv-open{background:var(--purple); border-color:var(--purple); color:#fff;}
+.sv-tabs{display:flex; gap:7px; margin-top:11px; overflow-x:auto; scrollbar-width:none;}
+.sv-tabs button{flex:0 0 auto; padding:9px 16px; border:1px solid var(--border); border-radius:9px; background:#fff; color:#24152f; font-family:inherit; font-size:12px; font-weight:900; cursor:pointer;}
+.sv-tabs button.current{background:var(--purple); border-color:var(--purple); color:#fff;}
+.sv-nav{position:fixed; top:var(--header-h); left:0; right:var(--palette-w); z-index:45; height:48px; display:flex; align-items:center; justify-content:center; gap:12px; background:var(--bg); transition:right .2s ease;}
+.sv-nav button{min-width:112px; height:34px; padding:0 18px; border:0; border-radius:6px; background:var(--purple); color:#fff; font-family:inherit; font-size:12px; font-weight:800; cursor:pointer;}
+.sv-nav button.saved{background:#6d3fd1;}
+.sv-nav button:disabled{opacity:.5; cursor:default;}
+.sv-main{margin-right:var(--palette-w); padding:calc(var(--header-h) + 74px) 28px 40px; transition:margin-right .2s ease;}
+.sv-qtop,#svCard{max-width:1000px;}
+.sv-qtop{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:10px;}
+.sv-count{font-size:14px; font-weight:900; color:var(--text); white-space:nowrap;}
+.sv-tools{display:flex; align-items:center; gap:8px; min-width:0;}
+.sv-tool{padding:7px 10px; border:1px solid var(--border); border-radius:9px; background:var(--card2); color:var(--purple2); font-family:inherit; font-size:11px; font-weight:900; cursor:pointer;}
+.sv-tool.active{background:var(--purple); border-color:var(--purple); color:#fff;}
+.sv-mark{padding:5px 8px; line-height:1; color:#756b83; border-color:#8b8198;}
+.sv-mark.active{color:#a66bff; background:rgba(124,58,237,.16); border-color:#7c3aed;}
+.sv-test{font-size:12px; font-weight:900; color:var(--purple2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.sv-qtext{padding:4px 2px 0; font-size:17px; font-weight:800; line-height:1.45; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere;}
+.sv-options{display:flex; flex-direction:column; gap:8px; margin-top:16px;}
+.sv-option{display:flex; align-items:center; gap:14px; min-height:52px; padding:12px; border:1px solid rgba(196,167,255,.45); border-radius:14px; background:rgba(196,167,255,.08); color:var(--text); font-size:15px; line-height:1.45; overflow-wrap:anywhere;}
+.sv-option b{min-width:22px; color:var(--purple2);}
+.sv-option.correct{border-color:#25c27a; background:rgba(37,194,122,.1);}
+.sv-answer{margin-top:11px; padding:13px 15px; border:1px solid var(--border); border-radius:10px; background:var(--card2); font-size:14px; font-weight:800; line-height:1.5; color:var(--text);}
+.sv-explain{margin-top:10px; padding:15px 17px; border-left:3px solid var(--purple); border-radius:0 10px 10px 0; background:var(--card2); font-size:14px; line-height:1.65; color:var(--text);}
+.sv-explain strong{display:block; margin-bottom:4px; color:var(--purple2);}
+.sv-explain div{white-space:pre-line; overflow-wrap:anywhere;}
+.sv-empty{display:none; padding:70px 20px; text-align:center; font-size:16px; line-height:1.7; color:var(--muted);}
+.sv-palette{position:fixed; top:var(--header-h); right:0; bottom:0; z-index:60; width:var(--palette-w); overflow-y:auto; padding:14px; background:var(--card); border-left:1px solid var(--border); transition:transform .2s ease;}
+.sv-palette h2{margin:0; font-size:17px; color:var(--text);}
+.sv-pal-sub{display:block; margin-top:3px; padding-bottom:13px; border-bottom:1px solid var(--border); font-size:10px; font-weight:700; color:var(--muted);}
+.sv-numbers{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; padding:16px 0;}
+.sv-numbers button{min-height:44px; border:1px solid #d1d5db; border-radius:9px; background:#fff; color:#24152f; font-family:inherit; font-size:12px; font-weight:900; cursor:pointer;}
+.sv-numbers button.on{background:#8b45ee; border-color:#7834db; color:#fff;}
+.sv-numbers button.current{outline:3px solid rgba(168,85,247,.45);}
+.sv-legend{display:flex; gap:28px; padding-top:13px; border-top:1px solid var(--border); font-size:10px; font-weight:800; color:var(--text);}
+.sv-legend span{display:flex; align-items:center; gap:7px;}
+.sv-legend i{width:13px; height:13px; border:1px solid #d1d5db; border-radius:4px; background:#fff;}
+.sv-legend i.on{background:#8b45ee; border-color:#7834db;}
+.sv-tab{position:fixed; top:calc(var(--header-h) + 14px); right:var(--palette-w); z-index:70; width:26px; height:54px; border:0; border-radius:10px 0 0 10px; background:var(--purple); color:#fff; font-size:26px; line-height:1; cursor:pointer; transition:right .2s ease;}
+.sv-tab::before{content:"\203A";}
+body.sv-closed .sv-nav{right:0;}
+body.sv-closed .sv-main{margin-right:0;}
+body.sv-closed .sv-palette{transform:translateX(100%);}
+body.sv-closed .sv-tab{right:0;}
+body.sv-closed .sv-tab::before{content:"\2039";}
+body.sv-none .sv-nav,body.sv-none .sv-palette,body.sv-none .sv-tab,body.sv-none #svArea,body.sv-none .sv-open{display:none;}
+body.sv-none .sv-main{margin-right:0;}
+body.sv-none .sv-empty{display:block;}
+}
+
 </style>
 </head>
 
 <body>
+
+<!-- ===== desktop: question view (same layout as solutions) ===== -->
+<div class="sv-view">
+  <header class="sv-header">
+    <div class="sv-header-top">
+      <div class="sv-brand">SSC <span>EDGE</span></div>
+      <div class="sv-center">
+        <div class="sv-center-title">Saved Questions</div>
+        <div id="svCenterSub" class="sv-center-sub"></div>
+      </div>
+      <div class="sv-actions">
+        <a id="svOpen" class="sv-hbtn sv-open">Open Test</a>
+        <button id="svBack" class="sv-hbtn" type="button">Back</button>
+      </div>
+    </div>
+    <div id="svTabs" class="sv-tabs"></div>
+  </header>
+  <div id="svNav" class="sv-nav">
+    <button id="svPrev" type="button">← Previous</button>
+    <button id="svSave" type="button">Saved</button>
+    <button id="svNext" type="button">Next →</button>
+  </div>
+  <main class="sv-main">
+    <div id="svArea">
+      <div class="sv-qtop">
+        <span id="svCount" class="sv-count"></span>
+        <div class="sv-tools">
+          <button id="svLang" class="sv-tool" type="button">A / अ</button>
+          <button id="svMark" class="sv-tool sv-mark" type="button" title="Saved Question"><svg viewBox="0 0 18 22" width="15" height="18" aria-hidden="true"><path d="M2.5 2.5A1.5 1.5 0 0 1 4 1h10a1.5 1.5 0 0 1 1.5 1.5V20l-6.5-4-6.5 4V2.5Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+          <span id="svTest" class="sv-test"></span>
+        </div>
+      </div>
+      <div id="svCard"></div>
+    </div>
+    <div id="svEmpty" class="sv-empty"></div>
+  </main>
+  <aside id="svPalette" class="sv-palette">
+    <h2 id="svPalTitle"></h2>
+    <span class="sv-pal-sub">Question Palette</span>
+    <div id="svNumbers" class="sv-numbers"></div>
+    <div class="sv-legend"><span><i class="on"></i>Saved</span><span><i></i>Removed</span></div>
+  </aside>
+  <button id="svTab" class="sv-tab" type="button" aria-label="Show or hide question palette"></button>
+</div>
 
 <main class="page">
 
@@ -505,6 +617,21 @@ body{
 
 </main>
 
+
+<script>
+/* one step back inside the site; otherwise follow the link */
+function sscBack(){
+  try{
+    const r = document.referrer && new URL(document.referrer);
+    if(r && history.length > 1 && r.origin === location.origin &&
+       !/(^|\/)(index(\.html)?)?$/.test(r.pathname)){
+      history.back();
+      return false;
+    }
+  }catch(e){}
+  return true;
+}
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -950,7 +1077,7 @@ async function loadTestData(
         db
             .from("question_options")
             .select(
-                "id,question_id,option_label,option_text,is_correct"
+                "*"
             )
             .in("question_id",ids)
             .order(
@@ -1646,6 +1773,10 @@ async function loadSavedQuestions(){
 
     if(!entries.length){
 
+        allQuestionData = [];
+        svLoaded = true;
+        svRender();
+
         count.textContent =
             "🔖 0 Saved Questions";
 
@@ -1739,6 +1870,9 @@ async function loadSavedQuestions(){
                             testId:
                                 String(testId),
 
+                            title:
+                                data.title,
+
                             questions:
                                 data.questions || []
 
@@ -1777,6 +1911,9 @@ async function loadSavedQuestions(){
                 testId:
                     result.testId,
 
+                testTitle:
+                    result.title,
+
                 question:q
 
             });
@@ -1784,6 +1921,10 @@ async function loadSavedQuestions(){
         });
 
     });
+
+
+    svLoaded = true;
+    svRender();
 
 
     if(!allQuestionData.length){
@@ -1932,10 +2073,284 @@ document.addEventListener(
 );
 
 
+
+/* ==========================================
+   DESKTOP: 4 SUBJECT CARDS + SOLUTION VIEW
+========================================== */
+
+const SV_SUBJECTS = [
+    ["quant","Quantitative Aptitude","🔢"],
+    ["english","English","📖"],
+    ["reasoning","Reasoning","🧩"],
+    ["gk","General Awareness","🌍"]
+];
+
+let svLoaded = false;
+let svLang = "default";
+const svPosition = {};
+
+const sv = id => document.getElementById(id);
+
+function svIsSaved(item){
+    try{
+        const ids = JSON.parse(
+            localStorage.getItem("ssc-edge-saved-questions-" + item.testId) || "[]"
+        );
+        return Array.isArray(ids) &&
+            ids.map(String).includes(String(item.question.id));
+    }catch(error){
+        return false;
+    }
+}
+
+/* the 4 subjects, plus "Other" only if something does not match them */
+function svSubjectList(){
+    const names = SV_SUBJECTS.map(s => s[1]);
+    const other = allQuestionData.some(
+        item => !names.includes(item.question.subjectName)
+    );
+    return other
+        ? SV_SUBJECTS.concat([["other","Other","📌"]])
+        : SV_SUBJECTS;
+}
+
+function svItems(slug){
+    const names = SV_SUBJECTS.map(s => s[1]);
+    const found = SV_SUBJECTS.find(s => s[0] === slug);
+    return allQuestionData.filter(item =>
+        found
+        ? item.question.subjectName === found[1]
+        : !names.includes(item.question.subjectName)
+    );
+}
+
+/* subject in the address bar, else the first subject that has saved questions */
+function svSlug(){
+    const slug = location.hash.slice(1);
+    if(SV_SUBJECTS.some(s => s[0] === slug) || slug === "other"){
+        return slug;
+    }
+    const first = svSubjectList().find(s => svItems(s[0]).length);
+    return first ? first[0] : SV_SUBJECTS[0][0];
+}
+
+function svText(obj,keys){
+    for(const key of keys){
+        const value = obj && obj[key];
+        if(value != null && String(value).trim() !== ""){
+            return String(value);
+        }
+    }
+    return "";
+}
+
+const SV_Q_HI = ["question_text_hindi","question_text_hi","hindi_question_text","question_hi","question_text_hin","question_hin"];
+const SV_Q_EN = ["question_text_en","question_en","english_question_text","question_text"];
+const SV_O_HI = ["option_text_hindi","option_text_hi","hindi_option_text","option_hi","option_text_hin","option_hin"];
+const SV_O_EN = ["option_text_en","option_en","english_option_text","option_text"];
+const SV_E_HI = ["explanation_hindi","explanation_hi","hindi_explanation","solution_hindi","solution_hi"];
+const SV_E_EN = ["explanation_en","explanation_english","english_explanation","explanation","solution_en"];
+
+function svPick(obj,hindi,english){
+    return svLang === "hi"
+        ? svText(obj,hindi) || svText(obj,english)
+        : svText(obj,english) || svText(obj,hindi);
+}
+
+function svRender(){
+
+    const slug = svSlug();
+
+    /* fix the subject once loaded, so it does not jump while editing */
+    if(svLoaded && allQuestionData.length && location.hash !== "#" + slug){
+        history.replaceState(history.state,"","#" + slug);
+    }
+
+    svRenderView(slug);
+
+}
+
+function svRenderView(slug){
+
+    const list = svSubjectList();
+    const subject = list.find(s => s[0] === slug) || [slug,"Other"];
+    const items = svItems(slug);
+
+    sv("svCenterSub").textContent = subject[1];
+    sv("svPalTitle").textContent = subject[1];
+
+    sv("svTabs").innerHTML = list.map(s =>
+        `<button type="button" data-slug="${s[0]}" class="${
+            s[0] === slug ? "current" : ""
+        }">${s[1]} (${svItems(s[0]).filter(svIsSaved).length})</button>`
+    ).join("");
+
+    document.body.classList.toggle("sv-none",!items.length);
+
+    if(!items.length){
+        sv("svEmpty").innerHTML =
+            !svLoaded
+            ? "Loading saved questions..."
+            : !allQuestionData.length && getSavedEntries().length
+            ? "Saved questions could not be loaded."
+            : `🔖<br>No saved questions in ${esc(subject[1])} yet.<br>Save questions from a test to revise them later.`;
+        return;
+    }
+
+    const pos = Math.min(svPosition[slug] || 0,items.length - 1);
+    svPosition[slug] = pos;
+
+    const item = items[pos];
+    const q = item.question;
+    const saved = svIsSaved(item);
+
+    sv("svCount").textContent =
+        "Question " + (pos + 1) + " of " + items.length;
+
+    sv("svTest").textContent =
+        (item.testTitle || "SSC EDGE Test") +
+        (q.question_order != null ? " • Q" + q.question_order : "");
+
+    sv("svOpen").href =
+        "solutions.html?test_id=" + encodeURIComponent(item.testId);
+
+    const hindi =
+        !!svText(q,SV_Q_HI.concat(SV_E_HI)) ||
+        q.options.some(o => svText(o,SV_O_HI));
+
+    sv("svLang").style.display = hindi ? "" : "none";
+    sv("svLang").textContent = svLang === "hi" ? "अ / A" : "A / अ";
+    sv("svLang").classList.toggle("active",svLang === "hi");
+
+    sv("svMark").classList.toggle("active",saved);
+    sv("svSave").textContent = saved ? "Saved" : "Save Question";
+    sv("svSave").classList.toggle("saved",saved);
+    sv("svPrev").disabled = pos <= 0;
+    sv("svNext").disabled = pos >= items.length - 1;
+
+    const label = (o,i) => o.option_label || String.fromCharCode(65 + i);
+    const index = q.options.findIndex(isCorrectOption);
+
+    sv("svCard").innerHTML = `
+        <div class="sv-qtext">${esc(svPick(q,SV_Q_HI,SV_Q_EN))}</div>
+        <div class="sv-options">${
+            q.options.map((o,i) => `
+                <div class="sv-option ${isCorrectOption(o) ? "correct" : ""}">
+                    <b>${esc(label(o,i))}</b>
+                    <span>${esc(svPick(o,SV_O_HI,SV_O_EN))}</span>
+                </div>`
+            ).join("")
+        }</div>
+        <div class="sv-answer">Correct Answer: ${
+            index < 0
+            ? "Not available"
+            : esc("(" + label(q.options[index],index) + ") " +
+                  svPick(q.options[index],SV_O_HI,SV_O_EN))
+        }</div>
+        <div class="sv-explain">
+            <strong>Explanation</strong>
+            <div>${esc(
+                svPick(q,SV_E_HI,SV_E_EN) ||
+                "No explanation has been added for this question yet."
+            )}</div>
+        </div>`;
+
+    sv("svNumbers").innerHTML = items.map((it,i) =>
+        `<button type="button" data-pos="${i}" class="${
+            svIsSaved(it) ? "on" : ""
+        }${i === pos ? " current" : ""}">${i + 1}</button>`
+    ).join("");
+
+}
+
+function svMove(step){
+    const slug = svSlug();
+    svPosition[slug] = (svPosition[slug] || 0) + step;
+    svRender();
+    window.scrollTo(0,0);
+}
+
+/* save / unsave; the question stays on screen so it can be saved again */
+function svToggle(){
+    const slug = svSlug();
+    const item = svItems(slug)[svPosition[slug] || 0];
+    if(!item){
+        return;
+    }
+    const key = "ssc-edge-saved-questions-" + item.testId;
+    try{
+        let ids = JSON.parse(localStorage.getItem(key) || "[]");
+        ids = Array.isArray(ids) ? ids.map(String) : [];
+        const id = String(item.question.id);
+        ids = ids.includes(id) ? ids.filter(x => x !== id) : ids.concat(id);
+        if(ids.length){
+            localStorage.setItem(key,JSON.stringify(ids));
+        }else{
+            localStorage.removeItem(key);
+        }
+    }catch(error){
+        console.warn("Could not update saved question:",error);
+    }
+    svRender();
+}
+
+/* removed questions disappear once the subject is left */
+function svClean(){
+    if(!svLoaded){
+        return;
+    }
+    allQuestionData = allQuestionData.filter(svIsSaved);
+    if(allQuestionData.length){
+        renderQuestions();
+    }
+}
+
+sv("svTabs").addEventListener("click",event => {
+    const tab = event.target.closest("[data-slug]");
+    if(!tab){
+        return;
+    }
+    svClean();
+    history.replaceState(history.state,"","#" + tab.dataset.slug);
+    svRender();
+    window.scrollTo(0,0);
+});
+
+sv("svNumbers").addEventListener("click",event => {
+    const button = event.target.closest("[data-pos]");
+    if(button){
+        svPosition[svSlug()] = Number(button.dataset.pos);
+        svRender();
+        window.scrollTo(0,0);
+    }
+});
+
+sv("svPrev").onclick = () => svMove(-1);
+sv("svNext").onclick = () => svMove(1);
+sv("svSave").onclick = svToggle;
+sv("svMark").onclick = svToggle;
+
+sv("svLang").onclick = () => {
+    svLang = svLang === "hi" ? "default" : "hi";
+    svRender();
+};
+
+sv("svTab").onclick = () => document.body.classList.toggle("sv-closed");
+
+/* one step back (profile if there is no page to go back to) */
+sv("svBack").onclick = () => {
+    if(sscBack()){
+        location.href = "profile.html";
+    }
+};
+
+window.addEventListener("popstate",svRender);
+
 /* ==========================================
    START
 ========================================== */
 
+svRender();
 loadSavedQuestions();
 
 </script>
