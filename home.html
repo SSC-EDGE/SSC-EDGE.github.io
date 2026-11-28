@@ -1435,6 +1435,10 @@ body:has(#menuOverlay.show) .community-scroll{grid-template-columns:repeat(2,min
 body:has(#menuOverlay.show) .continue-grid{grid-template-columns:minmax(0,1fr);}
 }
 
+
+/* Typing is a desktop-only nav item */
+@media(max-width:959px){.bottom-nav a[href="typing.html"]{display:none;}}
+
 </style>
 
 </head>
@@ -2239,7 +2243,12 @@ Practice
 
 </a>
 
-<a href="profile.html">
+<a href="typing.html">
+    <span class="nav-icon">⌨️</span>
+    <small>Typing</small>
+  </a>
+
+  <a href="profile.html">
 
 <span class="nav-icon">
 👤
@@ -3650,7 +3659,7 @@ function updateThemeButtons(){
 const theme =
 localStorage.getItem(
 "ssc-edge-theme"
-) || "dark";
+) || "light";
 
 darkThemeBtn.classList.toggle(
 "active",

@@ -1709,6 +1709,64 @@ body{
   body.palette-collapsed .grid-btn::before{ content:"\2039"; }
 }
 
+
+/* ==================================================
+   COPY PROTECTION
+   ================================================== */
+body, body *{
+  -webkit-user-select:none !important;
+  -moz-user-select:none !important;
+  user-select:none !important;
+  -webkit-touch-callout:none !important;
+}
+img{ -webkit-user-drag:none; }
+@media print{ body{ display:none !important; } }
+
+/* ==================================================
+   SUBMITTING STATE
+   ================================================== */
+.result-completed.is-error{ color:#ef4444; font-size:12px; line-height:1.5; }
+.result-actions button:disabled{ opacity:.5; cursor:wait; }
+.result-actions .submit-retry{ display:none; }
+body.submit-failed .result-actions > *{ display:none; }
+body.submit-failed .result-actions > .submit-retry{ display:flex; }
+body.is-submitted .header-actions{ visibility:hidden; }
+
+/* ==================================================
+   DESKTOP: START + RESULT SCREENS
+   ================================================== */
+@media(min-width:901px){
+  body:has(#testArea.hidden) .test-container{ margin:0 auto; max-width:1040px; padding:36px 32px 56px; }
+  body:has(#testArea.hidden) .header-actions{ visibility:hidden; }
+
+  .start-screen{ padding:34px 38px; border-radius:20px; box-shadow:0 10px 34px rgba(60,30,110,.08); }
+  .start-title{ font-size:30px; }
+  .start-subtitle{ font-size:15px; margin:8px 0 24px; }
+  .section-table{ font-size:15px; }
+  .section-table th,.section-table td{ padding:16px 20px; }
+  .start-language-box{ margin-top:22px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+  .start-language-title{ margin:0; font-size:16px; }
+  .language-dropdown-wrap{ width:300px; }
+  .language-toggle{ min-height:44px; font-size:14px; }
+  .language-choice{ min-height:42px; font-size:14px; }
+  .start-action{ display:block; width:320px; min-height:50px; margin:26px auto 0; font-size:15px; }
+  .resume-note{ font-size:13px; }
+
+  .result-card{ max-width:960px; margin:0 auto; padding:38px 44px 36px; border-radius:22px; box-shadow:0 10px 34px rgba(60,30,110,.08); }
+  .result-brand{ font-size:34px; }
+  .result-test-name{ font-size:20px; }
+  .result-test-number{ font-size:13px; }
+  .result-thankyou{ font-size:28px; margin:26px 0; }
+  .result-overview-title{ font-size:17px; margin-bottom:12px; }
+  .result-overview-table th,.result-overview-table td{ padding:15px 20px; font-size:14px; }
+  .result-completed{ font-size:13px; margin-top:16px; }
+  .result-completed.is-error{ font-size:14px; }
+  .guest-save-box{ font-size:14px; }
+  .result-actions{ flex-direction:row; justify-content:center; flex-wrap:wrap; gap:14px; margin-top:26px; }
+  .result-actions > *{ flex:1 1 220px; max-width:290px; }
+  .result-action,.result-back{ min-height:50px; font-size:14px; }
+}
+
 </style>
 
 <script src="live-guard.js"></script>
@@ -4032,6 +4090,10 @@ function synchronizedTimerTick(){
     return;
   }
 
+  if(totalRemainingSeconds <= 30){
+    prefetchAttemptCount();
+  }
+
   saveLocalProgressThrottled();
 
 }
@@ -4143,6 +4205,8 @@ function backToMocks(){
    ================================================== */
 
 function switchSection(index){
+
+  if(testFinished) return;
 
   if(index < 0 || index >= sections.length) return;
 
@@ -4399,6 +4463,8 @@ function selectAnswer(
   optionId
 ){
 
+  if(testFinished) return;
+
   const key = String(questionId);
   const currentValue = answers[key];
 
@@ -4465,6 +4531,8 @@ function selectAnswer(
 
 function goPrevious(){
 
+  if(testFinished) return;
+
   if(currentQuestionIndex > 0){
     currentQuestionIndex--;
     resetQuestionClock();
@@ -4488,6 +4556,8 @@ function goPrevious(){
 }
 
 function goSaveNext(){
+
+  if(testFinished) return;
 
   const sectionQuestions = getCurrentSectionQuestions();
 
@@ -4544,6 +4614,8 @@ function resetQuestionClock(){
 
 function toggleReview(){
 
+  if(testFinished) return;
+
   const question =
     getCurrentQuestion();
 
@@ -4596,6 +4668,8 @@ function updateReviewButton(){
    ================================================== */
 
 function toggleSavedQuestion(){
+
+  if(testFinished) return;
 
   const question =
     getCurrentQuestion();
@@ -4806,6 +4880,8 @@ function toggleGridDesktop(){
 
 function openLanguagePopup(){
 
+  if(testFinished) return;
+
   const current =
     normalizeLanguage(
       currentQuestionLanguage
@@ -4837,6 +4913,8 @@ function closeLanguagePopup(){
 
 function changeQuestionLanguage(language){
 
+  if(testFinished) return;
+
   const question = getCurrentQuestion();
   currentQuestionLanguage = normalizeLanguage(language);
 
@@ -4865,8 +4943,14 @@ function changeQuestionLanguage(language){
 
 function submitCurrentSection(){
 
+  if(testFinished) return;
+
   const section = getCurrentSection();
   if(!section) return;
+
+  if(currentSectionIndex >= sections.length - 1){
+    prefetchAttemptCount();
+  }
 
   const confirmed = window.confirm(
     "Are you sure you want to submit this section?"
@@ -4898,11 +4982,7 @@ function finishTestAutomatically(){
 
   if(testFinished) return;
 
-  window.alert(
-    "Time is over. Your test will be submitted automatically."
-  );
-
-  finishTest();
+  finishTest(true);
 
 }
 
@@ -5102,41 +5182,140 @@ document.addEventListener(
    FINISH TEST
    ================================================== */
 
-async function finishTest(){
+/*
+  The attempt count is requested shortly before submission,
+  so submitting needs one request less.
+*/
+let attemptCountPrefetch = null;
+
+function prefetchAttemptCount(){
+
+  if(
+    attemptCountPrefetch &&
+    Date.now() - attemptCountPrefetch.at < 60000
+  ) return;
+
+  attemptCountPrefetch = {
+    at:Date.now(),
+    promise:getCompletedAttemptCount().catch(() => null)
+  };
+
+}
+
+async function takeAttemptCount(){
+
+  const cached = attemptCountPrefetch;
+  attemptCountPrefetch = null;
+
+  if(cached && Date.now() - cached.at < 90000){
+    const value = await cached.promise;
+    if(value !== null) return value;
+  }
+
+  return getCompletedAttemptCount();
+
+}
+
+function warnBeforeLeave(event){
+  event.preventDefault();
+  event.returnValue = "";
+}
+
+function setResultState(message, isError){
+
+  const el = document.querySelector("#result .result-completed");
+  if(!el) return;
+
+  el.textContent = message;
+  el.classList.toggle("is-error", !!isError);
+
+}
+
+function setResultButtons(enabled){
+
+  document
+    .querySelectorAll("#result .result-actions button")
+    .forEach(button => { button.disabled = !enabled; });
+
+}
+
+let pendingResult = null;
+
+async function finishTest(timeOver){
 
   if(testFinished) return;
-
-  testFinished = true;
-  testStarted = false;
-  isPaused = false;
-
-  stopAllTimers();
 
   if(autoSaveTimeout){
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = null;
   }
 
+  stopAllTimers();
+
   /*
-    Keep progress until the MAIN attempt is successfully
-    inserted into test_attempts.
+    Saved while the test is still marked as running, so it can be
+    resumed if the page closes before the attempt reaches the server.
   */
   saveLocalProgress();
+
+  testFinished = true;
+  testStarted = false;
+  isPaused = false;
+
+  /* Lock the test and show the result screen immediately. */
+  document.body.classList.add("is-submitted");
+  closeLanguagePopup();
+  $("pauseOverlay")?.classList.remove("show");
+  $("gridOverlay")?.classList.remove("show");
 
   try{
 
     const resultData =
       await calculateTestResult();
 
-    await saveTestAttempt(resultData);
-
-    /*
-      Only clear local progress after the main
-      test_attempt has been saved successfully.
-    */
-    clearLocalProgress();
+    pendingResult = { resultData, timeOver:timeOver === true };
 
     renderResultScreen(resultData);
+    window.scrollTo(0, 0);
+
+  }catch(error){
+
+    console.error("Finish test error:", error);
+    reopenTest();
+    window.alert("Test couldn't be submitted. Please try again.");
+    return;
+
+  }
+
+  await submitPendingResult();
+
+}
+
+async function submitPendingResult(){
+
+  if(!pendingResult) return;
+
+  const { resultData, timeOver } = pendingResult;
+
+  document.body.classList.remove("submit-failed");
+  document.querySelectorAll("#result .submit-retry").forEach(b => b.remove());
+  setResultButtons(false);
+  setResultState(
+    (timeOver ? "Time is over. " : "") +
+    "Submitting your test, please wait...",
+    false
+  );
+  window.addEventListener("beforeunload", warnBeforeLeave);
+
+  try{
+
+    await saveTestAttempt(resultData);
+
+    clearLocalProgress();
+    pendingResult = null;
+
+    setResultState("Test completed successfully.", false);
+    setResultButtons(true);
 
   }catch(error){
 
@@ -5145,31 +5324,69 @@ async function finishTest(){
       error
     );
 
-    /*
-      Restore the test state so the user can retry.
-      Progress remains saved.
-    */
-    testFinished = false;
-    testStarted = true;
-    isPaused = false;
+    setResultState(
+      "Test couldn't be submitted. " +
+      String(error?.message || "Please try again later").replace(/\.$/, "") + "." +
+      " Your answers are saved on this device.",
+      true
+    );
+    showRetryButtons(timeOver);
 
-    lastTickTimestamp = Date.now();
+  }finally{
 
-    saveLocalProgress();
-
-    try{
-
-      window.alert(
-        "Test couldn't be submitted. " +
-        (error?.message || "Please try again later.") +
-        "\n\nYour progress has been saved."
-      );
-
-    }catch(e){}
-
-    initializeTimers();
+    window.removeEventListener("beforeunload", warnBeforeLeave);
 
   }
+
+}
+
+function showRetryButtons(timeOver){
+
+  const box = document.querySelector("#result .result-actions");
+  if(!box) return;
+
+  const add = (label, primary, handler) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className =
+      "result-action submit-retry" + (primary ? " primary" : "");
+    button.textContent = label;
+    button.addEventListener("click", handler);
+    box.appendChild(button);
+  };
+
+  add("Retry Submit", true, submitPendingResult);
+
+  if(!timeOver){
+    add("Back to Test", false, reopenTest);
+  }
+
+  add("Back to Practice", false, () => {
+    window.location.href = "practice.html";
+  });
+
+  document.body.classList.add("submit-failed");
+
+}
+
+/* Submission failed with time still left: return to the questions. */
+function reopenTest(){
+
+  pendingResult = null;
+  testFinished = false;
+  testStarted = true;
+  isPaused = false;
+
+  document.body.classList.remove("is-submitted", "submit-failed");
+
+  hide("result");
+  show("testArea");
+  show("sectionBar");
+
+  updateSectionBar();
+  initializeTimers();
+  renderCurrentQuestion();
+  saveLocalProgress();
 
 }
 
@@ -5561,7 +5778,7 @@ async function saveTestAttempt(resultData){
   */
 
   const completedAttempts =
-    await getCompletedAttemptCount();
+    await takeAttemptCount();
 
   if(completedAttempts >= 4){
     throw new Error(
@@ -5667,6 +5884,9 @@ async function saveTestAttempt(resultData){
     );
 
   }
+
+  /* The attempt is on the server now: never resubmit it from saved progress. */
+  clearLocalProgress();
 
   let attemptId = null;
 
@@ -6102,6 +6322,25 @@ window.openSolutionsPage =
 window.openAnalysisPage =
   openAnalysisPage;
 
+</script>
+
+<script>
+/* ==================================================
+   COPY PROTECTION
+   ================================================== */
+(function(){
+  const block = e => e.preventDefault();
+  ["copy","cut","contextmenu","selectstart","dragstart"]
+    .forEach(type => document.addEventListener(type, block, true));
+  document.addEventListener("keydown", e => {
+    if(
+      (e.ctrlKey || e.metaKey) &&
+      ["a","c","x","s","p","u"].includes(String(e.key).toLowerCase())
+    ){
+      e.preventDefault();
+    }
+  }, true);
+})();
 </script>
 
 <script>

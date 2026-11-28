@@ -710,17 +710,21 @@ body{display:flex; flex-direction:column; min-height:100vh;}
 .home-footer h2{margin:0; font-size:19px; font-weight:800; color:var(--p-text);}
 .home-footer h2 span{color:#9b5cff;}
 .home-footer p{margin:6px 0 0; font-size:11px; color:var(--p-muted);}
-/* inside SSC / RRB / exam screens: brand header only */
-body:has(#mainScreen.hidden) .bottom-nav{display:none;}
-body:has(#mainScreen.hidden) .simple-header{margin-bottom:0;}
+/* nav on main and exam list screens; brand header only deeper inside */
+body:has(#mainScreen.hidden):not(:has(#sscScreen:not(.hidden), #rrbScreen:not(.hidden))) .bottom-nav{display:none;}
+body:has(#mainScreen.hidden):not(:has(#sscScreen:not(.hidden), #rrbScreen:not(.hidden))) .simple-header{margin-bottom:0;}
 }
 
 @media(min-width:960px){
 .bottom-nav{background:linear-gradient(100deg,var(--p-header),var(--p-header2));}
-body:has(#mainScreen:not(.hidden)) .simple-header{border-bottom-color:transparent;}
+body:has(#mainScreen:not(.hidden), #sscScreen:not(.hidden), #rrbScreen:not(.hidden)) .simple-header{border-bottom-color:transparent;}
 .home-footer{background:var(--p-bg);}
 body:has(#testScreen:not(.hidden)) .home-footer{display:none;}
 }
+
+
+/* Typing is a desktop-only nav item */
+@media(max-width:959px){.bottom-nav a[href="typing.html"]{display:none;}}
 
 </style>
 
@@ -1028,6 +1032,11 @@ body:has(#testScreen:not(.hidden)) .home-footer{display:none;}
   >
     <span class="nav-icon">📝</span>
     <small>Practice</small>
+  </a>
+
+  <a href="typing.html">
+    <span class="nav-icon">⌨️</span>
+    <small>Typing</small>
   </a>
 
   <a href="profile.html">

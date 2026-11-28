@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#160b26">
 <title>SSC EDGE - Solutions</title>
 <link rel="stylesheet" href="css/style.css">
-<script>document.documentElement.dataset.theme=localStorage.getItem("ssc-edge-theme")||"dark";</script>
+<script>document.documentElement.dataset.theme=localStorage.getItem("ssc-edge-theme")||"light";</script>
 
 <style>
 *{box-sizing:border-box}
@@ -345,6 +345,63 @@ margin-top:20px;font-size:13px
 .language-btn{padding:7px 5px}
 .saved-top-btn{padding:5px 6px}
 }
+
+/* ==================================================
+   DESKTOP UI (>=901px), same layout as the test page
+   ================================================== */
+.header-center,.palette-tab{display:none}
+@media(min-width:901px){
+  :root{ --header-h:110px; --palette-w:320px; }
+  body{ padding:0 0 30px; }
+  .test-header-top{ display:grid; grid-template-columns:1fr auto 1fr; gap:16px; }
+  .brand{ font-size:24px; }
+  .header-actions{ justify-self:end; gap:10px; }
+  .attempt-select{ max-width:170px; height:40px; padding:0 14px; font-size:13px; }
+  .header-actions .pause-btn{ height:40px; display:inline-flex; align-items:center; padding:0 18px; font-size:13px; }
+  .header-center{ display:block; text-align:center; min-width:0; max-width:46vw; }
+  .header-center-title{ color:var(--text); font-size:17px; font-weight:900; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .header-center-user{ margin-top:3px; color:var(--purple2); font-size:12px; font-weight:800; }
+  .test-info{ display:none; }
+  .section-btn{ font-size:12px; padding:9px 16px; }
+
+  .test-container{ max-width:none; margin:0 var(--palette-w) 0 0; padding:18px 28px 30px; transition:margin-right .2s ease; }
+  body.palette-collapsed .test-container{ margin-right:0; }
+  #solutionArea{ padding-top:56px; }
+  .question-top,.question-card{ max-width:1000px; }
+  .question-count{ font-size:14px; }
+  .question-card{ background:transparent; border:0; border-radius:0; padding:4px 2px 0; }
+  .question-text{ font-size:17px; line-height:1.4; font-weight:800; }
+  .solution-page .solution-meta{ margin:14px 0 0; max-width:620px; }
+  .solution-page .solution-meta-label{ font-size:11px; }
+  .solution-page .solution-meta-value{ font-size:15px; }
+  .options{ margin-top:14px; gap:8px; }
+  .option{ min-height:52px; align-items:center; border-radius:14px; }
+  .solution-page .option:not(.correct-option):not(.wrong-option){ border-color:rgba(196,167,255,.45); background:rgba(196,167,255,.08); }
+  .option-text,.option-label{ font-size:15px; }
+  .solution-page .your-attempt{ font-size:12px; }
+  .solution-page .solution-answer{ font-size:14px; padding:13px 15px; }
+  .solution-page .solution-explanation{ font-size:14px; padding:15px 17px; }
+
+  .navigation{ top:var(--header-h); bottom:auto; left:0; right:var(--palette-w); max-width:none; height:48px; margin:0; padding:0; background:var(--bg); border:0; box-shadow:none; transition:right .2s ease; }
+  body.palette-collapsed .navigation{ right:0; }
+  .navigation-row{ display:flex; align-items:center; justify-content:center; height:100%; margin:0; gap:12px; }
+  .navigation-row .nav-btn{ min-width:112px; min-height:0; height:34px; padding:0 18px; border:0; border-radius:6px; background:var(--purple); color:#fff; font-size:12px; font-weight:800; white-space:nowrap; }
+  .navigation-row .save-question-btn.saved{ background:#6d3fd1; }
+  .navigation-row .nav-btn:disabled{ opacity:.5; cursor:default; }
+
+  .header-grid-btn{ display:none; }
+  .submit-section{ padding:10px 14px; }
+  .header-solution-actions{ display:flex; }
+  .grid-overlay{ inset:var(--header-h) 0 0 auto; width:var(--palette-w); z-index:60; background:transparent; align-items:stretch; justify-content:flex-end; transition:transform .2s ease; }
+  body:has(#solutionArea:not(.hidden)) .grid-overlay{ display:flex; }
+  body.palette-collapsed .grid-overlay{ transform:translateX(100%); }
+  .grid-popup{ width:100%; max-width:none; max-height:none; height:100%; border:0; border-left:1px solid var(--border); border-radius:0; padding:14px; background:var(--card); }
+  .grid-close{ display:none; }
+  body:has(#solutionArea:not(.hidden)) .palette-tab{ display:flex; align-items:center; justify-content:center; position:fixed; top:calc(var(--header-h) + 14px); right:var(--palette-w); width:26px; height:54px; z-index:70; border:0; border-radius:10px 0 0 10px; background:var(--purple); color:#fff; font-size:26px; line-height:1; cursor:pointer; transition:right .2s ease; }
+  .palette-tab::before{ content:"\203A"; }
+  body.palette-collapsed .palette-tab{ right:0; }
+  body.palette-collapsed .palette-tab::before{ content:"\2039"; }
+}
 </style>
 <script src="live-guard.js" data-guard></script>
 </head>
@@ -358,6 +415,11 @@ margin-top:20px;font-size:13px
 <div class="brand">
 <span class="brand-ssc">SSC</span>
 <span class="brand-edge">EDGE</span>
+</div>
+
+<div class="header-center">
+<div id="headerCenterTitle" class="header-center-title">Solutions</div>
+<div class="header-center-user">Solutions</div>
 </div>
 
 <div class="header-actions">
@@ -453,6 +515,8 @@ Question Palette
 </div>
 
 </div>
+
+<button id="paletteTab" class="palette-tab" type="button" aria-label="Show or hide question palette"></button>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -1356,6 +1420,9 @@ await loadAnswerData();
 $("testName").textContent=
 test.title||"SSC EDGE Test";
 
+$("headerCenterTitle").textContent=
+test.title||"SSC EDGE Test";
+
 $("testNumber").textContent=
 "Test "+
 (test.test_number||test.test_no||"01");
@@ -1417,6 +1484,17 @@ showError(
 }
 
 }
+
+/* desktop: palette show / hide and header height */
+$("paletteTab").onclick=()=>
+document.body.classList.toggle("palette-collapsed");
+
+(function(){
+const header=document.querySelector(".test-header");
+const sync=()=>document.documentElement.style.setProperty("--header-h",header.offsetHeight+"px");
+if(window.ResizeObserver)new ResizeObserver(sync).observe(header);
+sync();
+})();
 
 $("languageBtn").onclick=toggleLanguage;
 

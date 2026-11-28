@@ -12,7 +12,7 @@
 
 <script>
 document.documentElement.dataset.theme =
-  localStorage.getItem("ssc-edge-theme") || "dark";
+  localStorage.getItem("ssc-edge-theme") || "light";
 </script>
 
 <style>
@@ -770,6 +770,10 @@ body .footer-brand{width:100%; padding:32px 20px; border-top:1px solid var(--bor
 .popup-button,.about-close{font-size:14px;}
 }
 
+
+/* Typing is a desktop-only nav item */
+@media(max-width:959px){.bottom-nav a[href="typing.html"]{display:none;}}
+
 </style>
 </head>
 
@@ -1091,6 +1095,11 @@ body .footer-brand{width:100%; padding:32px 20px; border-top:1px solid var(--bor
   <a href="practice.html">
     <span class="nav-icon">📝</span>
     <span>Practice</span>
+  </a>
+
+  <a href="typing.html">
+    <span class="nav-icon">⌨️</span>
+    <span>Typing</span>
   </a>
 
   <a href="profile.html" class="active">
@@ -2049,7 +2058,7 @@ function updateThemeText(){
   const theme =
     localStorage.getItem(
       "ssc-edge-theme"
-    ) || "dark";
+    ) || "light";
 
   $("darkChip")
     .classList
